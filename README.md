@@ -35,7 +35,7 @@ For an example, see example/net1_transcription_factors.tsv
 
 *inferred network:* The file prediction_k*.txt will contain the inferred network, one edge per line. The first column would be the regulator's name, the second column would be the target gene's name, and the third column would be the regression coefficient.
 
-module assignment: The file modules.txt would contain the final module assignments, one row per gene. The first column contains the gene's name, and the second column would contain the cluster assignment of that gene.
+*module assignment:* The file modules.txt would contain the final module assignments, one row per gene. The first column contains the gene's name, and the second column would contain the cluster assignment of that gene.
 
 ** *Note:* ** If the output directory doesn't exist, the program will run without producing any errors, but will not save the outputs.
 
