@@ -61,6 +61,8 @@ How to compile?
 
 To compile the code, changed to MERLIN directory and run: make
 
+To compile the program, you may need to install GSL. If libgsl is already installed, you can remove the "-L$(LIBPATH)" from the Makefile. To run the program, you may need to add the location of installed shared library files to LD_LIBRARY_PATH.
+
 Inferred networks and other resources
 -------------------------------------
 The expression datasets used in this study, prior networks and the inferred networks were moved to this repository:
