@@ -85,9 +85,12 @@ FactorManager::setBaseInstantiation()
 		EMAP* evidMap=evMgr->getEvidenceAt(e);
 		string aConfStr;
 		
-		for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
+		//for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
+		for(int eId=0;eId<evidMap->size();eId++)
 		{
-			sprintf(confStr,"-%d=%d-",eIter->first,eIter->second->getHardEvidVal());
+			Evidence* evid = evidMap->at(eId);
+			//sprintf(confStr,"-%d=%d-",eIter->first,eIter->second->getHardEvidVal());
+			sprintf(confStr,"-%d=%d-",eId,evid->getHardEvidVal());
 			aConfStr.append(confStr);
 		}
 		if(evidDist.find(aConfStr)==evidDist.end())
@@ -121,12 +124,17 @@ FactorManager::setBaseInstantiation()
 	EMAP* evidMap=evMgr->getEvidenceAt(maxevid);
 //	EMAP* evidMap=evMgr->getEvidenceAt(minevid);
 	string defConfStr;
-	for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
+	//for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
+	for(int eId=0;eId<evidMap->size();eId++)
 	{
-		defaultInstantiation[eIter->first]=eIter->second->getHardEvidVal();
-		sprintf(confStr,"-%d=%d-",eIter->first,eIter->second->getHardEvidVal());
+		Evidence* evid = evidMap->at(eId);
+		//defaultInstantiation[eIter->first]=eIter->second->getHardEvidVal();
+		defaultInstantiation[eId]=evid->getHardEvidVal();
+		//sprintf(confStr,"-%d=%d-",eIter->first,eIter->second->getHardEvidVal());
+		sprintf(confStr,"-%d=%d-",eId,evid->getHardEvidVal());
 		defConfStr.append(confStr);
-		defInstMap[eIter->first]=eIter->second->getHardEvidVal();
+		//defInstMap[eIter->first]=eIter->second->getHardEvidVal();
+		defInstMap[eId]=evid->getHardEvidVal();
 	}
 	defProb=(double)evidDist[defConfStr]/(double)evidCnt;
 	defInstID=maxevid;
@@ -153,8 +161,10 @@ FactorManager::setBaseInstantiation_Variable()
 		for(int e=0;e<evidCnt;e++)
 		{
 			EMAP* evidMap=evMgr->getEvidenceAt(e);
-			EMAP_ITER eIter=evidMap->find(vIter->first);
-			int vval=eIter->second->getHardEvidVal();
+			//EMAP_ITER eIter=evidMap->find(vIter->first);
+			Evidence* evid=evidMap->at(vIter->first);
+			//int vval=eIter->second->getHardEvidVal();
+			int vval=evid->getHardEvidVal();
 			if(vvFreq.find(vval)==vvFreq.end())
 			{
 				vvFreq[vval]=1;
@@ -2267,9 +2277,12 @@ FactorManager::getLikelihood()
 		EMAP* evidMap=evMgr->getEvidenceAt(i);
 		string aConfStr;
 		char confStr[CONSTR_LEN];
-		for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
+		//for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
+		for(int eId=0;eId<evidMap->size();eId++)
 		{
-			sprintf(confStr,"-%d=%d-",eIter->first,eIter->second->getHardEvidVal());
+			Evidence* evid = evidMap->at(eId);
+			//sprintf(confStr,"-%d=%d-",eIter->first,eIter->second->getHardEvidVal());
+			sprintf(confStr,"-%d=%d-",eId,evid->getHardEvidVal());
 			aConfStr.append(confStr);
 		}
 		double dataPtll=0;
@@ -2443,11 +2456,16 @@ FactorManager::getLikelihood(FactorGraph* fg)
 		int match=0;
 		int mismatch=0;
 
-		for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
+		//for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
+		for(int eId=0;eId<evidMap->size();eId++)
 		{
-			sprintf(confStr,"-%d=%d-",eIter->first,eIter->second->getHardEvidVal());
+			Evidence* evid = evidMap->at(eId);
+			//sprintf(confStr,"-%d=%d-",eIter->first,eIter->second->getHardEvidVal());
+			sprintf(confStr,"-%d=%d-",eId,evid->getHardEvidVal());
 			aConfStr.append(confStr);
-			if(eIter->second->getHardEvidVal()==defInstMap[eIter->first])
+			//if(eIter->second->getHardEvidVal()==defInstMap[eIter->first])
+			//if(evid->getHardEvidVal()==defInstMap[eIter->first])
+			if(evid->getHardEvidVal()==defInstMap[eId])
 			{
 				match++;
 			}
@@ -2548,9 +2566,12 @@ FactorManager::getLikelihood_MCMC(FactorGraph* fg)
 	{
 		EMAP* evidMap=evMgr->getEvidenceAt(i);
 		INTINTMAP sample;
-		for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
+		//for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
+		for(int eId=0;eId<evidMap->size();eId++)
 		{
-			sample[eIter->first]=eIter->second->getHardEvidVal();
+			Evidence* evid = evidMap->at(eId);
+			//sample[eIter->first]=eIter->second->getHardEvidVal();
+			sample[eId]=evid->getHardEvidVal();
 		}
 		double dataptLL=potMgr->getSampleLikelihood(fg->getAllFactors(),varSet,&sample);
 		z=z+exp(dataptLL);
@@ -2559,9 +2580,12 @@ FactorManager::getLikelihood_MCMC(FactorGraph* fg)
 	{
 		EMAP* evidMap=evMgr->getEvidenceAt(i);
 		INTINTMAP sample;
-		for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
+		//for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
+		for(int eId=0;eId<evidMap->size();eId++)
 		{
-			sample[eIter->first]=eIter->second->getHardEvidVal();
+			Evidence* evid = evidMap->at(eId);
+			//sample[eIter->first]=eIter->second->getHardEvidVal();
+			sample[eId]=evid->getHardEvidVal();
 		}
 		double dataptLL=potMgr->getSampleLikelihood(fg->getAllFactors(),varSet,&sample);
 		dataptLL=dataptLL-log(z);

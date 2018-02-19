@@ -14,10 +14,15 @@ EvidenceManager::EvidenceManager()
 	foldCnt=1;
 	preRandomizeSplit=false;
 	randseed=0;
+	dataMat = NULL;
 }
 
 EvidenceManager::~EvidenceManager()
 {
+	if (dataMat!=NULL)
+	{
+		delete dataMat;
+	}
 }
 
 int
@@ -121,7 +126,8 @@ EvidenceManager::loadEvidenceFromFile_Continuous(const char* inFName)
 				exit(-1);	
 			}
 			evid->setEvidVal(varVal);
-			(*evidMap)[vId]=evid;
+			//(*evidMap)[vId]=evid;
+			evidMap->push_back(evid);
 			tok=strtok(NULL,"\t");
 			vId++;
 		}
@@ -130,6 +136,7 @@ EvidenceManager::loadEvidenceFromFile_Continuous(const char* inFName)
 	}
 
 	inFile.close();
+	updateDataMat();
 
 	cout <<"Read " << evidenceSet.size() << " different datapoints " << endl;
 
@@ -262,10 +269,13 @@ EvidenceManager::dumpEvidenceSet(ostream& oFile)
 	for(int i=0;i<evidenceSet.size();i++)
 	{
 		EMAP* evidMap=evidenceSet[i];
-		for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
+		//for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
+		for(int j=0;j<evidMap->size();j++)
 		{
-			Evidence* evid=eIter->second;
-			if(eIter!=evidMap->begin())
+			//Evidence* evid=eIter->second;
+			Evidence* evid=evidMap->at(j);
+			//if(eIter!=evidMap->begin())
+			if(j>0)
 			{
 				oFile<<"\t";
 			}
@@ -284,24 +294,30 @@ EvidenceManager::getMLSettings(ostream& oFile)
 		EMAP* evidMap=evidenceSet[i];
 		if(i==0)
 		{
-			for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
+			//for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
+			for(int j=0;j<evidMap->size();j++)
 			{
-				if(eIter!=evidMap->begin())
+				//if(eIter!=evidMap->begin())
+				if(j>0)
 				{
 					oFile<<"\t";
 				}
-				oFile<< eIter->first;
+				//oFile<< eIter->first;
+				oFile<< j;
 			}
 			oFile << endl;
 		}
 
-		for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
+		//for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
+		for(int j=0;j<evidMap->size();j++)
 		{
-			if(eIter!=evidMap->begin())
+			//if(eIter!=evidMap->begin())
+			if(j>0)
 			{
 				oFile<<"\t";
 			}
-			Evidence* evid=eIter->second;
+			//Evidence* evid=eIter->second;
+			Evidence* evid=evidMap->at(j);
 			oFile << evid->getMLVal();
 		}
 		oFile << endl;
@@ -509,6 +525,7 @@ EvidenceManager::partitionData(int numberOfComponents,map<int,EvidenceManager*>&
 			(*origIDs)[dId]=rId;
 			dId++;
 		}
+		localManager->updateDataMat();
 		ind++;
 	}
 	delete[] randInds;
@@ -600,20 +617,22 @@ EvidenceManager::dumpSummaryStat(ostream& oFile)
 	for(int i=0;i<evidenceSet.size();i++)
 	{
 		EMAP* evidMap=evidenceSet[i];
-		for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
+		//for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
+		for(int eId=0;eId<evidMap->size();eId++)
 		{
+			Evidence* evid = evidMap->at(eId);
 			INTDBLMAP* evCnt=NULL;
-			if(summary.find(eIter->first)==summary.end())
+			if(summary.find(eId)==summary.end())
 			{
 				evCnt=new INTDBLMAP;
-				summary[eIter->first]=evCnt;
+				summary[eId]=evCnt;
 			}
 			else
 			{
-				evCnt=summary[eIter->first];
+				evCnt=summary[eId];
 			}
 			//Get data and add to evCnt
-			INTDBLMAP& data=eIter->second->getData();
+			INTDBLMAP& data=evid->getData();
 			for(INTDBLMAP_ITER idIter=data.begin();idIter!=data.end();idIter++)
 			{
 				if(evCnt->find(idIter->first)==evCnt->end())
@@ -625,13 +644,13 @@ EvidenceManager::dumpSummaryStat(ostream& oFile)
 					(*evCnt)[idIter->first]=(*evCnt)[idIter->first]+idIter->second;
 				}
 				//Add the normalization factor for all the freq or exp. freq cnts
-				if(normFactors.find(eIter->first)==normFactors.end())
+				if(normFactors.find(eId)==normFactors.end())
 				{
-					normFactors[eIter->first]=idIter->second;
+					normFactors[eId]=idIter->second;
 				}
 				else
 				{
-					normFactors[eIter->first]=normFactors[eIter->first]+idIter->second;
+					normFactors[eId]=normFactors[eId]+idIter->second;
 				}
 			}
 		}
@@ -743,3 +762,38 @@ EvidenceManager::populateRandIntegers(gsl_rng* r, vector<int>& randInds,int size
 	return 0;
 }
 
+int
+EvidenceManager::estimateCovariance(int uId, int vId, double& ucov, double& vcov, double& uvcov)
+{
+	gsl_vector_view Du = dataMat->getRowView(uId);
+	gsl_vector_view Dv = dataMat->getRowView(vId);
+	ucov  = gsl_stats_covariance (Du.vector.data, Du.vector.stride, Du.vector.data, Du.vector.stride, Du.vector.size); 
+	vcov  = gsl_stats_covariance (Dv.vector.data, Dv.vector.stride, Dv.vector.data, Dv.vector.stride, Dv.vector.size); 
+	uvcov = gsl_stats_covariance (Du.vector.data, Du.vector.stride, Dv.vector.data, Dv.vector.stride, Du.vector.size); 
+	return 0;
+}
+
+int
+EvidenceManager::updateDataMat()
+{
+	if (dataMat != NULL)
+	{
+		delete dataMat;
+	}
+	int nSampels = evidenceSet.size();
+	int nGenes   = evidenceSet[0]->size();
+	dataMat = new Matrix(nGenes,nSampels);
+	for (int j=0;j<nSampels;j++)
+	{
+		EMAP* evidMap = evidenceSet[j];
+		//for (map<int,Evidence*>::iterator itr=evidMap->begin(); itr!=evidMap->end(); itr++)
+		for (int i=0;i<evidMap->size();i++)
+		{
+			//int i=itr->first;
+			//Evidence* evid = itr->second;
+			Evidence* evid = evidMap->at(i);
+			dataMat->setValue(evid->getEvidVal(),i,j);
+		}
+	}
+	return 0;
+}

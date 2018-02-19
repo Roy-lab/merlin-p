@@ -6,18 +6,14 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "Matrix.H"
+
 #include "gsl/gsl_randist.h"
 using namespace std;
 
 class Error;
 class Evidence;
 
-//EMAP stores the map of variable ids and their evidence. This corresponds
-//to one line in the datafile
-typedef map<int,Evidence*> EMAP;
-typedef map<int,Evidence*>::iterator EMAP_ITER;
-
-typedef vector<EMAP*> EVIDENCE_SET;
 
 class VariableManager;
 class EvidenceManager
@@ -56,7 +52,9 @@ class EvidenceManager
 		int populateRandIntegers(gsl_rng*, vector<int>&,int,int);
 		int standardizeData();
 		int partitionData(int,map<int,EvidenceManager*>&,int&,map<int,INTINTMAP*>&);
+		int estimateCovariance(int uId, int vId, double& ucov, double& vcov, double& uvcov);
 	private:
+		Matrix* dataMat;
 		int populateEvidence(Evidence**,const char*);
 		int populateRandIntegers(gsl_rng*, int*,int);
 		int populateRandIntegers(gsl_rng* r, int* randInds, INTINTMAP& populateFrom, int size);
@@ -69,5 +67,6 @@ class EvidenceManager
 		int foldCnt;
 		bool preRandomizeSplit;
 		int randseed;
+		int updateDataMat();
 };
 #endif
