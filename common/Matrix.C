@@ -1,12 +1,14 @@
-
 #include"Matrix.H"
 #include <math.h>
 #include <map>
+#include <exception>
+#include <stdexcept>
 
-
+using namespace std;
 
 Matrix::Matrix()
 {
+	gsl_set_error_handler((void (*)(const char*, const char*, int, int))&throwExp);
 	matrix=NULL;
 	row=0;
 	col=0;
@@ -16,8 +18,11 @@ Matrix::Matrix(int r,int c) :
 	row(r),
 	col(c)
 {
+	gsl_set_error_handler((void (*)(const char*, const char*, int, int))&throwExp);
 	matrix=gsl_matrix_alloc(row,col);
+	gsl_matrix_set_zero(matrix);
 }
+
 Matrix::~Matrix()
 {
 	if(matrix!=NULL)
@@ -32,7 +37,12 @@ Matrix::init(int r,int c)
 {
 	row=r;
 	col=c;
+	if(matrix!=NULL)
+	{
+		gsl_matrix_free(matrix);
+	}
 	matrix=gsl_matrix_alloc(r,c);
+	gsl_matrix_set_zero(matrix);
 	return 0;
 }
 
@@ -55,7 +65,7 @@ Matrix::addMatrix(Matrix* b)
 {
 	if(!dimequal(b))
 	{
-		cout << "Dimensions do not match" << endl;
+		cout << "addMatrix, Dimensions do not match" << endl;
 		return NULL;	
 	}
 	Matrix* res=new Matrix(row,col);
@@ -63,12 +73,13 @@ Matrix::addMatrix(Matrix* b)
 	gsl_matrix_add(res->matrix,b->matrix);
 	return res;	
 }
+
 Matrix* 
 Matrix::subtractMatrix(Matrix* b)
 {
 	if(!dimequal(b))
 	{
-		cout << "Dimensions do not match" << endl;
+		cout << "subtractMatrix, Dimensions do not match" << endl;
 		return NULL;	
 	}
 	Matrix* res=new Matrix(row,col);
@@ -116,7 +127,7 @@ Matrix::addWithMatrix(Matrix* b)
 {
 	if(!dimequal(b))
 	{
-		cout << "Dimensions do not match" << endl;
+		cout << "addWithMatrix, Dimensions do not match" << endl;
 		return -1;	
 	}
 	gsl_matrix_add(matrix,b->matrix);
@@ -128,11 +139,22 @@ Matrix::subtractWithMatrix(Matrix* b)
 {
 	if(!dimequal(b))
 	{
-		cout << "Dimensions do not match" << endl;
+		cout << "subtractWithMatrix, Dimensions do not match" << endl;
 		return -1;	
 	}
 	gsl_matrix_sub(matrix,b->matrix);
 	return 0;	
+}
+
+int
+Matrix::setMultiplyMatrix(Matrix* a, Matrix* b)
+{
+	if (row != a->row || col != b->col)
+	{
+		init(a->row,b->col);
+	}
+	gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1, a->matrix, b->matrix, 0, matrix);
+	return 0;
 }
 
 int 
@@ -261,8 +283,6 @@ Matrix::invMatrix(gsl_matrix* ludecomp, gsl_permutation* p)
 	gsl_linalg_LU_invert(ludecomp, p, minv->matrix);
 	return minv;
 }
-
-
 
 Matrix*
 Matrix::transMatrix()
@@ -542,6 +562,9 @@ Matrix*
 Matrix::copyMe()
 {
 	Matrix* aMatrix=new Matrix(row,col);
+	//memcpy dest src
+	gsl_matrix_memcpy(aMatrix->matrix,matrix);
+	/*
 	for(int i=0;i<row;i++)
 	{	
 		for(int j=0;j<col;j++)
@@ -550,8 +573,32 @@ Matrix::copyMe()
 			aMatrix->setValue(val,i,j);
 		}
 	}
-
+	*/
 	return aMatrix;
+}
+
+int
+Matrix::copyTo(Matrix* M)
+{
+	if (M->row != row || M->col != col)
+	{
+		M->init(row,col);
+	}
+	//memcpy dest src
+	gsl_matrix_memcpy(M->matrix,matrix);
+	return 0;
+}
+
+int
+Matrix::copyFrom(Matrix* M)
+{
+	if (M->row != row || M->col != col)
+	{
+		init(M->row,M->col);
+	}
+	//memcpy dest src
+	gsl_matrix_memcpy(matrix,M->matrix);
+	return 0;
 }
 
 //Finds the closest vector to this vector
@@ -674,4 +721,449 @@ Matrix::getDistance(Matrix* a)
 	}
 
 	return sqrt(dist);
+}
+
+int
+Matrix::readFromFile(char* inname, int r, int c)
+{
+	init(r,c);
+	FILE* f;
+	f = fopen(inname,"r");
+	gsl_matrix_fscanf(f,matrix);
+	fclose(f);
+	return 0;
+}
+
+int
+Matrix::writeToFile(char* outname)
+{
+	FILE* f;
+	f = fopen(outname,"w");
+	//gsl_matrix_fprintf(f,X,"%f");
+	for (int i=0;i<row;i++)
+	{
+		for (int j=0;j<col;j++)
+		{
+			double v = gsl_matrix_get(matrix, i, j);
+			fprintf(f,"%f\t",v);
+		}
+		fprintf(f,"\n");
+	}
+	fclose(f);
+	return 0;
+}
+
+double
+Matrix::sumRow(int i)
+{
+	double res = 0;
+	if (i<0 || i>=row)
+		return res;
+	for (int j=0;j<col;j++)
+		res = res+getValue(i,j);
+	return res;
+}
+
+double
+Matrix::sumCol(int j)
+{
+	double res = 0;
+	if (j<0 || j>=col)
+		return res;
+	for (int i=0;i<row;i++)
+		res = res+getValue(i,j);
+	return res;
+}
+
+int
+Matrix::removeRows(vector<int>& rows)
+{
+	gsl_vector* rr = gsl_vector_alloc(row);
+	gsl_vector_set_zero(rr);
+	for (int i=0;i<rows.size();i++)
+	{
+		gsl_vector_set(rr,rows[i],1);
+	}
+	removeRows(rr);
+	gsl_vector_free(rr);
+	return 0;
+}
+
+int
+Matrix::removeCols(vector<int>& cols)
+{
+	gsl_vector* rr = gsl_vector_alloc(col);
+	gsl_vector_set_zero(rr);
+	for (int i=0;i<cols.size();i++)
+	{
+		gsl_vector_set(rr,cols[i],1);
+	}
+	removeCols(rr);
+	gsl_vector_free(rr);
+	return 0;
+}
+
+int
+Matrix::removeRows(gsl_vector* rows)
+{
+	double rr = gsl_blas_dasum(rows);
+	int m = row-(int)rr;
+	gsl_matrix* temp = gsl_matrix_alloc(m,col);
+	int k=0;
+	for (int i=0;i<row;i++)
+	{
+		double v = gsl_vector_get(rows,i);
+		if (v==1)
+			continue;
+		gsl_vector_view v1 = gsl_matrix_row(matrix,i);
+		gsl_vector_view v2 = gsl_matrix_row(temp,k);
+		gsl_vector_memcpy(&v2.vector,&v1.vector);
+
+		k++;
+	}
+	row = m;
+	gsl_matrix_free(matrix);
+	matrix = temp;
+	return 0;
+}
+
+int
+Matrix::removeCols(gsl_vector* cols)
+{
+	double rc = gsl_blas_dasum(cols);
+	int n = col-(int)rc;
+	gsl_matrix* temp = gsl_matrix_alloc(row,n);
+	int k=0;
+	for (int i=0;i<col;i++)
+	{
+		double v = gsl_vector_get(cols,i);
+		if (v==1)
+			continue;
+		gsl_vector_view v1 = gsl_matrix_column(matrix,i);
+		gsl_vector_view v2 = gsl_matrix_column(temp,k);
+		gsl_vector_memcpy(&v2.vector,&v1.vector);
+
+		k++;
+	}
+	col = n;
+	gsl_matrix_free(matrix);
+	matrix = temp;
+	return 0;
+}
+
+gsl_vector_view
+Matrix::getRowView(int i)
+{
+	return gsl_matrix_row(matrix,i);
+}
+
+gsl_vector_view
+Matrix::getColView(int i)
+{
+	return gsl_matrix_column(matrix,i);
+}
+
+int
+Matrix::mldivide(gsl_vector* y, gsl_vector* c)
+{
+	gsl_matrix* cov;
+	gsl_multifit_linear_workspace * work;
+	double chisq;
+	work = gsl_multifit_linear_alloc (row,col);
+	cov = gsl_matrix_alloc (col,col);
+	gsl_multifit_linear (matrix, y, c, cov, &chisq, work);
+	gsl_matrix_free(cov);
+	gsl_multifit_linear_free (work);
+	return 0;
+}
+
+int
+Matrix::setCol(gsl_vector* y, int i)
+{
+	gsl_vector_view d = gsl_matrix_column(matrix,i);
+	gsl_vector_memcpy(&d.vector,y);
+	return 0;
+}
+
+int
+Matrix::setRow(gsl_vector* y, int i)
+{
+	gsl_vector_view d = gsl_matrix_row(matrix,i);
+	gsl_vector_memcpy(&d.vector,y);
+	return 0;
+}
+
+double
+Matrix::getRowMean(int r)
+{
+	if (r<0 || r>=row)
+	{
+		cerr << "ERROR: row ID out of range!" << endl;
+		return 0;
+	}
+	double m=0;
+	for (int j=0;j<col;j++)
+	{
+		m=m+getValue(r,j);
+	}
+	m=m/col;
+	return m;
+}
+
+int
+Matrix::getRowMeanSTD(int r, double& mean, double& std)
+{
+	if (r<0 || r>=row)
+	{
+		cerr << "ERROR: row ID out of range!" << endl;
+		return 0;
+	}
+	double m=getRowMean(r);
+	double s=0;
+	double v=0;
+	if (col > 1)
+	{
+		for (int j=0;j<col;j++)
+		{
+			v = getValue(r,j);
+			s += (v-m)*(v-m);
+		}
+		s = s/(col-1);
+		s = sqrt(s);
+	}
+	if (s==0)
+		s=1;
+	mean = m;
+	std  = s;
+	return 0;
+}
+
+int
+Matrix::rowStandardize()
+{
+	for (int i=0;i<row;i++)
+	{
+		double m=0;
+		double s=0;
+		double v=0;
+		getRowMeanSTD(i,m,s);
+		for (int j=0;j<col;j++)
+		{
+			v = getValue(i,j);
+			setValue((v-m)/s,i,j);
+		}
+	}
+	return 0;
+}
+
+double
+Matrix::getColMean(int c)
+{
+	if (c<0 || c>=col)
+	{
+		cerr << "ERROR: column ID out of range!" << endl;
+		return 0;
+	}
+	double m=0;
+	for (int j=0;j<row;j++)
+	{
+		m=m+getValue(j,c);
+	}
+	m=m/row;
+	return m;
+}
+
+int
+Matrix::getColMeanSTD(int c, double& mean, double& std)
+{
+	if (c<0 || c>=col)
+	{
+		cerr << "ERROR: column ID out of range!" << endl;
+		return 0;
+	}
+	double m=getColMean(c);
+	double s=0;
+	double v=0;
+	if (row > 1)
+	{
+		for (int j=0;j<row;j++)
+		{
+			v = getValue(j,c);
+			s += (v-m)*(v-m);
+		}
+		s = s/(row-1);
+		s = sqrt(s);
+	}
+	if (s==0)
+		s=1;
+	mean = m;
+	std  = s;
+	return 0;
+}
+
+int
+Matrix::colStandardize()
+{
+	for (int i=0;i<col;i++)
+	{
+		double m=0;
+		double s=0;
+		double v=0;
+		getColMeanSTD(i,m,s);
+		for (int j=0;j<row;j++)
+		{
+			v = getValue(j,i);
+			setValue((v-m)/s,j,i);
+		}
+	}
+	return 0;
+}
+
+double
+Matrix::getFNorm()
+{
+	double res = 0;
+	double v   = 0;
+	for (int i=0;i<row;i++)
+	{
+		for (int j=0;j<col;j++)
+		{
+			v = getValue(i,j);
+			res = res+v*v;
+		}
+	}
+	res = sqrt(res);
+	return res;
+}
+
+Matrix* 
+Matrix::dotMultiplyMatrix(Matrix* b)
+{
+	if(!dimequal(b))
+	{
+		cout << "dotMultiplyMatrix, Dimensions do not match" << endl;
+		return NULL;
+	}
+	Matrix* a = new Matrix;
+	a->init(row,col);
+	a->copyFrom(b);
+	gsl_matrix_mul_elements(a->matrix,matrix);
+	return a;
+}
+
+int 
+Matrix::dotMultiplyWithMatrix(Matrix* b)
+{
+	if(!dimequal(b))
+	{
+		cout << "dotMultiplyWithMatrix, Dimensions do not match" << endl;
+		return 0;	
+	}
+	gsl_matrix_mul_elements(matrix,b->matrix);
+	return 0;
+}
+
+Matrix*
+Matrix::getColMatrix(int c)
+{
+	if (c>=col || c<0)
+	{
+		cout << "Invalid column id" << endl;
+		return NULL;
+	}
+	Matrix* a = new Matrix;
+	a->init(row,1);
+	gsl_matrix_view temp = gsl_matrix_submatrix(matrix,0,c,row,1);
+	gsl_matrix_memcpy(a->matrix,&temp.matrix);
+	return a;
+}
+
+void Matrix::throwExp(const char * reason, const char * file, int line, int gsl_errno)
+{
+	char c_error[1024];
+	sprintf(c_error,"In file %s, line %d\n%s\n%s\n",file,line,reason,gsl_strerror(gsl_errno));
+	string err(c_error);
+	throw runtime_error(err);
+}
+		
+int 
+Matrix::getZeroCols(gsl_vector* cvec)
+{
+	gsl_vector_set_zero(cvec);
+	double v;
+	for (int i=0;i<col;i++)
+	{
+		bool flag=true;
+		for (int j=0;j<row;j++)
+		{
+			v = getValue(j,i);
+			if (v!=0)
+			{
+				flag = false;
+				break;
+			}
+		}
+		if (flag)
+		{
+			gsl_vector_set(cvec,i,1);
+		}
+	}
+	return 0;
+}
+
+int 
+Matrix::getZeroRows(gsl_vector* rvec)
+{
+	gsl_vector_set_zero(rvec);
+	double v;
+	for (int i=0;i<row;i++)
+	{
+		bool flag=true;
+		for (int j=0;j<col;j++)
+		{
+			v = getValue(i,j);
+			if (v!=0)
+			{
+				flag = false;
+				break;
+			}
+		}
+		if (flag)
+		{
+			gsl_vector_set(rvec,i,1);
+		}
+	}
+	return 0;
+}
+
+int 
+Matrix::countColEq(int c, double v)
+{
+	int cnt = 0;
+	double cv;
+	for (int i=0;i<row;i++)
+	{
+		cv = getValue(i,c);
+		if (cv == v)
+		{
+			cnt += 1;
+		}
+	}
+	return cnt;
+}
+
+int 
+Matrix::countRowEq(int r, double v)
+{
+	int cnt = 0;
+	double rv;
+	for (int i=0;i<col;i++)
+	{
+		rv = getValue(r,i);
+		if (rv == v)
+		{
+			cnt += 1;
+		}
+	}
+	return cnt;
 }

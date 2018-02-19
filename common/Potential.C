@@ -435,9 +435,10 @@ Potential::predictSample(INTDBLMAP& jointConf, int vId)
 
 
 double
-Potential::predictSample(map<int,Evidence*>* evidenceSet, int& status)
+Potential::predictSample(EMAP* evidenceSet, int& status)
 {
-	if(evidenceSet->find(factorVariables.begin()->first)==evidenceSet->end())
+	//if(evidenceSet->find(factorVariables.begin()->first)==evidenceSet->end())
+	if(evidenceSet->size() <= factorVariables.begin()->first || factorVariables.begin()->first < 0)
 	{
 		cerr <<"Fatal error! No variable assignment for " << factorVariables.begin()->first << endl;
 		exit(-1);
@@ -446,7 +447,8 @@ Potential::predictSample(map<int,Evidence*>* evidenceSet, int& status)
 	double newmean=0;
 	for(INTDBLMAP_ITER aIter=mbcondMean_Vect.begin();aIter!=mbcondMean_Vect.end();aIter++)
 	{
-		if(evidenceSet->find(aIter->first)==evidenceSet->end())
+		//if(evidenceSet->find(aIter->first)==evidenceSet->end())
+		if(evidenceSet->size() <= aIter->first || aIter->first<0)
 		{
 			cout <<"Warning! No variable assignment for " << aIter->first << endl;
 			continue;
@@ -463,9 +465,10 @@ Potential::predictSample(map<int,Evidence*>* evidenceSet, int& status)
 
 
 double
-Potential::predictSample(map<int,Evidence*>* evidenceSet)
+Potential::predictSample(EMAP* evidenceSet)
 {
-	if(evidenceSet->find(factorVariables.begin()->first)==evidenceSet->end())
+	//if(evidenceSet->find(factorVariables.begin()->first)==evidenceSet->end())
+	if(evidenceSet->size() <= factorVariables.begin()->first || factorVariables.begin()->first < 0)
 	{
 		cerr <<"Fatal error! No variable assignment for " << factorVariables.begin()->first << endl;
 		exit(-1);
@@ -473,7 +476,8 @@ Potential::predictSample(map<int,Evidence*>* evidenceSet)
 	double newmean=0;
 	for(INTDBLMAP_ITER aIter=mbcondMean_Vect.begin();aIter!=mbcondMean_Vect.end();aIter++)
 	{
-		if(evidenceSet->find(aIter->first)==evidenceSet->end())
+		//if(evidenceSet->find(aIter->first)==evidenceSet->end())
+		if(evidenceSet->size() <= aIter->first || aIter->first < 0)
 		{
 			cerr <<"Fatal error! No variable assignment for " << aIter->first << endl;
 			exit(-1);
@@ -653,9 +657,10 @@ Potential::getCondPotValueFor(INTDBLMAP& assignment)
 
 
 double 
-Potential::getCondPotValueFor(map<int,Evidence*>* evidMap)
+Potential::getCondPotValueFor(EMAP* evidMap)
 {
-	if(evidMap->find(factorVariables.begin()->first)==evidMap->end())
+	//if(evidMap->find(factorVariables.begin()->first)==evidMap->end())
+	if(evidMap->size() <= factorVariables.begin()->first || factorVariables.begin()->first < 0)
 	{
 		cerr <<"Fatal error! No variable assignment for " << factorVariables.begin()->first << endl;
 		exit(-1);
@@ -663,7 +668,8 @@ Potential::getCondPotValueFor(map<int,Evidence*>* evidMap)
 	double newmean=0;
 	for(INTDBLMAP_ITER aIter=mbcondMean_Vect.begin();aIter!=mbcondMean_Vect.end();aIter++)
 	{
-		if(evidMap->find(aIter->first)==evidMap->end())
+		//if(evidMap->find(aIter->first)==evidMap->end())
+		if(evidMap->size() <= aIter->first || aIter->first<0)
 		{
 			cout <<"Warning! No variable assignment for " << aIter->first << endl;
 			continue;
@@ -689,9 +695,10 @@ Potential::getCondPotValueFor(map<int,Evidence*>* evidMap)
 
 
 double 
-Potential::getCondPotValueFor(map<int,Evidence*>* evidMap,int evidID)
+Potential::getCondPotValueFor(EMAP* evidMap,int evidID)
 {
-	if(evidMap->find(factorVariables.begin()->first)==evidMap->end())
+	//if(evidMap->find(factorVariables.begin()->first)==evidMap->end())
+	if(evidMap->size() <= factorVariables.begin()->first || factorVariables.begin()->first < 0)
 	{
 		cerr <<"Fatal error! No variable assignment for " << factorVariables.begin()->first << endl;
 		exit(-1);
@@ -699,7 +706,8 @@ Potential::getCondPotValueFor(map<int,Evidence*>* evidMap,int evidID)
 	double newmean=0;
 	for(INTDBLMAP_ITER aIter=mbcondMean_Vect.begin();aIter!=mbcondMean_Vect.end();aIter++)
 	{
-		if(evidMap->find(aIter->first)==evidMap->end())
+		//if(evidMap->find(aIter->first)==evidMap->end())
+		if(evidMap->size() <= aIter->first || aIter->first < 0)
 		{
 			cout <<"Warning! No variable assignment for " << aIter->first << endl;
 			continue;
@@ -725,14 +733,16 @@ Potential::getCondPotValueFor(map<int,Evidence*>* evidMap,int evidID)
 
 //This function will make use of the cached values of the part of the joint assignment we have already pre-computed
 double 
-Potential::getCondPotValueFor(map<int,Evidence*>* evidMap,int newMBVar,map<int,double>& partialMean,int evidID)
+Potential::getCondPotValueFor(EMAP* evidMap,int newMBVar,map<int,double>& partialMean,int evidID)
 {
-	if(evidMap->find(factorVariables.begin()->first)==evidMap->end())
+	//if(evidMap->find(factorVariables.begin()->first)==evidMap->end())
+	if(evidMap->size() <= factorVariables.begin()->first || factorVariables.begin()->first<0)
 	{
 		cerr <<"Fatal error! No variable assignment for " << factorVariables.begin()->first << endl;
 		exit(-1);
 	}
-	if(evidMap->find(newMBVar)==evidMap->end())
+	//if(evidMap->find(newMBVar)==evidMap->end())
+	if(evidMap->size() <= newMBVar || newMBVar<0 )
 	{
 		cerr <<"Warning! No variable assignment for " << newMBVar << endl;
 		exit(-1);

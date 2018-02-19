@@ -38,6 +38,7 @@ MetaLearner::MetaLearner()
 	lambda=0;
 	clusterThreshold=0.5;
 	specificFold=-1;
+	holdoutEvMgr=NULL;
 }
 
 MetaLearner::~MetaLearner()
@@ -616,7 +617,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 			char outputDir[1024];
 			sprintf(outputDir,"%s/fold%d",outLocMap[eIter->first].c_str(),f);
 			char foldOutputDirCmd[1024];
-			sprintf(foldOutputDirCmd,"mkdir %s",outputDir);
+			sprintf(foldOutputDirCmd,"mkdir -p %s",outputDir);
 			system(foldOutputDirCmd);
 		}
 		clearFoldSpecData();
@@ -1351,7 +1352,8 @@ MetaLearner::getPredictionError_Holdout(int foldid)
 					cout <<"Found null for factor="<< sFactor->fId
 						<< "variable=" <<varSet[sFactor->fId]->getName() << endl;
 				}
-				if(evidMap->find(vId)==evidMap->end())
+				//if(evidMap->find(vId)==evidMap->end())
+				if(evidMap->size() <= vId || vId<0)
 				{
 					cout <<"Skipping " << vIter->first << endl;
 					continue;
@@ -2469,7 +2471,7 @@ MetaLearner::attemptMove(MetaMove* move,map<int,INTINTMAP*>& affectedVars)
 	{
 		currIndegree=moduleIndegree[mID];
 	}
-	if(currIndegree->find(v->getName())==currIndegree->end())
+	if(currIndegree->find(u->getName())==currIndegree->end())
 	{
 		//cout <<"Adding new regulator " << u->getName() <<" to module " << mID << endl;
 		(*currIndegree)[u->getName()]=1;
@@ -2675,7 +2677,7 @@ MetaLearner::populateGraphsFromFile()
 			FactorGraph* fg=fgGraphSet[cIter->first];
 			SlimFactor* sFactor=fg->getFactorAt(u->getID());
 			SlimFactor* dFactor=fg->getFactorAt(v->getID());
-			sFactor->mergedMB[dFactor->fId]=0;
+			//sFactor->mergedMB[dFactor->fId]=0;
 			dFactor->mergedMB[sFactor->fId]=0;
 		}
 	}

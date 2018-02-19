@@ -258,10 +258,12 @@ PotentialManager::estimateAllMeanCov(bool random, INTDBLMAP& gMean, map<int,INTD
 		{
 			evidMap=evMgr->getEvidenceAt(eIter->first);
 		}
-		for(EMAP_ITER vIter=evidMap->begin();vIter!=evidMap->end(); vIter++)
+		//for(EMAP_ITER vIter=evidMap->begin();vIter!=evidMap->end(); vIter++)
+		for(int vId=0;vId<evidMap->size();vId++)
 		{
-			int vId=vIter->first;
-			Evidence* evid=vIter->second;
+			//int vId=vIter->first;
+			//Evidence* evid=vIter->second;
+			Evidence* evid=evidMap->at(vId);
 			double val=evid->getEvidVal();
 			if(gMean.find(vId)==gMean.end())
 			{
@@ -304,10 +306,12 @@ PotentialManager::estimateAllMeanCov(bool random, INTDBLMAP& gMean, map<int,INTD
 		{
 			evidMap=evMgr->getEvidenceAt(eIter->first);
 		}
-		for(EMAP_ITER vIter=evidMap->begin();vIter!=evidMap->end(); vIter++)
+		//for(EMAP_ITER vIter=evidMap->begin();vIter!=evidMap->end(); vIter++)
+		for(int vId=0;vId<evidMap->size();vId++)
 		{
-			int vId=vIter->first;
-			Evidence* evid=vIter->second;
+			//int vId=vIter->first;
+			//Evidence* evid=vIter->second;
+			Evidence* evid=evidMap->at(vId);
 			double vval=evid->getEvidVal();
 			double vmean=gMean[vId];
 			INTDBLMAP* vcov=NULL;
@@ -320,9 +324,10 @@ PotentialManager::estimateAllMeanCov(bool random, INTDBLMAP& gMean, map<int,INTD
 			{
 				vcov=gCovar[vId];
 			}
-			for(EMAP_ITER uIter=vIter;uIter!=evidMap->end();uIter++)
+			//for(EMAP_ITER uIter=vIter;uIter!=evidMap->end();uIter++)
+			for(int uId=vId;uId<evidMap->size();uId++)
 			{
-				int uId=uIter->first;
+				//int uId=uIter->first;
 				//Don't compute covariance of vId uId pairs that both are not in the restrictedNeighborSet, when
 				//the restrictedNeighborSet is empty
 			/*	if((!random) && (vId!=uId) && (restrictedNeighborSet.size()>0))
@@ -332,7 +337,8 @@ PotentialManager::estimateAllMeanCov(bool random, INTDBLMAP& gMean, map<int,INTD
 						continue;
 					}
 				}*/
-				Evidence* evid1=uIter->second;
+				//Evidence* evid1=uIter->second;
+				Evidence* evid1=evidMap->at(uId);
 				double uval=evid1->getEvidVal();
 				double umean=gMean[uId];
 				double diffprod=(vval-vmean)*(uval-umean);
@@ -451,10 +457,12 @@ PotentialManager::estimateAllMeanCov(bool random, INTDBLMAP& gMean, map<int,INTD
 		{
 			evidMap=evMgr->getEvidenceAt(eIter->first);
 		}
-		for(EMAP_ITER vIter=evidMap->begin();vIter!=evidMap->end(); vIter++)
+		//for(EMAP_ITER vIter=evidMap->begin();vIter!=evidMap->end(); vIter++)
+		for(int vId=0;vId<evidMap->size();vId++)
 		{
-			int vId=vIter->first;
-			Evidence* evid=vIter->second;
+			//int vId=vIter->first;
+			//Evidence* evid=vIter->second;
+			Evidence* evid=evidMap->at(vId);
 			double val=evid->getEvidVal();
 			if(gMean.find(vId)==gMean.end())
 			{
@@ -492,10 +500,12 @@ PotentialManager::estimateAllMeanCov(bool random, INTDBLMAP& gMean, map<int,INTD
 		{
 			evidMap=evMgr->getEvidenceAt(eIter->first);
 		}
-		for(EMAP_ITER vIter=evidMap->begin();vIter!=evidMap->end(); vIter++)
+		//for(EMAP_ITER vIter=evidMap->begin();vIter!=evidMap->end(); vIter++)
+		for(int vId=0;vId<evidMap->size();vId++)
 		{
-			int vId=vIter->first;
-			Evidence* evid=vIter->second;
+			//int vId=vIter->first;
+			//Evidence* evid=vIter->second;
+			Evidence* evid=evidMap->at(vId);
 			double vval=evid->getEvidVal();
 			double vmean=gMean[vId];
 			INTDBLMAP* vcov=NULL;
@@ -508,9 +518,10 @@ PotentialManager::estimateAllMeanCov(bool random, INTDBLMAP& gMean, map<int,INTD
 			{
 				vcov=gCovar[vId];
 			}
-			for(EMAP_ITER uIter=vIter;uIter!=evidMap->end();uIter++)
+			//for(EMAP_ITER uIter=vIter;uIter!=evidMap->end();uIter++)
+			for(int uId=vId;uId<evidMap->size();uId++)
 			{
-				int uId=uIter->first;
+				//int uId=uIter->first;
 				//Don't compute covariance of vId uId pairs that both are not in the restrictedNeighborSet, when
 				//the restrictedNeighborSet is empty
 			/*	if((!random) && (vId!=uId) && (restrictedNeighborSet.size()>0))
@@ -520,7 +531,8 @@ PotentialManager::estimateAllMeanCov(bool random, INTDBLMAP& gMean, map<int,INTD
 						continue;
 					}
 				}*/
-				Evidence* evid1=uIter->second;
+				//Evidence* evid1=uIter->second;
+				Evidence* evid1=evidMap->at(uId);
 				double uval=evid1->getEvidVal();
 				double umean=gMean[uId];
 				double diffprod=(vval-vmean)*(uval-umean);
@@ -862,7 +874,8 @@ PotentialManager::estimateNewCov_EM(map<int,EvidenceManager*> &evMgrSet, Potenti
 			for(VSET_ITER vIter=varSet.begin();vIter!=varSet.end();vIter++)
 			{
 				int vId=vIter->first;
-				Evidence* evid=(*evidMap)[vIter->first];
+				//Evidence* evid=(*evidMap)[vIter->first];
+				Evidence* evid=evidMap->at(vId);
 				double vval=evid->getEvidVal();
 				double vmean=meanVect[vId];
 				INTDBLMAP* vcov=NULL;
@@ -977,9 +990,10 @@ PotentialManager::estimateAllMeanCov_EM(map<int,EvidenceManager*>& evMgrSet,int 
 		{
 			EMAP* evidMap=localMgr->getEvidenceAt(eIter->first);
 			map<int,INTDBLMAP*>* gammaSet=(*gammaCond)[eIter->first];
-			for(EMAP_ITER vIter=evidMap->begin();vIter!=evidMap->end(); vIter++)
+			//for(EMAP_ITER vIter=evidMap->begin();vIter!=evidMap->end(); vIter++)
+			for(int vId=0;vId<evidMap->size();vId++)
 			{
-				int vId=vIter->first;
+				//int vId=vIter->first;
 				INTDBLMAP* gMap=(*gammaSet)[vId];
 				double gval=(*gMap)[cid];
 				if(evidCnts.find(vId)==evidCnts.end())
@@ -990,7 +1004,8 @@ PotentialManager::estimateAllMeanCov_EM(map<int,EvidenceManager*>& evMgrSet,int 
 				{
 					evidCnts[vId]=evidCnts[vId]+gval;
 				}
-				Evidence* evid=vIter->second;
+				//Evidence* evid=vIter->second;
+				Evidence* evid=evidMap->at(vId);
 				double val=evid->getEvidVal();
 				val=val*gval;
 				if(globalMean.find(vId)==globalMean.end())
@@ -1021,12 +1036,14 @@ PotentialManager::estimateAllMeanCov_EM(map<int,EvidenceManager*>& evMgrSet,int 
 		{
 			EMAP* evidMap=localMgr->getEvidenceAt(eIter->first);
 			map<int,INTDBLMAP*>* gammaSet=(*gammaCond)[eIter->first];
-			for(EMAP_ITER vIter=evidMap->begin();vIter!=evidMap->end(); vIter++)
+			//for(EMAP_ITER vIter=evidMap->begin();vIter!=evidMap->end(); vIter++)
+			for(int vId=0;vId<evidMap->size();vId++)
 			{
-				int vId=vIter->first;
+				//int vId=vIter->first;
 				INTDBLMAP* gMap=(*gammaSet)[vId];
 				double gval=(*gMap)[cid];
-				Evidence* evid=vIter->second;
+				//Evidence* evid=vIter->second;
+				Evidence* evid=evidMap->at(vId);
 				double vval=evid->getEvidVal();
 				double vmean=globalMean[vId];
 				INTDBLMAP* vcov=NULL;
@@ -1039,10 +1056,12 @@ PotentialManager::estimateAllMeanCov_EM(map<int,EvidenceManager*>& evMgrSet,int 
 				{
 					vcov=globalCovar[vId];
 				}
-				for(EMAP_ITER uIter=vIter;uIter!=evidMap->end();uIter++)
+				//for(EMAP_ITER uIter=vIter;uIter!=evidMap->end();uIter++)
+				for(int uId=vId;uId<evidMap->size();uId++)
 				{
-					int uId=uIter->first;
-					Evidence* evid1=uIter->second;
+					//int uId=uIter->first;
+					//Evidence* evid1=uIter->second;
+					Evidence* evid1=evidMap->at(uId);
 					double uval=evid1->getEvidVal();
 					double umean=globalMean[uId];
 					double diffprod=(vval-vmean)*(uval-umean)*gval;

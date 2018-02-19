@@ -70,9 +70,9 @@ class Potential
 
 		int initMBCovMean();
 		double getCondPotValueFor(INTDBLMAP&);
-		double getCondPotValueFor(map<int,Evidence*>*);
-		double getCondPotValueFor(map<int,Evidence*>*,int);
-		double getCondPotValueFor(map<int,Evidence*>* evidMap,int newMBVar,map<int,double>& partialMean,int evidID);
+		double getCondPotValueFor(EMAP*);
+		double getCondPotValueFor(EMAP*,int);
+		double getCondPotValueFor(EMAP* evidMap,int newMBVar,map<int,double>& partialMean,int evidID);
 		int setCondVariance(double);
 		double getCondVariance();
 		int setUnnormCondVariance(double);
@@ -84,8 +84,8 @@ class Potential
 		int setCondWeightFor(int,double);
 		INTDBLMAP& getCondWeight();
 		int showParams();
-		double predictSample(map<int,Evidence*>*);
-		double predictSample(map<int,Evidence*>*,int&);
+		double predictSample(EMAP*);
+		double predictSample(EMAP*,int&);
 		INTDBLMAP& getAllPartialMeans();
 		double computeLL_Tracetrick(int sampleSize);
 	protected:
