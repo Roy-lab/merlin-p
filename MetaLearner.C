@@ -38,7 +38,7 @@ MetaLearner::MetaLearner()
 	lambda=0;
 	clusterThreshold=0.5;
 	specificFold=-1;
-	convThreshold=0;
+	convThreshold=1e-3;
 }
 
 MetaLearner::~MetaLearner()
