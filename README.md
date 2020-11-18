@@ -63,6 +63,14 @@ To compile the code, changed to MERLIN directory and run: make
 
 To compile the program, you may need to install GSL. If libgsl is already installed, you can remove the "-L$(LIBPATH)" from the Makefile. To run the program, you may need to add the location of installed shared library files to LD_LIBRARY_PATH.
 
+Note: The `make` command may throw the following error message.
+```
+/usr/bin/ld: cannot open output file merlin: Permission denied
+collect2: error: ld returned 1 exit status
+make: *** [merlin] Error 1
+```
+It means that the MERLIN directory in your local system does not have the required write permission. Please add the required write permission. For example, use command `chmod 777 merlin-p/` where "merlin-p" is the MERLIN directory in your local system. After that, re-run `make`.
+
 Inferred networks and other resources
 -------------------------------------
 The expression datasets used in this study, prior networks and the inferred networks were moved to this repository:
