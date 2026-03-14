@@ -229,14 +229,6 @@ MetaLearner::setGlobalEvidenceManager(EvidenceManager* anEvMgr)
 	return 0;
 }
 
-int
-MetaLearner::setHoldOutEvManager(EvidenceManager* aMgr)
-{	
-	holdoutEvMgr=aMgr;
-	return 0;
-}
-
-
 int 
 MetaLearner::setVariableManager(VariableManager* aPtr)
 {
@@ -624,16 +616,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 		//start(f);
 		start_gradualMBIncrease(f);
 		//start_gradualMBIncrease_RankRegulators(f);
-		int totalEvid=0;
-		if(holdoutEvMgr!=NULL)
-		{
-			totalEvid=holdoutEvMgr->getNumberOfEvidences();
-		}
 		getPredictionError_CrossValid(f);
-		if(totalEvid>0)
-		{
-			getPredictionError_Holdout(f);
-		}
 	}
 	gsl_rng_free(r);
 
@@ -1312,130 +1295,6 @@ MetaLearner::getConditionSet(int cind)
 	}
 	return condsetMap[cind];
 }
-
-int
-MetaLearner::getPredictionError_Holdout(int foldid)
-{
-	VSET& varSet=varManager->getVariableSet();
-	char foldoutDirName[1024];
-	char aFName[1024];
-	string& dirname=outLocMap[evMgrSet.begin()->first];
-	sprintf(foldoutDirName,"%s/fold%d",dirname.c_str(),foldid);
-	sprintf(aFName,"%s/prediction.txt",foldoutDirName);
-	ofstream pFile(aFName);
-	int totalEvid=holdoutEvMgr->getNumberOfEvidences();
-	map<int,double> varPLL;
-	for(int d=0;d<totalEvid;d++)
-	{
-		//for each gc, get the expected value of this datapoint
-		EMAP* evidMap=holdoutEvMgr->getEvidenceAt(d);
-		for(map<int,INTINTMAP*>::iterator csIter=condsetMap.begin();csIter!=condsetMap.end();csIter++)
-		{
-			FactorGraph* fg=fgGraphSet[csIter->first];
-			for(map<string,int>::iterator vIter=reqdTargetList.begin();vIter!=reqdTargetList.end();vIter++)
-			{
-				if(strcmp(vIter->first.c_str(),"FBgn0004465")==0)
-				{
-					cout <<"Stop here"<< endl;
-				}
-				int vId=varManager->getVarID(vIter->first.c_str());
-				if(vId==-1)
-				{
-					continue;
-				}
-				Variable* v=varSet[vId];
-				double cll=0;
-				SlimFactor* sFactor=fg->getFactorAt(vId);
-				Potential* sPot=sFactor->potFunc;
-				if(sPot==NULL)
-				{
-					cout <<"Found null for factor="<< sFactor->fId
-						<< "variable=" <<varSet[sFactor->fId]->getName() << endl;
-				}
-				if(evidMap->find(vId)==evidMap->end())
-				{
-					cout <<"Skipping " << vIter->first << endl;
-					continue;
-				}
-				double pval=sPot->getCondPotValueFor(evidMap);
-				if(pval<1e-50)
-				{
-					pval=1e-50;
-				}
-				if(isinf(pval) || isnan(pval))
-				{
-					cout <<"Stop here. Found nan/inf for " << vIter->first << " dtpt "<< d << " cset " << csIter->first << endl;
-				}
-				cll=log(pval);
-				if(varPLL.find(vId)==varPLL.end())
-				{
-					varPLL[vId]=cll;
-				}
-				else
-				{
-					varPLL[vId]=varPLL[vId]+cll;
-				}
-			}
-		}
-	}
-	pFile <<"GeneName";
-	for(int i=0;i<totalEvid;i++)
-	{
-		pFile <<"\t" <<i;
-	}
-	for(int i=0;i<totalEvid;i++)
-	{
-		pFile <<"\t" <<i;
-	}
-	pFile <<"\t0";
-	for (int i=0;i<totalEvid;i++)
-	{
-		pFile <<"\t" << i;
-	}
-	pFile << endl;
-	for(map<int,double>::iterator vIter=varPLL.begin();vIter!=varPLL.end();vIter++)
-	{
-		int vId=vIter->first;
-		Variable* var=varSet[vId];
-		
-		pFile <<var->getName();
-		int regulatorCnt=0;
-		map<int,int> regsExpressed;
-		//First the predicted time course
-		for(map<int,INTINTMAP*>::iterator csIter=condsetMap.begin();csIter!=condsetMap.end();csIter++)
-		{
-			FactorGraph* fg=fgGraphSet[csIter->first];
-			SlimFactor* sFactor=fg->getFactorAt(vId);
-			Potential* sPot=sFactor->potFunc;
-			regulatorCnt=sFactor->mergedMB.size();
-			for(int i=0;i<totalEvid;i++)
-			{
-				EMAP* evidMap=holdoutEvMgr->getEvidenceAt(i);
-				int predfrom=0;
-				double predval=sPot->predictSample(evidMap,predfrom);
-				pFile <<"\t" << predval;
-				regsExpressed[i]=predfrom;
-			}
-		}
-		//Then the true time course
-		for(int i=0;i<totalEvid;i++)
-		{
-			EMAP* evidMap=holdoutEvMgr->getEvidenceAt(i);
-			Evidence* evid=(*evidMap)[vId];
-			pFile <<"\t" <<evid->getEvidVal();
-		}
-		pFile <<"\t" << regulatorCnt;
-		for(int i=0;i<totalEvid;i++)
-		{
-			pFile <<"\t" << regsExpressed[i];
-		}
-		pFile <<endl;
-	}
-	pFile.close();
-	varPLL.clear();
-	return 0;
-}
-
 
 int
 MetaLearner::getPredictionError_CrossValid(int foldid)

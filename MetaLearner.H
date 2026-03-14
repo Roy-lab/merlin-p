@@ -43,13 +43,11 @@ class MetaLearner
 	int start_gradualMBIncrease_RankRegulators(int);
 	int getTopRegs(map<int,int>&);
 	int setGlobalEvidenceManager(EvidenceManager*);
-	int setHoldOutEvManager(EvidenceManager*);
 	int setVariableManager(VariableManager*);
 	int setOutputDirName(const char*);
 	int setClusteringThreshold(double);
 	int setSpecificFold(int);
 	int showModelParameters(int);
-	int getPredictionError_Holdout(int);
 	int getPredictionError_CrossValid(int);
 	int setRandom(bool);
 	int readModuleMembership(const char*);
@@ -126,7 +124,6 @@ class MetaLearner
 	map<int,FactorGraph*> fgGraphSet;
 
 	EvidenceManager* globalEvMgr;
-	EvidenceManager* holdoutEvMgr;
 
 	map<int,string> outLocMap;
 
