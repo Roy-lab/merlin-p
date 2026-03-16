@@ -28,7 +28,6 @@ class FactorManager
 		int setBaseInstantiation();
 		int setBaseInstantiation_Variable();
 		int setMaxFactorSize_Approx(int);
-		int setRandMISdCnt(double);
 		int getMaxFactorSize_Approx();
 
 		int setModelName(const char*);
@@ -51,19 +50,11 @@ class FactorManager
 
 		int learnStructure();
 
-		int estimateRandomInfo_Approximate(int);
-		int readRandomInfo();
-
 		int getFactorIndex(int*, int);
 		int getFactorKey(int*, int,string&);
-		int getMBFactorIndex(SlimFactor*);
 
-		int addNewMBFactor(SlimFactor*);
-
-		SlimFactor* getFactorFromVars(int*, int);
 		double getMIFromVars(int*,int);
 
-		int generateClusters(double epsilon, bool latticeCheck, double confidence,int);
 		int getMaximalClusters();
 		//Here we populate the factSignMap
 		int removeDupFactors();
@@ -89,12 +80,7 @@ class FactorManager
 		int getSupersets(int,int,INTINTMAP&);
 		double getMBScore(SlimFactor*,int supFid);
 		double getMBScore(SlimFactor*);
-		bool isBelowRandom(int);
 		SlimFactor* getFactorAt(int);
-		int generateNextLevelClusters(SlimFactor*,double,INTDBLMAP&);
-		int generateNextLevelClusters(SlimFactor*);
-		int generateNextLevelClusters(SlimFactor*,SlimFactor*);
-		int generateNextLevelClusters_Tabulist(SlimFactor*,SlimFactor*);
 		int showConditionalPotentials(FactorGraph*);
 		int deleteMySupersets(int factorID);
 		int deleteFactor(SlimFactor*);
@@ -105,7 +91,6 @@ class FactorManager
 		int readRestrictedVarlist(const char*);
 		map<int,Variable*>& getRestrictedVarlist();
 	private:
-		int generateNextLevelClusters(SlimFactor*,double,double,INTINTMAP&);
 		int makeMBMutuallyConsistent();
 		int makeMarkovBlanketConsistent(SlimFactor*);
 		int produceClusters(double,int);
@@ -118,10 +103,6 @@ class FactorManager
 		int populateFactorSet();
 		int checkFactorIds();
 		int qsort(int*,int,int);
-		//Create all subsets of the random variables
-		//without taking into account the information
-		//of what associations make sense
-		Error::ErrorCode createAllFactors();
 		Error::ErrorCode estimateClusterProperties();
 
 		int addToLattice(SlimFactor*,int**);
@@ -153,9 +134,7 @@ class FactorManager
 		INTINTMAP defaultInstantiation;
 		LatticeStructure lattice;
 		map<int,SlimFactor*> goodSlimFactors;
-		
-		map<int,double> randMI_mean;
-		map<int,double> randMI_std;
+
 		char outputDir[1024];
 		char modelName[1024];
 
@@ -183,7 +162,6 @@ class FactorManager
 		INTINTMAP defInstMap;
 		int beamSize;
 		double mbPenalty;
-		double misdCnt;
 		map<int,Variable*> restrictedNeighborList;
 };
 #endif

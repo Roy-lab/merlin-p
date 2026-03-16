@@ -27,7 +27,6 @@ FactorManager::FactorManager()
 	globalFactorID=0;
 	maxFactorSize_Approx=-1;
 	mbPenalty=0;
-	misdCnt=0;
 }
 
 FactorManager::~FactorManager()
@@ -42,7 +41,6 @@ FactorManager::~FactorManager()
 	factorIDToNameMap.clear();
 	mbSpecific_MI.clear();
 }
-
 
 int 
 FactorManager::setVariableManager(VariableManager* aPtr)
@@ -134,7 +132,6 @@ FactorManager::setBaseInstantiation()
 	return 0;
 }
 
-
 int 
 FactorManager::setBaseInstantiation_Variable()
 {
@@ -187,13 +184,6 @@ FactorManager::setBaseInstantiation_Variable()
 	//defProb=exp(defProb);
 	cout << "Default Inst prob: "<<  defProb << endl;
 	cout << "Default Inst: " << defInstStr.c_str() << endl;
-	return 0;
-}
-
-int 
-FactorManager::setRandMISdCnt(double sdCnt) 
-{
-	misdCnt=sdCnt;
 	return 0;
 }
 
@@ -472,7 +462,6 @@ FactorManager::generateCanonicalFactors()
 	return 0;
 }
 
-
 int
 FactorManager::generateCanonicalFactors(FactorGraph* fg,map<int,SlimFactor*>& canonicalFactors)
 {
@@ -734,7 +723,6 @@ FactorManager::generateCanonicalFactors(FactorGraph* fg,map<int,SlimFactor*>& ca
 	return 0;
 }
 
-
 //In this function we are going to associate with each canonical parameter, a joint potential table.
 //Each entry is a pair corresponding to a configuration of variables of the canonical factor and its value.
 //The value is estimated by taking the exponent of the sum over all subsets using the default instantiation.
@@ -777,347 +765,6 @@ FactorManager::learnStructure()
 	{
 		cout <<Error::getErrorString(err) << endl;
 		return 0;
-	}
-	return 0;
-}
-
-//This is similar to the function above except that for k greater than exactk it uses sampleCnt
-//number of combinations
-int
-FactorManager::estimateRandomInfo_Approximate(int sampleCnt)
-{
-	VSET& variableSet=vMgr->getVariableSet();
-	vector<double> randInfo;
-	char fName[256];
-	sprintf(fName,"%s/randmi_approx_asummary.txt",outputDir);
-	ofstream misummary(fName);
-	misummary << "k\tmean_rand_mi\tstd_rand_mi" << endl;
-	gsl_rng* r=gsl_rng_alloc(gsl_rng_default);
-	evMgr->randomizeEvidence(r);
-	potMgr->initRandom();
-	potMgr->estimateMarginalEntropies(slimFactorSet,variableSet,true);
-	for(int i=2;i<=maxFactorSize_Approx;i++)
-	{
-		cout <<"Estimating randinfo for k " << i << endl;
-		double mean=0;
-		sprintf(fName,"%s/randmi_k%d.txt",outputDir,i);
-		ofstream oFile(fName);
-		
-		//Create a random factor with i variables
-		SlimFactor* sFactor=new SlimFactor;
-		sFactor->vIds=new int[i];
-		sFactor->vCnt=i;
-		int j=0;
-		int duplicateFCnt=0;
-		map<string,int> usedFactorIDs;
-		double step=1.0/((double) variableSet.size());
-		while(j<sampleCnt)
-		{
-			map<int,int> usedVarIDs;
-			int vid=0;
-			while(usedVarIDs.size()<i)
-			{
-				double rVal=gsl_ran_flat(r,0,1);
-				int rind=(int)(rVal/step);
-				while(usedVarIDs.find(rind)!=usedVarIDs.end())
-				{
-					rVal=gsl_ran_flat(r,0,1);
-					rind=(int)(rVal/step);
-				}
-				usedVarIDs[rind]=0;
-				sFactor->vIds[vid]=rind;
-				vid++;
-			}
-			string akey;
-			getFactorKey(sFactor->vIds,i,akey);
-			if(usedFactorIDs.find(akey)!=usedFactorIDs.end())
-			{
-				duplicateFCnt++;
-			}
-			usedFactorIDs[akey]=0;
-			//Estimate the information associated with this factor
-			potMgr->populateFactor(slimFactorSet,variableSet,sFactor,true);
-			double mi=sFactor->mutualInfo;
-			randInfo.push_back(mi);
-			oFile <<mi << endl;
-			mean=mean+mi;
-			j++;	
-		}
-		delete sFactor;
-		if(duplicateFCnt>0)
-		{
-			cout <<"Duplicates : " << duplicateFCnt << " out of a total of "<< sampleCnt << " factors of size " << i << endl;
-		}
-
-		oFile.close();
-		mean=mean/randInfo.size();
-		double std=0;
-		for(int j=0;j<randInfo.size();j++)
-		{
-			double diff=mean-randInfo[j];
-			std=std+(diff*diff);
-		}
-		std=sqrt(std/(randInfo.size()-1));
-		misummary << i << "\t" << mean << "\t" << std << endl;
-		randInfo.clear();
-	}
-	misummary.close();
-	gsl_rng_free(r);
-	return 0;
-}
-
-int
-FactorManager::readRandomInfo()
-{
-	char fName[256];
-	sprintf(fName,"%s/randmi_approx_asummary.txt",outputDir);
-	ifstream misummary(fName);
-	int lineCnt=0;
-	char buffer[1024];
-	while(misummary.good())
-	{
-		misummary.getline(buffer,1023);
-		if(strlen(buffer)<=0)
-		{
-			continue;
-		}
-		if(lineCnt==0)
-		{
-			lineCnt++;
-			continue;
-		}
-		char* tok=strtok(buffer,"\t");
-		int tokCnt=0;
-		int k;
-		double mi_mean;
-		double mi_std;
-		while(tok!=NULL)
-		{
-			switch(tokCnt)
-			{
-				case 0:
-				{
-					k=atoi(tok);
-					break;
-				}
-				case 1:
-				{
-					mi_mean=atof(tok);
-					break;
-				}
-				case 2:
-				{
-					mi_std=atof(tok);
-					break;
-				}
-			}
-			tok=strtok(NULL,"\t");
-			tokCnt++;
-		}
-		randMI_mean[k]=mi_mean;
-		randMI_std[k]=mi_std;
-	}
-	
-	misummary.close();
-	return 0;
-}
-
-//We use simple Apriori-like algorithm to find clusters. For clusters of size k<=maxFactorSize, for
-//which we can compute multi-information exactly we use the random-mutual information as a threshold
-//to get good clusters. For clusters of size greater than maxFactorSize, we will use confidence criteria
-//similar to Apriori
-int
-FactorManager::generateClusters(double epsilon,bool latticeCheckLowerLevel , double reqConf, int maxClusterSize)
-{
-	//Start with all factors of size 2
-	int currK=2;
-	map<int,Variable*>& variableSet=vMgr->getVariableSet();
-	int oldClusterCnt=0;
-	int newClusterCnt=1;
-	INTVECT parentIds;
-	INTVECT newParentIds;
-	INTINTMAP generatedIDs;
-
-	//The variables of the new factor
-	int* newVids=new int[maxClusterSize];
-	while((newClusterCnt>0) && (currK<=maxClusterSize))//No more factors can be added
-	{
-		//For each parent factor, iterate over the set of variables
-		//and add the variable in the parent to the new factor 
-		double randmi_mean=randMI_mean[currK];
-		double randmi_sd=randMI_std[currK];
-		if(currK<=maxFactorSize_Approx)
-		{
-			int pFidCnt=parentIds.size();
-			if(pFidCnt==0)
-			{
-				pFidCnt=variableSet.size();
-			}
-			for(int p=0;p<pFidCnt;p++)
-			{
-				SlimFactor* pFactor;
-				if(parentIds.size()==0)
-				{
-					pFactor=slimFactorSet[p];
-				}
-				else
-				{
-					pFactor=goodSlimFactors[parentIds[p]];
-				}
-				for(map<int,Variable*>::iterator vIter=variableSet.begin();vIter!=variableSet.end();vIter++)
-				{
-					int newVId=vIter->first;
-					if(newVId<=pFactor->vIds[pFactor->vCnt-1])
-					{
-						continue;
-					}
-					for(int v=0;v<pFactor->vCnt;v++)
-					{
-						newVids[v]=pFactor->vIds[v];
-					}
-					newVids[pFactor->vCnt]=newVId;
-					int currFid=getFactorIndex(newVids,pFactor->vCnt+1);
-					SlimFactor* sFactor=slimFactorSet[currFid];
-
-					//Check for support
-					if(sFactor->mutualInfo >= (randmi_mean + (randmi_sd*epsilon)))
-					{
-						if((sFactor->vCnt>2) && latticeCheckLowerLevel)
-						{
-							INTINTMAP* subsets=lattice.getSubsets(sFactor->fId);
-							//get all subsets and check for confidence
-							//We need to check the last sFactor->vCnt subsets as these
-							//will be the ones that correspond to the maximal subsets
-							map<int,int>::reverse_iterator rIter=subsets->rbegin();
-							int sscnt=0;
-							int hitCnt=0;
-							SlimFactor* aSubset=slimFactorSet[rIter->first];
-							while((sscnt<sFactor->vCnt) && ((sFactor->vCnt-aSubset->vCnt) ==1 ))
-							{
-								int ssId=rIter->first;
-								if(goodSlimFactors.find(ssId)!=goodSlimFactors.end())
-								{
-									hitCnt++;
-								}
-								sscnt++;
-								rIter++;
-								aSubset=slimFactorSet[rIter->first];
-							}
-							double conf=((double)hitCnt)/((double) sFactor->vCnt);
-							if(conf>=reqConf)
-							{
-								goodSlimFactors[sFactor->fId]=sFactor;
-								newParentIds.push_back(sFactor->fId);
-							}
-						}
-						else //No need to check confidence at the lower levels where
-							//we can compute multi-information correctly
-						{
-							goodSlimFactors[sFactor->fId]=sFactor;
-							newParentIds.push_back(sFactor->fId);
-						}
-					}
-				}
-			}
-			//Now update parentIds from newParentIds
-			parentIds.clear();
-			for(int i=0;i<newParentIds.size();i++)
-			{
-				parentIds.push_back(newParentIds[i]);
-			}
-			newParentIds.clear();
-		}
-		else
-		{
-			int pFidCnt=parentIds.size();
-			for(int p=0;p<pFidCnt;p++)
-			{
-				SlimFactor* pFactor=goodSlimFactors[parentIds[p]];
-				for(map<int,Variable*>::iterator vIter=variableSet.begin();vIter!=variableSet.end();vIter++)
-				{
-					int newVId=vIter->first;
-					if(newVId<=pFactor->vIds[pFactor->vCnt-1])
-					{
-						continue;
-					}
-					//Here we have to create a new factor
-					SlimFactor* sFactor=new SlimFactor;
-					sFactor->vCnt=pFactor->vCnt+1;
-					sFactor->vIds=new int[pFactor->vCnt+1];
-					for(int j=0;j<pFactor->vCnt;j++)
-					{
-						sFactor->vIds[j]=pFactor->vIds[j];
-					}
-					sFactor->vIds[sFactor->vCnt-1]=newVId;
-					sFactor->fId=getFactorIndex(sFactor->vIds,sFactor->vCnt);
-					if(generatedIDs.find(sFactor->fId) !=generatedIDs.end())
-					{
-						delete sFactor;
-						continue;
-					}
-					generatedIDs[sFactor->fId]=0;
-					potMgr->populateFactor(slimFactorSet,variableSet,sFactor,false);
-					if(sFactor->mutualInfo < (randmi_mean + (randmi_sd*epsilon)))
-					{
-						delete sFactor;
-						continue;
-					}
-
-					//Allocate memory for subsets
-					int** subsets=new int*[sFactor->vCnt];
-					for(int i=0;i<sFactor->vCnt;i++)
-					{
-						subsets[i]=new int[sFactor->vCnt-1];
-					}
-					sFactor->generateMaximalSubsets(subsets);
-					//Now check the confidence and in the meantime store the subset ids
-					//to update the lattice structure
-					int* ssIds=new int[sFactor->vCnt];
-					int hitCnt=0;
-					for(int sscnt=0;sscnt<sFactor->vCnt;sscnt++)
-					{
-						int sId=getFactorIndex(subsets[sscnt],sFactor->vCnt-1);
-						ssIds[sscnt]=sId;
-						if(goodSlimFactors.find(sId)!=goodSlimFactors.end())
-						{
-							hitCnt++;
-						}
-					}
-					double conf=((double)hitCnt)/((double)sFactor->vCnt);
-					if(conf>=reqConf)
-					{
-						goodSlimFactors[sFactor->fId]=sFactor;
-						newParentIds.push_back(sFactor->fId);
-						//Update the lattice structure
-						for(int i=0;i<sFactor->vCnt;i++)
-						{
-							lattice.addSubset(ssIds[i],sFactor->fId);
-							lattice.addSuperset(sFactor->fId,ssIds[i]);
-						}
-					}
-					else
-					{
-						delete sFactor;
-					}
-					for(int i=0;i<sFactor->vCnt;i++)
-					{
-						delete[] subsets[i];
-					}
-					delete[] subsets;
-					delete ssIds;
-				}
-			}
-			parentIds.clear();
-			for(int i=0;i<newParentIds.size();i++)
-			{
-				parentIds.push_back(newParentIds[i]);
-			}
-			newParentIds.clear();
-		}
-		currK++;
-		newClusterCnt=goodSlimFactors.size()-oldClusterCnt;
-		oldClusterCnt=goodSlimFactors.size();
-		cout <<"Added " << newClusterCnt<< " new factors "<< endl; 
 	}
 	return 0;
 }
@@ -1279,7 +926,6 @@ FactorManager::getPseudoLikelihood()
 	return pseudoLL;
 }
 
-
 double
 FactorManager::getPseudoLikelihood(FactorGraph* fg,bool train)
 {
@@ -1382,7 +1028,6 @@ FactorManager::getLikelihood_ChainRule(FactorGraph* fg)
 	dataLL=meanLL;
 	gsl_rng_free(r);
 	return dataLL;
-	
 }
 
 double
@@ -1483,7 +1128,6 @@ FactorManager::getLikelihood()
 
 	return dataLL;
 }
-
 
 double
 FactorManager::getLikelihood(FactorGraph* fg)
@@ -1662,7 +1306,6 @@ FactorManager::getLikelihood(FactorGraph* fg)
 	return dataLL;
 }
 
-
 double 
 FactorManager::getLikelihood_MCMC(FactorGraph* fg)
 {
@@ -1775,7 +1418,6 @@ FactorManager::randInitSample(INTINTMAP* sample,gsl_rng* r)
 	return 0;
 }
 
-
 int 
 FactorManager::getNextSample(FactorGraph* fg,INTINTMAP* currSample,INTINTMAP* nextSample,gsl_rng* r)
 {
@@ -1862,313 +1504,6 @@ FactorManager::evaluateMarkovBlanket(double eps_support)
 	oFile.close();
 	return 0;
 }
-
-//This function generates all k+1 possible clusters from pFactor, where k is the size of this cluster
-int
-FactorManager::generateNextLevelClusters(SlimFactor* pFactor,double eps_support,double confThresh,INTINTMAP& newParentIDs)
-{
-	int** subsetSpace=new int*[MAXFACTORSIZE_ALLOC];
-	for(int i=0;i<MAXFACTORSIZE_ALLOC;i++)
-	{
-		subsetSpace[i]=new int[MAXFACTORSIZE_ALLOC-1];
-	}
-	int* ssIds=new int[MAXFACTORSIZE_ALLOC];
-	VSET& variableSet=vMgr->getVariableSet();
-	double randmi_mean=randMI_mean[pFactor->vCnt+1];
-	double randmi_sd=randMI_std[pFactor->vCnt+1];
-	double randmi_mean_prev=randMI_mean[pFactor->vCnt];
-	double randmi_sd_prev=randMI_std[pFactor->vCnt];
-	for(map<int,Variable*>::iterator vIter=variableSet.begin();vIter!=variableSet.end();vIter++)
-	{
-		if(pFactor->isMemberVariable(vIter->first))
-		{
-			continue;
-		}
-		int newVId=vIter->first;
-		//Propose a factor
-		SlimFactor* sFactor=new SlimFactor;
-		sFactor->vIds=new int[pFactor->vCnt+1];
-		sFactor->vCnt=pFactor->vCnt+1;
-		int fIter=0;
-		int dIter=0;
-		while((pFactor->vIds[fIter]<newVId) && (fIter!=pFactor->vCnt))
-		{
-			sFactor->vIds[dIter]=pFactor->vIds[fIter];
-			dIter++;
-			fIter++;
-		}
-		sFactor->vIds[dIter]=newVId;
-		dIter++;
-		while(fIter<pFactor->vCnt)
-		{
-			sFactor->vIds[dIter]=pFactor->vIds[fIter];
-			fIter++;
-			dIter++;
-		}
-		//This factor might have been created
-		string fKey;
-		getFactorKey(sFactor->vIds,sFactor->vCnt,fKey);
-		if(factorNameToIDMap.find(fKey)!=factorNameToIDMap.end())
-		{
-			int existFactorID=factorNameToIDMap[fKey];
-			SlimFactor* existFactor=slimFactorSet[existFactorID];
-			//existFactor->refCnt=existFactor->refCnt+1;
-			delete sFactor;
-			continue;
-		}
-		sFactor->generateMaximalSubsets(subsetSpace);
-		//Now check the confidence and in the meantime store the subset ids
-		//to update the lattice structure. 
-		double hitConf=0;
-		int foundSsets=0;
-		for(int sscnt=0;sscnt<sFactor->vCnt;sscnt++)
-		{
-			string ssKey;
-			getFactorKey(subsetSpace[sscnt],sFactor->vCnt-1,ssKey);
-			if(factorNameToIDMap.find(ssKey)==factorNameToIDMap.end())
-			{
-				continue;
-			}
-			int sId=factorNameToIDMap[ssKey];
-			ssIds[foundSsets]=sId;
-			foundSsets++;
-			map<int,SlimFactor*>::iterator ssIter=slimFactorSet.find(sId);
-			if(ssIter!=slimFactorSet.end())
-			{
-				//hitConf=hitConf+ssIter->second->confidence;
-			}
-		}
-		hitConf=hitConf/sFactor->vCnt;
-		if(hitConf<confThresh)
-		{
-		//	delete sFactor;
-		//	continue;
-		}
-		//sFactor->confidence=hitConf;
-		potMgr->populateFactor(slimFactorSet,variableSet,sFactor,false);
-		if(sFactor->mutualInfo < (randmi_mean+(eps_support*randmi_sd)))
-		{
-			delete sFactor;
-			continue;
-		}
-		sFactor->fId=globalFactorID;
-		//Check the confidence of this factor
-		factorNameToIDMap[fKey]=sFactor->fId;
-		factorIDToNameMap[sFactor->fId]=fKey;
-		//sFactor->secondPId=pFactor->fId;
-		globalFactorID++;
-		if(globalFactorID<0)
-		{
-			cout <<"Global factor id became negative !! " << endl;
-		}
-		for(int i=0;i<foundSsets;i++)
-		{
-			int subsetId=ssIds[i];
-			if(slimFactorSet.find(subsetId)!=slimFactorSet.end())
-			{
-				lattice.addSubset(subsetId,sFactor->fId);
-				//lattice.addSuperset(sFactor->fId,subsetId);
-			}
-		}
-		slimFactorSet[sFactor->fId]=sFactor;
-		newParentIDs[sFactor->fId]=0;
-		//sFactor->refCnt=sFactor->refCnt+1;
-	}
-	if(newParentIDs.size()>(variableSet.size()-pFactor->vCnt))
-	{
-		cout <<"Too many ("<< newParentIDs.size() <<") one-variable extensions of " << pFactor->fId << endl;
-		return -1;
-	}
-	for(int i=0;i<MAXFACTORSIZE_ALLOC;i++)
-	{
-		delete[] subsetSpace[i];
-	}
-	delete[] ssIds;
-	delete[] subsetSpace;
-	return 0;
-}
-
-
-//This function generates all k+1 possible clusters from pFactor, where k is the size of this cluster
-int
-FactorManager::generateNextLevelClusters(SlimFactor* pFactor,double eps_support, INTDBLMAP& candidateExtensions)
-{
-	int** subsetSpace=new int*[MAXFACTORSIZE_ALLOC];
-	for(int i=0;i<MAXFACTORSIZE_ALLOC;i++)
-	{
-		subsetSpace[i]=new int[MAXFACTORSIZE_ALLOC-1];
-	}
-	int* ssIds=new int[MAXFACTORSIZE_ALLOC];
-	VSET& variableSet=vMgr->getVariableSet();
-	double randmi_mean=randMI_mean[pFactor->vCnt+1];
-	double randmi_sd=randMI_std[pFactor->vCnt+1];
-	int totalRejected=0;
-	int totalExisting=0;
-	for(INTDBLMAP_ITER vIter=candidateExtensions.begin();vIter!=candidateExtensions.end();vIter++)
-	{
-		if(pFactor->isMemberVariable(vIter->first))
-		{
-			continue;
-		}
-		int newVId=vIter->first;
-		//Propose a factor
-		SlimFactor* sFactor=new SlimFactor;
-		sFactor->vIds=new int[pFactor->vCnt+1];
-		sFactor->vCnt=pFactor->vCnt+1;
-		int fIter=0;
-		int dIter=0;
-		while((fIter!=pFactor->vCnt) && (pFactor->vIds[fIter]<newVId))
-		{
-			sFactor->vIds[dIter]=pFactor->vIds[fIter];
-			dIter++;
-			fIter++;
-		}
-		sFactor->vIds[dIter]=newVId;
-		dIter++;
-		while(fIter<pFactor->vCnt)
-		{
-			sFactor->vIds[dIter]=pFactor->vIds[fIter];
-			fIter++;
-			dIter++;
-		}
-		sFactor->generateMaximalSubsets(subsetSpace);
-		int foundSsets=0;
-		//cout <<"Checking subsets" << endl;
-		for(int sscnt=0;sscnt<sFactor->vCnt;sscnt++)
-		{
-			string ssKey;
-			getFactorKey(subsetSpace[sscnt],sFactor->vCnt-1,ssKey);
-			if(factorNameToIDMap.find(ssKey)==factorNameToIDMap.end())
-			{
-				continue;
-			}
-			int sId=factorNameToIDMap[ssKey];
-			ssIds[foundSsets]=sId;
-			foundSsets++;
-		}
-		//This factor might have been created
-		string fKey;
-		getFactorKey(sFactor->vIds,sFactor->vCnt,fKey);
-		if(factorNameToIDMap.find(fKey)!=factorNameToIDMap.end())
-		{
-			totalExisting++;
-			int existingFId=factorNameToIDMap[fKey];
-			//Need to add back to lattice
-			for(int i=0;i<foundSsets;i++)
-			{
-				int subsetId=ssIds[i];
-				if(slimFactorSet.find(subsetId)!=slimFactorSet.end())
-				{
-					lattice.addSubset(subsetId,existingFId);
-					//lattice.addSuperset(sFactor->fId,subsetId);
-				}
-			}
-			delete sFactor;
-			continue;
-		}
-
-
-		//cout <<"Populating factor" << endl;
-		//potMgr->populateFactor(slimFactorSet,variableSet,sFactor,false);
-		potMgr->populateFactor_Buffer(slimFactorSet,variableSet,sFactor,false);
-		if(sFactor->mutualInfo < (randmi_mean+(eps_support*randmi_sd)))
-		{
-			totalRejected++;
-			delete sFactor;
-			continue;
-		}
-		sFactor->fId=globalFactorID;
-		//Check the confidence of this factor
-		factorNameToIDMap[fKey]=sFactor->fId;
-		factorIDToNameMap[sFactor->fId]=fKey;
-		//sFactor->secondPId=pFactor->fId;
-		globalFactorID++;
-		//cout <<"Adding to lattice" << endl;
-		for(int i=0;i<foundSsets;i++)
-		{
-			int subsetId=ssIds[i];
-			if(slimFactorSet.find(subsetId)!=slimFactorSet.end())
-			{
-				lattice.addSubset(subsetId,sFactor->fId);
-				//lattice.addSuperset(sFactor->fId,subsetId);
-			}
-		}
-		slimFactorSet[sFactor->fId]=sFactor;
-	}
-	for(int i=0;i<MAXFACTORSIZE_ALLOC;i++)
-	{
-		delete[] subsetSpace[i];
-	}
-	delete[] ssIds;
-	delete[] subsetSpace;
-	cout <<"Total existing " << totalExisting << " total rejected " << totalRejected << endl;
-	return 0;
-}
-
-int
-FactorManager::generateNextLevelClusters(SlimFactor* sFactor)
-{
-	INTINTMAP newExtensions;
-	generateNextLevelClusters(sFactor,misdCnt,1.0,newExtensions);
-	newExtensions.clear();
-	return 0;
-}
-
-int
-FactorManager::generateNextLevelClusters(SlimFactor* sFactor,SlimFactor* mbFactor)
-{
-	INTDBLMAP candidateExtensions;
-	VSET& variableSet=vMgr->getVariableSet();
-	VSET_ITER vIter=variableSet.find(sFactor->fId);
-	vIter++;
-	for(;vIter!=variableSet.end();vIter++)
-	{
-		candidateExtensions[vIter->first]=0;	
-	}
-	generateNextLevelClusters(mbFactor,misdCnt,candidateExtensions);
-	return 0;
-}
-
-int
-FactorManager::generateNextLevelClusters_Tabulist(SlimFactor* sFactor,SlimFactor* mbFactor)
-{
-	INTDBLMAP candidateExtensions;
-	VSET variableSet=vMgr->getVariableSet();
-	/*if(restrictedNeighborList.size()!=0)
-	{
-		variableSet=&restrictedNeighborList;
-	}*/
-
-	int currFCnt=slimFactorSet.size();
-	for(VSET_ITER vIter=variableSet.begin();vIter!=variableSet.end();vIter++)
-	{
-		if((restrictedNeighborList.size()>0) && (restrictedNeighborList.find(sFactor->fId)==restrictedNeighborList.end()))
-		{
-			if((restrictedNeighborList.find(vIter->first)==restrictedNeighborList.end()) ||(sFactor->tabulist.find(vIter->first)!=sFactor->tabulist.end()))
-			{
-				continue;
-			}
-			candidateExtensions[vIter->first]=0;	
-		}
-		else
-		{
-			if(sFactor->fId==53 && vIter->first==82)
-			{
-				cout << "Stop here " << endl;
-			}
-			if(sFactor->tabulist.find(vIter->first)!=sFactor->tabulist.end())
-			{
-				continue;
-			}
-			candidateExtensions[vIter->first]=0;	
-		}
-	}
-	generateNextLevelClusters(mbFactor,misdCnt,candidateExtensions);
-	candidateExtensions.clear();
-	cout <<"Added " << slimFactorSet.size()-currFCnt << " new factors for " << sFactor->fId << endl;
-	return 0;
-}
-
 
 int 
 FactorManager::showConditionalPotentials(FactorGraph* fg)
@@ -2416,6 +1751,7 @@ FactorManager::readRestrictedVarlist(const char* aFName)
 	inFile.close();
 	return 0;
 }
+
 map<int,Variable*>& 
 FactorManager::getRestrictedVarlist()
 {
@@ -2450,14 +1786,11 @@ FactorManager::checkMonotonicity()
 	return monotonic;
 }
 
-
-
 INTINTMAP*
 FactorManager::getSupersets(int fId)
 {
 	return lattice.getSupersets(fId);
 }
-
 
 int
 FactorManager::getSupersets(int fId, int level, INTINTMAP& superSetID)
@@ -2466,11 +1799,9 @@ FactorManager::getSupersets(int fId, int level, INTINTMAP& superSetID)
 	return 0;
 }
 
-
 double 
 FactorManager::getMBScore(SlimFactor* sFactor,int supId)
 {
-	
 	int* mbVars=new int[MAXFACTORSIZE_ALLOC];
 	int mbvarCnt=0;
 	SlimFactor* mbFactor=slimFactorSet[supId];
@@ -2491,7 +1822,6 @@ FactorManager::getMBScore(SlimFactor* sFactor,int supId)
 	return proposedScore;
 }
 
-
 double 
 FactorManager::getMBScore(SlimFactor* sFactor)
 {
@@ -2508,29 +1838,6 @@ FactorManager::getMBScore(SlimFactor* sFactor)
 	proposedScore=proposedScore+penalty;
 	fVars.clear();
 	return proposedScore;
-}
-
-bool
-FactorManager::isBelowRandom(int supId)
-{
-	bool rand=false;
-	if(slimFactorSet.find(supId)==slimFactorSet.end())
-	{
-		cout <<"No factor by id " << supId << endl;
-		return false;
-	}
-	SlimFactor* mbFactor=slimFactorSet[supId];
-	if(mbFactor->vCnt>2)
-	{
-		return rand;
-	}
-	double randmi_mean=randMI_mean[2];
-	double randmi_sd=randMI_std[2];
-	if(mbFactor->mutualInfo < (randmi_mean+(misdCnt*randmi_sd)))
-	{
-		rand=true;
-	}
-	return rand;
 }
 
 SlimFactor*
@@ -2625,7 +1932,6 @@ FactorManager::makeMBMutuallyConsistent()
 	}
 	return 0;
 }
-
 
 //This function belongs to a bottom up approach of making the Markov blankets consistent.
 //We want to make sure that once we are done with the consistency check at one level l, we are guaranteed that every
@@ -3007,7 +2313,6 @@ FactorManager::produceClusters(double reqConf,int maxClusterSize)
 	}*/
 	return 0;
 }
-
 
 int
 FactorManager::produceClusters_NoDup(double reqConf,int maxClusterSize)
@@ -3488,136 +2793,6 @@ FactorManager::getFactorKey(int* vIds, int vCnt, string& key)
 	return 0;
 }
 
-
-int 
-FactorManager::getMBFactorIndex(SlimFactor* sFactor)
-{
-	INTINTMAP fVars;
-	fVars[sFactor->fId]=0;
-	for(INTINTMAP_ITER vIter=sFactor->mergedMB.begin();vIter!=sFactor->mergedMB.end();vIter++)
-	{
-		fVars[vIter->first]=0;
-	}
-	string key;
-	for(INTINTMAP_ITER vIter=fVars.begin();vIter!=fVars.end();vIter++)
-	{
-		char aBuff[56];
-		sprintf(aBuff,"-%d",vIter->first);
-		key.append(aBuff);
-	}
-	int fId=-1;
-	if(factorNameToIDMap.find(key)!=factorNameToIDMap.end())
-	{
-		fId=factorNameToIDMap[key];
-	}
-	else
-	{
-		fId=addNewMBFactor(sFactor);
-	}
-	key.clear();
-	fVars.clear();
-
-	return fId;
-}
-
-int
-FactorManager::addNewMBFactor(SlimFactor* sFactor)
-{
-	int newVId=sFactor->fId;
-	SlimFactor* mbFactor=new SlimFactor;
-	mbFactor->vIds=new int[sFactor->mergedMB.size()+1];
-	mbFactor->vCnt=sFactor->mergedMB.size()+1;
-	int dIter=0;
-	INTINTMAP_ITER fIter=sFactor->mergedMB.begin();
-	while(fIter!=sFactor->mergedMB.end())
-	{
-		if(fIter->first>newVId)
-		{
-			break;
-		}
-		mbFactor->vIds[dIter]=fIter->first;
-		dIter++;
-		fIter++;
-	}
-	mbFactor->vIds[dIter]=newVId;
-	dIter++;
-	while(fIter!=sFactor->mergedMB.end())
-	{
-		mbFactor->vIds[dIter]=fIter->first;
-		fIter++;
-		dIter++;
-	}
-	//This factor might have been created
-	string fKey;
-	getFactorKey(mbFactor->vIds,mbFactor->vCnt,fKey);
-	int** subsetSpace=new int*[MAXFACTORSIZE_ALLOC];
-	for(int i=0;i<MAXFACTORSIZE_ALLOC;i++)
-	{
-		subsetSpace[i]=new int[MAXFACTORSIZE_ALLOC-1];
-	}
-	int* ssIds=new int[MAXFACTORSIZE_ALLOC];
-	mbFactor->generateMaximalSubsets(subsetSpace);
-	int foundSsets=0;
-	for(int sscnt=0;sscnt<sFactor->vCnt;sscnt++)
-	{
-		string ssKey;
-		getFactorKey(subsetSpace[sscnt],sFactor->vCnt-1,ssKey);
-		if(factorNameToIDMap.find(ssKey)==factorNameToIDMap.end())
-		{
-			continue;
-		}
-		int sId=factorNameToIDMap[ssKey];
-		ssIds[foundSsets]=sId;
-		foundSsets++;
-	}
-	potMgr->populateFactor(slimFactorSet,vMgr->getVariableSet(),mbFactor,false);
-	double randmi_mean=randMI_mean[mbFactor->vCnt];
-	double randmi_sd=randMI_std[mbFactor->vCnt];
-	if(mbFactor->mutualInfo < randmi_mean+(randmi_sd*misdCnt))
-	{
-		cout <<"MB factor " << mbFactor->fId <<" has below random mi " << mbFactor->mutualInfo << endl;
-	}
-	mbFactor->fId=globalFactorID;
-	factorNameToIDMap[fKey]=mbFactor->fId;
-	factorIDToNameMap[mbFactor->fId]=fKey;
-	globalFactorID++;
-	if(globalFactorID<0)
-	{
-		cout <<"Global factor ID became negative" << endl;
-	}
-	for(int i=0;i<foundSsets;i++)
-	{
-		int subsetId=ssIds[i];
-		if(slimFactorSet.find(subsetId)!=slimFactorSet.end())
-		{
-			lattice.addSubset(subsetId,sFactor->fId);
-			//lattice.addSuperset(sFactor->fId,subsetId);
-		}
-	}
-	slimFactorSet[mbFactor->fId]=mbFactor;
-	for(int i=0;i<MAXFACTORSIZE_ALLOC;i++)
-	{
-		delete [] subsetSpace[i];
-	}
-	delete[] subsetSpace;
-	delete[] ssIds;
-
-	return mbFactor->fId;
-}
-
-
-SlimFactor*
-FactorManager::getFactorFromVars(int* vIds, int vCnt)
-{
-	int fid=getFactorIndex(vIds,vCnt);
-	if(slimFactorSet.find(fid)==slimFactorSet.end())
-	{
-		cout <<"Warning! Accessing null factor " << endl;
-		return NULL;
-	}
-	return slimFactorSet[fid];
-}
-
 double
 FactorManager::getMIFromVars(int* vIds,int vCnt)
 {
@@ -3777,32 +2952,10 @@ FactorManager::estimateClusterProperties()
 	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++)
 	{
 		SlimFactor* sFactor=fIter->second;
-		if(sFactor->vCnt>1)
-		{
-			//The multiinfo is just the difference of the joint entropy and the sum of the marginal
-			//entropies of the variables
-			double mi=(-1)*sFactor->jointEntropy;
-			for(int j=0;j<sFactor->vCnt;j++)
-			{
-				SlimFactor* subFactor=getFactorFromVars(sFactor->vIds+j,1);
-				mi=mi+subFactor->jointEntropy;
-			}
-			sFactor->mutualInfo=mi;
-			if(mi<0)
-			{
-				cout <<"Negative mi for "<< fIter->first << "setting to 0" << endl;
-				mi=0;
-			}
-		}
-		else
-		{
-			sFactor->mbScore=sFactor->jointEntropy;
-		}
+		sFactor->mbScore=sFactor->jointEntropy;
 	}
 	return Error::SUCCESS;
 }
-
-
 
 //This function generates all maximal subsets of this factor
 //Then it adds the subset and superset relationships
