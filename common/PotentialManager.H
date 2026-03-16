@@ -37,7 +37,6 @@ class PotentialManager
 		int readAllMeanCov(const char*, const char*);
 		int init(int);
 		int reset();
-		int resetCache();
 		
 		Error::ErrorCode populatePotentialsSlimFactors(map<int,SlimFactor*>&,VSET&);
 
@@ -87,10 +86,7 @@ class PotentialManager
 		map<string,double> summaryStat;
 		map<string,double> jointEntropies;
 		INTDBLMAP globalMean;
-		INTDBLMAP globalMean_Cache;
 		map<int,INTDBLMAP*> globalCovar;
-		map<int,INTDBLMAP*> globalCovar_Unnorm;
-		map<int,INTDBLMAP*> globalCovar_Cache;
 		map<int,Variable*> restrictedNeighborSet;
 		char outputDir[1024];
 		gsl_matrix* ludecomp;

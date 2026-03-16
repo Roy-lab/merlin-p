@@ -565,7 +565,6 @@ MetaLearner::doCrossValidation(int foldCnt)
 			}
 			PotentialManager* potMgr=potMgrSet[eIter->first];
 			potMgr->reset();
-			potMgr->resetCache();
 			potMgr->setRandom(random);
 			potMgr->init(f);
 			if(fgMgrSet.find(eIter->first)!=fgMgrSet.end())

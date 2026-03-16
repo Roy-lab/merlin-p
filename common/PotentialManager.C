@@ -127,19 +127,6 @@ PotentialManager::reset()
 }
 
 int
-PotentialManager::resetCache()
-{
-	globalMean_Cache.clear();
-	for(map<int,INTDBLMAP*>::iterator cIter=globalCovar_Cache.begin();cIter!=globalCovar_Cache.end();cIter++)
-	{
-		cIter->second->clear();
-		delete cIter->second;
-	}
-	globalCovar_Cache.clear();
-	return 0;
-}
-
-int
 PotentialManager::estimateAllMeanCov(bool random, INTDBLMAP& gMean, map<int,INTDBLMAP*>& gCovar,INTINTMAP& trainEvidSet)
 {
 	int evidCnt=trainEvidSet.size();
@@ -176,10 +163,6 @@ PotentialManager::estimateAllMeanCov(bool random, INTDBLMAP& gMean, map<int,INTD
 	for(INTDBLMAP_ITER idIter=gMean.begin();idIter!=gMean.end();idIter++)
 	{
 		idIter->second=idIter->second/(double) evidCnt;
-		if(!random)
-		{
-			globalMean_Cache[idIter->first]=idIter->second;
-		}
 		INTDBLMAP* vcov=new INTDBLMAP;
 		gCovar[idIter->first]=vcov;
 	}
@@ -286,21 +269,6 @@ PotentialManager::estimateAllMeanCov(bool random, INTDBLMAP& gMean, map<int,INTD
 				vIter->second=vIter->second/((double)(evidCnt-1));
 				//vIter->second=vIter->second/((double)(gCovar.size()-1));
 				//vIter->second=0;
-			}
-			if(!random)
-			{
-				INTDBLMAP* var_cache=NULL;
-				if(globalCovar_Cache.find(idIter->first)==globalCovar_Cache.end())
-				{
-					var_cache=new INTDBLMAP;
-					globalCovar_Cache[idIter->first]=var_cache;
-				}
-				else
-				{
-					var_cache=globalCovar_Cache[idIter->first];
-				}
-				(*var_cache)[vIter->first]=vIter->second;
-
 			}
 		}
 	}
@@ -567,7 +535,6 @@ PotentialManager::readAllMeanCov(const char* mFName, const char* sdFName)
 			tokCnt++;
 		}
 		globalMean[vId]=mean;
-		globalMean_Cache[vId]=mean;
 	}
 	mFile.close();
 	int lineNo=0;
@@ -601,21 +568,16 @@ PotentialManager::readAllMeanCov(const char* mFName, const char* sdFName)
 			tokCnt++;
 		}
 		INTDBLMAP* ucov=NULL;
-		INTDBLMAP* ucov_cache=NULL;
 		if(globalCovar.find(uId)==globalCovar.end())
 		{
 			ucov=new INTDBLMAP;
-			ucov_cache=new INTDBLMAP;
 			globalCovar[uId]=ucov;
-			globalCovar_Cache[uId]=ucov_cache;
 		}
 		else
 		{
 			ucov=globalCovar[uId];
-			ucov_cache=globalCovar_Cache[uId];
 		}
 		(*ucov)[vId]=covariance;
-		(*ucov_cache)[vId]=covariance;
 		if(uId==0 && vId==0)
 		{
 			cout << "Found uId=0 vId=0 covar="<< covariance << " at lineno " << lineNo  << endl;
