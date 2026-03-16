@@ -1227,7 +1227,7 @@ MetaLearner::initEdgeSet(bool validation)
 			sFactor->potFunc=new Potential;
 			sFactor->potFunc->setAssocVariable(varSet[sFactor->fId],Potential::FACTOR);
 			sFactor->potFunc->potZeroInit();
-			potMgr->populatePotential(sFactor->potFunc,random);
+			potMgr->populatePotential(sFactor->potFunc);
 			sFactor->potFunc->initMBCovMean();
 		}
 	}
@@ -1886,7 +1886,7 @@ MetaLearner::getNewPLLScore(int cid, INTINTMAP& conditionSet, Variable* u, Varia
 	PotentialManager* potMgr=potMgrSet[cid];
 	double newPLL_d=0;
 	*newdPot=dPots[cid];
-	potMgr->populatePotential(*newdPot,random);
+	potMgr->populatePotential(*newdPot);
 	(*newdPot)->initMBCovMean();
 	for(map<int,Potential*>::iterator pIter=dPots.begin();pIter!=dPots.end();pIter++)
 	{
@@ -2127,7 +2127,7 @@ MetaLearner::getNewPLLScore_Condition_Tracetrick(int csetId, int vId, int uId, P
 	}
 	parentPot->potZeroInit();
 	PotentialManager* potMgr=potMgrSet.begin()->second;
-	potMgr->populatePotential(parentPot,false);
+	potMgr->populatePotential(parentPot);
 	//parentPot->initMBCovMean();
 	EvidenceManager* evMgr=evMgrSet.begin()->second;
 	INTINTMAP* tSet=&evMgr->getTrainingSet();
@@ -2535,7 +2535,7 @@ MetaLearner::populateGraphsFromFile()
 				sFactor->potFunc->setAssocVariable(varSet[mIter->first],Potential::MARKOV_BNKT);
 			}
 			sFactor->potFunc->potZeroInit();
-			potMgr->populatePotential(sFactor->potFunc,random);
+			potMgr->populatePotential(sFactor->potFunc);
 			sFactor->potFunc->initMBCovMean();
 		}
 	}
