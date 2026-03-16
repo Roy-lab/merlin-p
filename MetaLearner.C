@@ -473,7 +473,6 @@ MetaLearner::initPartitions(int numberOfComponents)
 		//system(commandName);
 		string outputLocKey(outputLoc);
 		outLocMap[datasetId]=outputLocKey;
-		potMgr->setOutputDir(outputLoc);
 		potMgrSet[datasetId]=potMgr;
 	}
 	cout <<"Created data for " << potMgrSet.size() << " partitions" << endl;
@@ -566,7 +565,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 			PotentialManager* potMgr=potMgrSet[eIter->first];
 			potMgr->reset();
 			potMgr->setRandom(random);
-			potMgr->init(f);
+			potMgr->init();
 			if(fgMgrSet.find(eIter->first)!=fgMgrSet.end())
 			{
 				FactorManager* delMe=fgMgrSet[eIter->first];

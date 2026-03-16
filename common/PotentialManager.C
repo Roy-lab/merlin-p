@@ -56,13 +56,6 @@ PotentialManager::setRestrictedNeighborSet(map<int,Variable*>& rSet)
 }
 
 int
-PotentialManager::setOutputDir(const char* aDirName)
-{
-	strcpy(outputDir,aDirName);
-	return 0;
-}
-
-int
 PotentialManager::setLambda(double lVal)
 {
 	lambda=lVal;
@@ -77,22 +70,10 @@ PotentialManager::setRandom(bool flag)
 }
 
 int
-PotentialManager::init(int f)
+PotentialManager::init()
 {
-	char mFName[1024];
-	char sdFName[1024];
-	sprintf(mFName,"%s/gauss_mean_%d.txt",outputDir,f);
-	sprintf(sdFName,"%s/gauss_std_%d.txt",outputDir,f);
-	ifstream inFile(mFName);
-	if(inFile.good())
-	{
-		readAllMeanCov(mFName,sdFName);
-	}
-	else
-	{
-		INTINTMAP& trainEvidSet=evMgr->getTrainingSet();
-		estimateAllMeanCov(randomData,globalMean,globalCovar,trainEvidSet);
-	}
+	INTINTMAP& trainEvidSet=evMgr->getTrainingSet();
+	estimateAllMeanCov(randomData,globalMean,globalCovar,trainEvidSet);
 	ludecomp=gsl_matrix_alloc(MAXFACTORSIZE_ALLOC,MAXFACTORSIZE_ALLOC);
 	perm=gsl_permutation_alloc(MAXFACTORSIZE_ALLOC);
 	return 0;
@@ -502,92 +483,6 @@ PotentialManager::estimateNewCov_EM(map<int,EvidenceManager*> &evMgrSet, Potenti
 	covMat.clear();
 	return 0;
 }
-
-int
-PotentialManager::readAllMeanCov(const char* mFName, const char* sdFName)
-{
-
-	ifstream mFile(mFName);
-	ifstream sdFile(sdFName);
-	char buffer[1024];
-	while(mFile.good())
-	{
-		mFile.getline(buffer,1023);
-		if(strlen(buffer)<=0)
-		{
-			continue;
-		}
-		char* tok=strtok(buffer,"\t");
-		int tokCnt=0;
-		int vId;
-		double mean=0;
-		while(tok!=NULL)
-		{	
-			if(tokCnt==0)
-			{
-				vId=atoi(tok);	
-			}
-			else if(tokCnt==1)
-			{
-				mean=atof(tok);
-			}
-			tok=strtok(NULL,"\t");
-			tokCnt++;
-		}
-		globalMean[vId]=mean;
-	}
-	mFile.close();
-	int lineNo=0;
-	while(sdFile.good())
-	{
-		sdFile.getline(buffer,1023);
-		if(strlen(buffer)<=0)
-		{
-			continue;
-		}
-		char* tok=strtok(buffer,"\t");
-		int tokCnt=0;
-		int vId=0;
-		int uId=0;
-		double covariance=0;
-		while(tok!=NULL)
-		{
-			if(tokCnt==0)
-			{
-				uId=atoi(tok);
-			}
-			else if(tokCnt==1)
-			{
-				vId=atoi(tok);
-			}
-			else if(tokCnt==2)
-			{
-				covariance=atof(tok);
-			}
-			tok=strtok(NULL,"\t");
-			tokCnt++;
-		}
-		INTDBLMAP* ucov=NULL;
-		if(globalCovar.find(uId)==globalCovar.end())
-		{
-			ucov=new INTDBLMAP;
-			globalCovar[uId]=ucov;
-		}
-		else
-		{
-			ucov=globalCovar[uId];
-		}
-		(*ucov)[vId]=covariance;
-		if(uId==0 && vId==0)
-		{
-			cout << "Found uId=0 vId=0 covar="<< covariance << " at lineno " << lineNo  << endl;
-		}
-		lineNo++;
-	}
-	sdFile.close();
-	return 0;
-}
-
 
 Error::ErrorCode
 PotentialManager::populatePotentialsSlimFactors(map<int,SlimFactor*>& factorSet,VSET& varSet)

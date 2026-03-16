@@ -29,13 +29,11 @@ class PotentialManager
 		~PotentialManager();
 		int setEvidenceManager(EvidenceManager*);
 		int setRestrictedNeighborSet(map<int,Variable*>&);
-		int setOutputDir(const char*);
 		int setLambda(double);
 		int estimateAllMeanCov(bool,INTDBLMAP&,map<int,INTDBLMAP*>&,INTINTMAP&);
 		int estimateCovariance(bool,INTDBLMAP*,int,int);
 		int estimateNewCov_EM(map<int,EvidenceManager*> &,Potential*,int,map<int,map<int,INTDBLMAP*>*>&);
-		int readAllMeanCov(const char*, const char*);
-		int init(int);
+		int init();
 		int reset();
 		
 		Error::ErrorCode populatePotentialsSlimFactors(map<int,SlimFactor*>&,VSET&);
