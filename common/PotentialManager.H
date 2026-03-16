@@ -31,19 +31,11 @@ class PotentialManager
 		int setRestrictedNeighborSet(map<int,Variable*>&);
 		int setOutputDir(const char*);
 		int setLambda(double);
-		int estimateAllMeanCov(bool,INTDBLMAP&,map<int,INTDBLMAP*>&,INTINTMAP&,const char*,const char*,int leaveOutData=-1);
 		int estimateAllMeanCov(bool,INTDBLMAP&,map<int,INTDBLMAP*>&,INTINTMAP&);
 		int estimateCovariance(bool,INTDBLMAP*,int,int);
-		int estimateAllMeanCov_EM(map<int,EvidenceManager*>&,int,map<int,map<int,map<int,INTDBLMAP*>*>*>&);
-		int estimateAllMeanCov_EM(map<int,EvidenceManager*>&,int,map<int,map<int,map<int,INTDBLMAP*>*>*>&,int,INTINTMAP*);
-		int estimateNewCov(INTINTMAP& trainEvidSet, INTINTMAP* varSet,Potential*);
 		int estimateNewCov_EM(map<int,EvidenceManager*> &,Potential*,int,map<int,map<int,INTDBLMAP*>*>&);
 		int readAllMeanCov(const char*, const char*);
-		int initPooled();
-		int init();
 		int init(int);
-		int initValidationSet(int);
-		int initValidationSet(int,int);
 		int reset();
 		int resetCache();
 		
@@ -52,8 +44,7 @@ class PotentialManager
 		//We are going to store the set of potentials per factor. That is each 
 		//POTVECT object stores the set of potentials for a particular factor
 		int populatePotential(Potential*,bool random);
-		
-		int populatePotential_EM(Potential*,int,int,map<int,EvidenceManager*>&,map<int,map<int,map<int,INTDBLMAP*>*>*>&,bool);
+
 		int estimatePotWeight(Potential* apot,int vId, int cid,double b, map<int,EvidenceManager*>& evSet,map<int,map<int,map<int,INTDBLMAP*>*>*>& gammas);
 		int estimatePotWeight(Potential* apot,int vId, int cid,double b, map<int,EvidenceManager*>& evSet,map<int,map<int,INTDBLMAP*>*>& gammas);
 
@@ -66,8 +57,6 @@ class PotentialManager
 		int estimatePotCondVarBias(Potential* apot,int vId, int cid,double b, map<int,EvidenceManager*>& evSet,map<int,map<int,map<int,INTDBLMAP*>*>*>& gammas,int componentID);
 		int estimatePotCondVarBias(Potential* apot,int vId, int cid,double b, map<int,EvidenceManager*>& evSet,map<int,map<int,INTDBLMAP*>*>& gammas);
 		int estimatePotCondBiasThenVar(Potential* apot,int vId, int cid,double b, map<int,EvidenceManager*>& evSet,map<int,map<int,map<int,INTDBLMAP*>*>*>& gammas);
-
-		double getGaussianLikelihood(map<int,SlimFactor*>&,VSET&,bool);
 
 		double getLikelihood(SlimFactor*,VSET&);
 		double getLikelihood(SlimFactor*,VSET&,map<int,int>&);
@@ -88,7 +77,6 @@ class PotentialManager
 		int setRandom(bool);
 
 	private:
-		int getInstantiation(const string& confString, INTINTMAP& confMap);
 		double estimateCanonicalValue(INTINTMAP& reqInst,INTINTMAP& defInst,INTINTMAP& allSubsets,map<int,SlimFactor*>& canFactors,Potential* condPot);
 		double estimateCanonicalValue_Joint(INTINTMAP& reqInst,INTINTMAP& defInst,INTINTMAP& allSubsets,map<int,SlimFactor*>& canFactors,Potential* condPot);
 		POTFUNC_MAP potFuncs;

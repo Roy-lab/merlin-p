@@ -624,15 +624,6 @@ FactorManager::removeDupFactors()
 }
 
 double
-FactorManager::getMVGaussianLikelihood(FactorGraph* fg,bool train)
-{
-	map<int,SlimFactor*>& factorSet=fg->getAllFactors();
-	VSET& variableSet=vMgr->getVariableSet();
-	double ll=potMgr->getGaussianLikelihood(factorSet,variableSet,train);
-	return ll;
-}
-
-double
 FactorManager::getLikelihood_ChainRule()
 {
 	VSET& variableSet=vMgr->getVariableSet();

@@ -54,7 +54,6 @@ class FactorManager
 		//Here we populate the factSignMap
 		int removeDupFactors();
 
-		double getMVGaussianLikelihood(FactorGraph*,bool);
 		double getLikelihood_ChainRule();
 		double getLikelihood_ChainRule(FactorGraph*);
 		double getLikelihood();
