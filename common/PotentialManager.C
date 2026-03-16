@@ -212,15 +212,6 @@ PotentialManager::resetCache()
 }
 
 int
-PotentialManager::initRandom()
-{
-	INTINTMAP& trainEvidSet=evMgr->getTrainingSet();
-	//INTINTMAP& trainEvidSet=evMgr->getTestSet();
-	estimateAllMeanCov(true,globalMean_Rand,globalCovar_Rand,trainEvidSet,NULL,NULL);
-	return 0;
-}
-
-int
 PotentialManager::estimateAllMeanCov(bool random, INTDBLMAP& gMean, map<int,INTDBLMAP*>& gCovar,INTINTMAP& trainEvidSet, const char* mFName, const char* sdFName,int leaveOutData)
 {
 	ofstream mFile;
@@ -1406,194 +1397,20 @@ PotentialManager::populatePotentialsSlimFactors(map<int,SlimFactor*>& factorSet,
 	return Error::SUCCESS;
 }
 
-
-int 
-PotentialManager::estimateMarginalEntropies(map<int,SlimFactor*>& slimFactors,VSET& varSet,bool random)
-{	
-	for(map<int,SlimFactor*>::iterator aIter=slimFactors.begin();aIter!=slimFactors.end();aIter++)
-	{
-		SlimFactor* sFactor=aIter->second;
-		if(sFactor->vCnt>1)
-		{
-			break;
-		}
-		Potential* aPotFunc=new Potential;
-		Variable* aVar=varSet[sFactor->vIds[0]];
-		aPotFunc->setAssocVariable(aVar,Potential::FACTOR);
-		aPotFunc->potZeroInit();
-		populatePotential(aPotFunc,random);
-		aPotFunc->calculateJointEntropy();
-		sFactor->jointEntropy=aPotFunc->getJointEntropy();
-		delete aPotFunc;
-	}
-	return 0;
-}
-
-//Estimate the random information for all factors of a particular size. Assume that
-//randInfo is already allocated
-Error::ErrorCode
-PotentialManager::estimateRandomInfo(map<int,SlimFactor*>& factorSet, 
-		VSET& varSet, vector<double>& randInfo, int fSize)
-{
-	int rInd=0;
-	for(map<int,SlimFactor*>::iterator rIter=factorSet.begin();rIter!=factorSet.end();rIter++)
-	{
-		SlimFactor* sFactor=rIter->second;
-		if(sFactor->vCnt<fSize)
-		{
-			continue;
-		}
-		else if(sFactor->vCnt>fSize)
-		{
-			break;
-		}
-		//Otherwise create a potential
-		Potential* aPotFunc=new Potential;
-		for(int j=0;j<sFactor->vCnt;j++)
-		{
-			Variable* aVar=varSet[sFactor->vIds[j]];
-			if(j==sFactor->vCnt-1)
-			{
-				aPotFunc->setAssocVariable(aVar,Potential::FACTOR);
-			}
-			else
-			{
-				aPotFunc->setAssocVariable(aVar,Potential::MARKOV_BNKT);
-			}
-		}
-		aPotFunc->potZeroInit();
-		populatePotential(aPotFunc,true);
-		aPotFunc->calculateJointEntropy();
-		double rInfo=(-1)*aPotFunc->getJointEntropy();
-		for(int j=0;j<sFactor->vCnt;j++)
-		{
-			SlimFactor* subFactor=factorSet[sFactor->vIds[j]];
-			rInfo=rInfo+subFactor->jointEntropy;
-		}
-		randInfo.push_back(rInfo);
-		rInd++;
-		delete aPotFunc;
-	}
-	return Error::SUCCESS;
-
-}
-
-
-int 
-PotentialManager::populateFactor(map<int,SlimFactor*>& factorSet,VSET& varSet,SlimFactor* sFactor,bool random)
-{
-	Potential* aPotFunc=new Potential;
-	//string fullConfStr;
-	char confStr[CONSTR_LEN];
-	for(int j=0;j<sFactor->vCnt;j++)
-	{
-		Variable* aVar=varSet[sFactor->vIds[j]];
-		if(j==sFactor->vCnt-1)
-		{
-			
-			aPotFunc->setAssocVariable(aVar,Potential::FACTOR);
-		}
-		else
-		{
-			aPotFunc->setAssocVariable(aVar,Potential::MARKOV_BNKT);
-		}
-		//sprintf(confStr,"-%d",sFactor->vIds[j]);
-		//fullConfStr.append(confStr);
-	}
-	aPotFunc->potZeroInit();
-	populatePotential(aPotFunc,random);
-	aPotFunc->calculateJointEntropy();
-	//jointEntropies[fullConfStr]=aPotFunc->getJointEntropy();
-	double rInfo=(-1)*aPotFunc->getJointEntropy();
-	for(int j=0;j<sFactor->vCnt;j++)
-	{
-		SlimFactor* subFactor=factorSet[sFactor->vIds[j]];
-		rInfo=rInfo+subFactor->jointEntropy;
-	}
-	sFactor->mutualInfo=rInfo;
-	
-	delete aPotFunc;
-	return 0;
-}
-
-
-int 
-PotentialManager::populateFactor_Buffer(map<int,SlimFactor*>& factorSet,VSET& varSet,SlimFactor* sFactor,bool random)
-{
-	Potential* aPotFunc=NULL;
-	if(potBuffer.find(sFactor->vCnt)==potBuffer.end())
-	{
-		aPotFunc=new Potential;
-		aPotFunc->initMatrix(sFactor->vCnt);
-		potBuffer[sFactor->vCnt]=aPotFunc;
-	}
-	else
-	{
-		aPotFunc=potBuffer[sFactor->vCnt];
-		aPotFunc->resetVarSet();
-	}
-	//string fullConfStr;
-	char confStr[CONSTR_LEN];
-	for(int j=0;j<sFactor->vCnt;j++)
-	{
-		Variable* aVar=varSet[sFactor->vIds[j]];
-		if(j==sFactor->vCnt-1)
-		{
-			
-			aPotFunc->setAssocVariable(aVar,Potential::FACTOR);
-		}
-		else
-		{
-			aPotFunc->setAssocVariable(aVar,Potential::MARKOV_BNKT);
-		}
-		//sprintf(confStr,"-%d",sFactor->vIds[j]);
-		//fullConfStr.append(confStr);
-	}
-	aPotFunc->potZeroInit_MeanOnly();
-	populatePotential(aPotFunc,random);
-	aPotFunc->calculateJointEntropy();
-	//jointEntropies[fullConfStr]=aPotFunc->getJointEntropy();
-	double rInfo=(-1)*aPotFunc->getJointEntropy();
-	for(int j=0;j<sFactor->vCnt;j++)
-	{
-		SlimFactor* subFactor=factorSet[sFactor->vIds[j]];
-		rInfo=rInfo+subFactor->jointEntropy;
-	}
-	sFactor->mutualInfo=rInfo;
-	
-	//delete aPotFunc;
-	return 0;
-}
-
 int
 PotentialManager::populatePotential(Potential* aPot, bool random)
 {
 	VSET& potVars=aPot->getAssocVariables();
 	for(VSET_ITER vIter=potVars.begin();vIter!=potVars.end(); vIter++)
 	{
-		double mean=0;
-		double cov=0;
-		INTDBLMAP* covar=NULL;
-	/*	if(random)
+		if(globalMean.find(vIter->first)==globalMean.end())
 		{
-			if(globalMean_Rand.find(vIter->first)==globalMean_Rand.end())
-			{
-				cerr <<"No var with id " << vIter->first << endl;
-				exit(-1);
-			}
-			mean=globalMean_Rand[vIter->first];
-			covar=globalCovar_Rand[vIter->first];
+			cerr <<"No var with id " << vIter->first << endl;
+			exit(-1);
 		}
-		else
-		{*/
-			if(globalMean.find(vIter->first)==globalMean.end())
-			{
-				cerr <<"No var with id " << vIter->first << endl;
-				exit(-1);
-			}
-			mean=globalMean[vIter->first];
-			covar=globalCovar[vIter->first];
-		//}
+		double mean=globalMean[vIter->first];
+		INTDBLMAP* covar=globalCovar[vIter->first];
+
 		aPot->updateMean(vIter->first,mean);
 		for(VSET_ITER uIter=vIter;uIter!=potVars.end();uIter++)
 		{
@@ -2998,67 +2815,6 @@ PotentialManager::estimatePotCondBiasThenVar(Potential* apot,int vId, int cid,do
 	return 0;
 }
 
-
-double
-PotentialManager::getPseudoLikelihood(SlimFactor* sFactor,VSET& varSet, bool train)
-{
-	Potential* aPotFunc=new Potential;
-	Variable* aVar=varSet[sFactor->fId];
-	aPotFunc->setAssocVariable(aVar,Potential::FACTOR);
-	for(INTINTMAP_ITER aIter=sFactor->mergedMB.begin();aIter!=sFactor->mergedMB.end();aIter++)
-	{
-		Variable* aVar=varSet[aIter->first];
-		aPotFunc->setAssocVariable(aVar,Potential::MARKOV_BNKT);
-	}
-	aPotFunc->potZeroInit();
-	populatePotential(aPotFunc,false);
-	//This function creates a submatrix of the covariance matrix and inverts it
-	aPotFunc->initMBCovMean();
-	INTINTMAP* dataSet=NULL;
-	if(train)
-	{
-		dataSet=&(evMgr->getTrainingSet());
-	}
-	else
-	{
-		dataSet=&(evMgr->getTestSet());
-	}
-	INTDBLMAP subData;
-	double pll=0;
-	int thresholded=0;
-	for(INTINTMAP_ITER dIter=dataSet->begin();dIter!=dataSet->end();dIter++)
-	{
-		EMAP* evidMap=NULL;
-		evidMap=evMgr->getEvidenceAt(dIter->first);
-		Evidence* evid=(*evidMap)[sFactor->fId];
-		double val=evid->getEvidVal();
-		subData[sFactor->fId]=val;
-		for(INTINTMAP_ITER vIter=sFactor->mergedMB.begin();vIter!=sFactor->mergedMB.end(); vIter++)
-		{
-			int vId=vIter->first;
-			Evidence* evid=(*evidMap)[vIter->first];
-			double val=evid->getEvidVal();
-			subData[vId]=val;
-		}
-		double cll=aPotFunc->getCondPotValueFor(subData);
-
-		if(cll<1e-50)
-		{
-			cll=1e-50;
-			thresholded++;
-		}
-		pll=pll+log(cll);
-	}
-	subData.clear();
-	if(thresholded>0)
-	{
-	//	cout <<"Thresholded " << thresholded << " datapoints to 1e-50" << endl;
-	}
-	delete aPotFunc;
-	return pll;
-}
-
-
 double 
 PotentialManager::getGaussianLikelihood(map<int,SlimFactor*>& factorSet,VSET& varSet, bool train)
 {
@@ -3169,13 +2925,6 @@ PotentialManager::estimateConditionalPotential(SlimFactor* sFactor,VSET& varSet,
 	return 0;
 }
 
-int
-PotentialManager::populatePotential(Potential* pot,STRDBLMAP& counts)
-{
-	cout <<"Not implemented" << endl;
-	return 0;
-}
-
 int 
 PotentialManager::estimateCanonicalPotential(SlimFactor* sFactor, VSET& variableSet,INTINTMAP& defInst,INTINTMAP& factorSubsets,map<int,SlimFactor*>& canonicalFactorSet)
 {
@@ -3230,104 +2979,6 @@ PotentialManager::getPotential(int fId)
 	return potFuncs[fId];
 }
 
-
-double 
-PotentialManager::getConditionalEntropy(int vId,INTINTMAP& fVars,VSET& varSet)
-{
-	double condEntropy=0;
-	//string fullConfStr;
-	//string partConfStr;
-	char confStr[CONSTR_LEN];
-	/*int varCnt=0;
-	for(INTINTMAP_ITER aIter=fVars.begin();aIter!=fVars.end();aIter++)
-	{
-		sprintf(confStr,"-%d",aIter->first);
-		fullConfStr.append(confStr);
-		if(aIter->first!=vId)
-		{
-			partConfStr.append(confStr);
-			varCnt++;
-		}
-	}*/
-	double fullJointEntropy=0;
-	/*if(jointEntropies.find(fullConfStr)!=jointEntropies.end())
-	{
-		fullJointEntropy=jointEntropies[fullConfStr];
-	}
-	else
-	{*/
-		Potential* potFunc=new Potential;
-		for(INTINTMAP_ITER aIter=fVars.begin();aIter!=fVars.end();aIter++)
-		{
-			if(aIter==fVars.begin())
-			{
-				potFunc->setAssocVariable(varSet[aIter->first],Potential::FACTOR);
-			}
-			else
-			{
-				potFunc->setAssocVariable(varSet[aIter->first],Potential::MARKOV_BNKT);
-			}
-		}
-		potFunc->potZeroInit();
-		populatePotential(potFunc,false);
-		potFunc->calculateJointEntropy();
-		fullJointEntropy=potFunc->getJointEntropy();
-		//jointEntropies[fullConfStr]=fullJointEntropy;
-		delete potFunc;
-	//}
-	if(fVars.size()==1)
-	{
-		/*if(jointEntropies.size()>=20000)
-		{
-			jointEntropies.clear();
-		}*/
-		return fullJointEntropy;
-	}
-	double partJointEntropy=0;
-	/*if(jointEntropies.find(partConfStr)!=jointEntropies.end())
-	{
-		partJointEntropy=jointEntropies[partConfStr];
-	}
-	else
-	{
-		Potential* potFunc=new Potential;*/
-		potFunc=new Potential;
-		bool setFactorVar=false;
-		for(INTINTMAP_ITER aIter=fVars.begin();aIter!=fVars.end();aIter++)
-		{
-			if(aIter->first==vId)
-			{
-				continue;
-			}
-			if(!setFactorVar)
-			{
-				setFactorVar=true;
-				potFunc->setAssocVariable(varSet[aIter->first],Potential::FACTOR);
-			}
-			else
-			{
-				potFunc->setAssocVariable(varSet[aIter->first],Potential::MARKOV_BNKT);
-			}
-		}
-		STRDBLMAP counts;
-		potFunc->potZeroInit();
-		populatePotential(potFunc,false);
-		potFunc->calculateJointEntropy();
-		partJointEntropy=potFunc->getJointEntropy();
-		//jointEntropies[partConfStr]=partJointEntropy;
-		delete potFunc;
-	//}
-	condEntropy=fullJointEntropy-partJointEntropy;
-	//fullConfStr.clear();
-	//partConfStr.clear();
-	/*if(jointEntropies.size()>=20000)
-	{
-		jointEntropies.clear();
-	}*/
-	return condEntropy;
-}
-
-
 double 
 PotentialManager::getSampleLikelihood(map<int,SlimFactor*>& factorSet, VSET& varSet, INTINTMAP* sample)
 {
@@ -3335,7 +2986,6 @@ PotentialManager::getSampleLikelihood(map<int,SlimFactor*>& factorSet, VSET& var
 	cout <<"Not implemented " <<endl;
 	return sampleLL;
 }
-
 
 int 
 PotentialManager::getVariableSample(INTINTMAP& jointConf,VSET& varSet,int vId,SlimFactor* sFactor, gsl_rng* r)

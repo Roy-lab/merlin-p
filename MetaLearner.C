@@ -2583,30 +2583,10 @@ MetaLearner::normalizeWeight(INTDBLMAP& wtVect)
 	return 0;
 }
 
-
 int
 MetaLearner::updatePotentials()
 {
 	VSET& varSet=varManager->getVariableSet();
-	/*for(map<int,FactorGraph*>::iterator gIter=fgGraphSet.begin();gIter!=fgGraphSet.end();gIter++)
-	{
-		FactorGraph* graph=gIter->second;
-		map<int,SlimFactor*>& factorSet=graph->getAllFactors();
-		string& condKey=condsetIDKeyMap[gIter->first];
-		PotentialManager* potMgr=pooledPotentials[condKey];
-		for(map<int,SlimFactor*>::iterator fIter=factorSet.begin();fIter!=factorSet.end();fIter++)
-		{
-			SlimFactor* sFactor=fIter->second;
-			potMgr->populatePotential(sFactor->potFunc,false);
-			sFactor->potFunc->initMBCovMean();
-			if(sFactor->potFunc->getCondVariance()<=0)
-			{
-				cout <<"Found negative covariance for "<< sFactor->fId << " "  << varSet[sFactor->fId]->getName() <<  " in condition " << gIter->first  << endl;
-				sFactor->potFunc->setCondVariance(1e-20);
-			}
-		}
-	}*/
-
 	//Now reestimate the plls for each dataset and potential
 	INTDBLMAP* plls=currPLLMap[evMgrSet.begin()->first];
 	for(VSET_ITER vIter=varSet.begin();vIter!=varSet.end();vIter++)

@@ -41,11 +41,8 @@ class FactorManager
 
 		FactorGraph* createInitialFactorGraph();
 
-		int paramEstimation(const char*);
-
 		int generateSingletonFactors();
 		int generateCanonicalFactors();
-		int generateCanonicalFactors(FactorGraph*, map<int,SlimFactor*>& canonicalFactors);
 		int estimateCanonicalParameters(const char*);
 
 		int learnStructure();
@@ -53,35 +50,25 @@ class FactorManager
 		int getFactorIndex(int*, int);
 		int getFactorKey(int*, int,string&);
 
-		double getMIFromVars(int*,int);
-
 		int getMaximalClusters();
 		//Here we populate the factSignMap
 		int removeDupFactors();
 
-		double getPseudoLikelihood();
-		double getPseudoLikelihood(FactorGraph*,bool);
 		double getMVGaussianLikelihood(FactorGraph*,bool);
 		double getLikelihood_ChainRule();
 		double getLikelihood_ChainRule(FactorGraph*);
 		double getLikelihood();
-		double getLikelihood(FactorGraph*);
 
 		double getLikelihood_MCMC(FactorGraph*);
 		double estimatePartitionFunction(FactorGraph*);
 		int randInitSample(INTINTMAP* sample,gsl_rng* r);
 		int getNextSample(FactorGraph* fg,INTINTMAP* currSample,INTINTMAP* nextSample,gsl_rng* r);
 
-		int evaluateMarkovBlanket(double);
-
 		bool checkMonotonicity();
 
 		INTINTMAP* getSupersets(int);
 		int getSupersets(int,int,INTINTMAP&);
-		double getMBScore(SlimFactor*,int supFid);
-		double getMBScore(SlimFactor*);
 		SlimFactor* getFactorAt(int);
-		int showConditionalPotentials(FactorGraph*);
 		int deleteMySupersets(int factorID);
 		int deleteFactor(SlimFactor*);
 		int getActiveSubsetCnt(SlimFactor*,map<int,int>&);
@@ -91,13 +78,10 @@ class FactorManager
 		int readRestrictedVarlist(const char*);
 		map<int,Variable*>& getRestrictedVarlist();
 	private:
-		int makeMBMutuallyConsistent();
 		int makeMarkovBlanketConsistent(SlimFactor*);
 		int produceClusters(double,int);
 		int produceClusters_NoDup(double,int);
 
-		int getGoodCandidateMarkovBlankets(SlimFactor*,INTINTMAP*, int,double&,double,INTDBLMAP&);
-			
 		int getClusterCnt(int,int,int);
 		int initFactorSet();
 		int populateFactorSet();
@@ -107,9 +91,9 @@ class FactorManager
 
 		int addToLattice(SlimFactor*,int**);
 		int deleteFromLattice(int);
-		
+
 		double getOverlap(SlimFactor*,SlimFactor*,int&);
-		
+
 		int globalFactorID;	
 		int maxFactorSize_Approx;
 		VariableManager* vMgr;
