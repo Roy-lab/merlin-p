@@ -22,7 +22,6 @@ class MetaLearner
 	MetaLearner();
 	~MetaLearner();
 	int setInputFName(const char*);
-	int setMaxFactorSize(int);
 	int setMaxFactorSize_Approx(int);
 	int setPenalty(double);
 	int setBeta1(double aval);
@@ -128,7 +127,6 @@ class MetaLearner
 	map<int,string> outLocMap;
 
 	VariableManager* varManager;
-	int maxFactorSize;
 	int maxFactorSizeApprox;
 	int maxMBCntGreedy;
 	char inputFName[1024];

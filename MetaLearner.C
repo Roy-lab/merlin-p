@@ -53,13 +53,6 @@ MetaLearner::setInputFName(const char* aFName)
 }
 
 int
-MetaLearner::setMaxFactorSize(int aVal)
-{
-	maxFactorSize=aVal;
-	return 0;
-}
-
-int
 MetaLearner::setMaxFactorSize_Approx(int aVal)
 {
 	maxFactorSizeApprox=aVal;
@@ -585,7 +578,6 @@ MetaLearner::doCrossValidation(int foldCnt)
 			fgMgr->setEvidenceManager(evMgr);
 			fgMgr->setVariableManager(varManager);
 			fgMgr->setOutputDir(outLocMap[eIter->first].c_str());
-			fgMgr->setMaxFactorSize(maxFactorSize);
 			fgMgr->setMaxFactorSize_Approx(maxFactorSizeApprox);
 			fgMgr->setPenalty(penalty);
 			fgMgrSet[eIter->first]=fgMgr;
@@ -601,11 +593,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 				fgMgr->estimateRandomInfo_Approximate(SAMPLE_CNT);
 				fgMgr->readRandomInfo();
 			}
-			if(fgMgr->readStructure(f)==-1)
-			{
-				fgMgr->learnStructure();
-				fgMgr->showStructure_allK(f);
-			}
+			fgMgr->learnStructure();
 			char outputDir[1024];
 			sprintf(outputDir,"%s/fold%d",outLocMap[eIter->first].c_str(),f);
 			char foldOutputDirCmd[1024];

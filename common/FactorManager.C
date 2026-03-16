@@ -22,7 +22,6 @@
 #include "Graph.H"
 #include "FactorManager.H"
 
-
 FactorManager::FactorManager()
 {
 	globalFactorID=0;
@@ -191,19 +190,6 @@ FactorManager::setBaseInstantiation_Variable()
 	return 0;
 }
 
-
-int 
-FactorManager::setMaxFactorSize(int size)
-{
-	maxFactorSize=size;
-	if(maxFactorSize_Approx<maxFactorSize)
-	{
-		maxFactorSize_Approx=size;
-	}
-	return 0;
-}
-
-
 int 
 FactorManager::setRandMISdCnt(double sdCnt) 
 {
@@ -211,22 +197,11 @@ FactorManager::setRandMISdCnt(double sdCnt)
 	return 0;
 }
 
-
 int 
 FactorManager::setMaxFactorSize_Approx(int size)
 {
-	if(size>maxFactorSize)
-	{
-		maxFactorSize_Approx=size;
-	}
+	maxFactorSize_Approx=size;
 	return 0;
-}
-
-
-int 
-FactorManager::getMaxFactorSize()
-{
-	return maxFactorSize;
 }
 
 int 
@@ -285,7 +260,6 @@ FactorManager::allocateFactorSpace_Graph()
 	generateCanonicalFactors();
 	return 0;
 }
-
 
 FactorGraph* 
 FactorManager::createInitialFactorGraph()
@@ -807,283 +781,6 @@ FactorManager::learnStructure()
 	return 0;
 }
 
-int 
-FactorManager::showStructure()
-{
-	VSET& variableSet=vMgr->getVariableSet();
-	char aFName[1024];
-	sprintf(aFName,"%s/strct_k%d.txt",outputDir,maxFactorSize);
-	ofstream oFile(aFName);
-	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++)
-	{
-		SlimFactor* aFactor=fIter->second;
-		oFile <<fIter->first<< " " << factorIDToNameMap[fIter->first] 
-			<<" " << aFactor->mutualInfo << " " 
-			<< aFactor->jointEntropy<< endl;
-	}
-	oFile.close();
-	return 0;
-}
-
-int 
-FactorManager::showStructure_allK()
-{
-	VSET& variableSet=vMgr->getVariableSet();
-	char aFName[1024];
-	map<int,ofstream*> filePtrs;
-	for(int k=2;k<=maxFactorSize;k++)
-	{
-		sprintf(aFName,"%s/strct_k%d.txt",outputDir,k);
-		ofstream* oFile=new ofstream(aFName);
-		filePtrs[k]=oFile;
-	}
-	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++)
-	{
-		SlimFactor* aFactor=fIter->second;
-		for(int k=2;k<=maxFactorSize;k++)
-		{
-			if(aFactor->vCnt<=k)
-			{
-				ofstream* oFile=filePtrs[k];
-				(*oFile) <<fIter->first<< " " << factorIDToNameMap[fIter->first] 
-				<<" " << aFactor->mutualInfo << " " 
-				<< aFactor->jointEntropy<< endl;
-			}
-		}
-	}
-	for(int k=2;k<=maxFactorSize;k++)
-	{
-		ofstream* oFile=filePtrs[k];
-		oFile->close();
-		delete oFile;
-	}
-	filePtrs.clear();
-	return 0;
-}
-
-
-int 
-FactorManager::showStructure_allK(int f)
-{
-	VSET& variableSet=vMgr->getVariableSet();
-	char aFName[1024];
-	map<int,ofstream*> filePtrs;
-	for(int k=2;k<=maxFactorSize;k++)
-	{
-		sprintf(aFName,"%s/strct_k%d_%d.txt",outputDir,k,f);
-		ofstream* oFile=new ofstream(aFName);
-		filePtrs[k]=oFile;
-	}
-	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++)
-	{
-		SlimFactor* aFactor=fIter->second;
-		for(int k=2;k<=maxFactorSize;k++)
-		{
-			if(aFactor->vCnt<=k)
-			{
-				ofstream* oFile=filePtrs[k];
-				(*oFile) <<fIter->first<< " " << factorIDToNameMap[fIter->first] 
-				<<" " << aFactor->mutualInfo << " " 
-				<< aFactor->jointEntropy<< endl;
-			}
-		}
-	}
-	for(int k=2;k<=maxFactorSize;k++)
-	{
-		ofstream* oFile=filePtrs[k];
-		oFile->close();
-		delete oFile;
-	}
-	filePtrs.clear();
-	return 0;
-}
-
-
-int 
-FactorManager::showValidationStructure_allK(int vsize)
-{
-	VSET& variableSet=vMgr->getVariableSet();
-	char aFName[1024];
-	map<int,ofstream*> filePtrs;
-	for(int k=2;k<=maxFactorSize;k++)
-	{
-		sprintf(aFName,"%s/strct_k%d_v%d.txt",outputDir,k,vsize);
-		ofstream* oFile=new ofstream(aFName);
-		filePtrs[k]=oFile;
-	}
-	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++)
-	{
-		SlimFactor* aFactor=fIter->second;
-		for(int k=2;k<=maxFactorSize;k++)
-		{
-			if(aFactor->vCnt<=k)
-			{
-				ofstream* oFile=filePtrs[k];
-				(*oFile) <<fIter->first<< " " << factorIDToNameMap[fIter->first] 
-				<<" " << aFactor->mutualInfo << " " 
-				<< aFactor->jointEntropy<< endl;
-			}
-		}
-	}
-	for(int k=2;k<=maxFactorSize;k++)
-	{
-		ofstream* oFile=filePtrs[k];
-		oFile->close();
-		delete oFile;
-	}
-	filePtrs.clear();
-	return 0;
-}	
-
-int
-FactorManager::readStructure()
-{
-	char aFName[1024];
-	sprintf(aFName,"%s/strct_k%d.txt",outputDir,maxFactorSize);
-	if(readClusterProperties(aFName)==-1)
-	{
-		return -1;
-	}
-	return 0;
-}
-
-int
-FactorManager::readStructure(int f)
-{
-	char aFName[1024];
-	sprintf(aFName,"%s/strct_k%d_%d.txt",outputDir,maxFactorSize,f);
-	if(readClusterProperties(aFName)==-1)
-	{
-		return -1;
-	}
-	return 0;
-}
-
-int
-FactorManager::readValidationStructure(int vsize)
-{
-	char aFName[1024];
-	sprintf(aFName,"%s/strct_k%d_v%d.txt",outputDir,maxFactorSize,vsize);
-	if(readClusterProperties(aFName)==-1)
-	{
-		return -1;
-	}
-	return 0;
-}
-
-
-//This reads a file of the format written by the above function, showStructure
-int
-FactorManager::readClusterProperties(const char* aFName)
-{
-	ifstream inFile(aFName);
-	if(!inFile.good())
-	{
-		inFile.close();
-		return -1;
-	}
-	char buffer[1024];
-	while(inFile.good())
-	{
-		inFile.getline(buffer,1023);
-		if(strlen(buffer)<=0)
-		{
-			continue;
-		}
-		int tokCnt=0;
-		int fID=0;
-		string fKey;
-		double jointEntropy=0;
-		double mutualInfo=0;
-		
-		char* tok=strtok(buffer," ");
-		while(tok!=NULL)
-		{
-			switch(tokCnt)
-			{
-				case 0:
-				{
-					fID=atoi(tok);
-					break;
-				}
-				case 1:
-				{
-					fKey.append(tok);
-					break;
-				}
-				case 2:
-				{
-					mutualInfo=atof(tok);
-					break;
-				}
-				case 3:
-				{
-					jointEntropy=atof(tok);
-					break;
-				}
-			}
-			tok=strtok(NULL," ");
-			tokCnt++;
-		}
-		SlimFactor* factor=slimFactorSet[fID];
-		factor->mutualInfo=mutualInfo;
-		factor->jointEntropy=jointEntropy;
-		if(factor->vCnt==1)
-		{
-			factor->marginalEntropy=jointEntropy;
-			factor->mbScore=jointEntropy;
-			factor->moveScore=jointEntropy;
-		}
-	}
-	inFile.close();
-	return 0;
-}
-
-//Dump all the information files in outputDir
-
-int
-FactorManager::estimateRandomInfo()
-{
-	VSET& variableSet=vMgr->getVariableSet();
-	vector<double> randInfo;
-	char fName[256];
-	sprintf(fName,"%s/randmi_summary.txt",outputDir);
-	ofstream misummary(fName);
-	misummary << "k\tmean_rand_mi\tstd_rand_mi" << endl;
-	gsl_rng* r=gsl_rng_alloc(gsl_rng_default);
-	evMgr->randomizeEvidence(r);
-	potMgr->initRandom();
-
-	potMgr->estimateMarginalEntropies(slimFactorSet,variableSet,true);
-	//potMgr->computeSummaryStats(maxFactorSize,true);
-	for(int i=2;i<=maxFactorSize;i++)
-	{
-		int fCnt=combCnt(variableSet.size(),i);
-		potMgr->estimateRandomInfo(slimFactorSet,variableSet,randInfo,i);
-		double mean=0;
-		sprintf(fName,"%s/randmi_k%d.txt",outputDir,i);
-		ofstream oFile(fName);
-		for(int j=0;j<randInfo.size();j++)
-		{
-			oFile <<randInfo[j] << endl;
-			mean=mean+randInfo[j];
-		}
-		oFile.close();
-		mean=mean/randInfo.size();
-		double std=0;
-		for(int j=0;j<fCnt;j++)
-		{
-			double diff=mean-randInfo[j];
-			std=std+(diff*diff);
-		}
-		std=sqrt(std/(randInfo.size()-1));
-		misummary << i << "\t" << mean << "\t" << std << endl;
-		randInfo.clear();
-	}
-	misummary.close();
-	return 0;
-}
-
 //This is similar to the function above except that for k greater than exactk it uses sampleCnt
 //number of combinations
 int
@@ -1099,70 +796,59 @@ FactorManager::estimateRandomInfo_Approximate(int sampleCnt)
 	evMgr->randomizeEvidence(r);
 	potMgr->initRandom();
 	potMgr->estimateMarginalEntropies(slimFactorSet,variableSet,true);
-	//potMgr->computeSummaryStats(maxFactorSize,true);
 	for(int i=2;i<=maxFactorSize_Approx;i++)
 	{
 		cout <<"Estimating randinfo for k " << i << endl;
 		double mean=0;
 		sprintf(fName,"%s/randmi_k%d.txt",outputDir,i);
 		ofstream oFile(fName);
-		if(i<=maxFactorSize)
+		
+		//Create a random factor with i variables
+		SlimFactor* sFactor=new SlimFactor;
+		sFactor->vIds=new int[i];
+		sFactor->vCnt=i;
+		int j=0;
+		int duplicateFCnt=0;
+		map<string,int> usedFactorIDs;
+		double step=1.0/((double) variableSet.size());
+		while(j<sampleCnt)
 		{
-			potMgr->estimateRandomInfo(slimFactorSet,variableSet,randInfo,i);
-			for(int j=0;j<randInfo.size();j++)
+			map<int,int> usedVarIDs;
+			int vid=0;
+			while(usedVarIDs.size()<i)
 			{
-				oFile <<randInfo[j] << endl;
-				mean=mean+randInfo[j];
+				double rVal=gsl_ran_flat(r,0,1);
+				int rind=(int)(rVal/step);
+				while(usedVarIDs.find(rind)!=usedVarIDs.end())
+				{
+					rVal=gsl_ran_flat(r,0,1);
+					rind=(int)(rVal/step);
+				}
+				usedVarIDs[rind]=0;
+				sFactor->vIds[vid]=rind;
+				vid++;
 			}
+			string akey;
+			getFactorKey(sFactor->vIds,i,akey);
+			if(usedFactorIDs.find(akey)!=usedFactorIDs.end())
+			{
+				duplicateFCnt++;
+			}
+			usedFactorIDs[akey]=0;
+			//Estimate the information associated with this factor
+			potMgr->populateFactor(slimFactorSet,variableSet,sFactor,true);
+			double mi=sFactor->mutualInfo;
+			randInfo.push_back(mi);
+			oFile <<mi << endl;
+			mean=mean+mi;
+			j++;	
 		}
-		else
+		delete sFactor;
+		if(duplicateFCnt>0)
 		{
-			//Create a random factor with i variables
-			SlimFactor* sFactor=new SlimFactor;
-			sFactor->vIds=new int[i];
-			sFactor->vCnt=i;
-			int j=0;
-			int duplicateFCnt=0;
-			map<string,int> usedFactorIDs;
-			double step=1.0/((double) variableSet.size());
-			while(j<sampleCnt)
-			{
-				map<int,int> usedVarIDs;
-				int vid=0;
-				while(usedVarIDs.size()<i)
-				{
-					double rVal=gsl_ran_flat(r,0,1);
-					int rind=(int)(rVal/step);
-					while(usedVarIDs.find(rind)!=usedVarIDs.end())
-					{
-						rVal=gsl_ran_flat(r,0,1);
-						rind=(int)(rVal/step);
-					}
-					usedVarIDs[rind]=0;
-					sFactor->vIds[vid]=rind;
-					vid++;
-				}
-				string akey;
-				getFactorKey(sFactor->vIds,i,akey);
-				if(usedFactorIDs.find(akey)!=usedFactorIDs.end())
-				{
-					duplicateFCnt++;
-				}
-				usedFactorIDs[akey]=0;
-				//Estimate the information associated with this factor
-				potMgr->populateFactor(slimFactorSet,variableSet,sFactor,true);
-				double mi=sFactor->mutualInfo;
-				randInfo.push_back(mi);
-				oFile <<mi << endl;
-				mean=mean+mi;
-				j++;	
-			}
-			delete sFactor;
-			if(duplicateFCnt>0)
-			{
-				cout <<"Duplicates : " << duplicateFCnt << " out of a total of "<< sampleCnt << " factors of size " << i << endl;
-			}
+			cout <<"Duplicates : " << duplicateFCnt << " out of a total of "<< sampleCnt << " factors of size " << i << endl;
 		}
+
 		oFile.close();
 		mean=mean/randInfo.size();
 		double std=0;
@@ -1179,7 +865,6 @@ FactorManager::estimateRandomInfo_Approximate(int sampleCnt)
 	gsl_rng_free(r);
 	return 0;
 }
-
 
 int
 FactorManager::readRandomInfo()
@@ -1234,337 +919,8 @@ FactorManager::readRandomInfo()
 	}
 	
 	misummary.close();
-	if(randMI_mean.size()<(maxFactorSize-1))
-	{
-		return -1;
-	}
 	return 0;
 }
-
-
-//This takes the number of standard deviations a cluster's information must exceed the mean random mi
-int
-FactorManager::filterClustersWithMI(double eps)
-{
-	INTINTMAP badFactors;
-	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++)
-	{
-		SlimFactor* sFactor=fIter->second;
-		double randmi_m=randMI_mean[sFactor->vCnt];
-		double randmi_sd=randMI_std[sFactor->vCnt];
-		if(sFactor->mutualInfo < (randmi_m + (randmi_sd*eps)))
-		{
-			//Erase this cluster from the lattice
-			deleteFromLattice(fIter->first);
-			//Erase from factorNameToIDMap and from factorIDToNameMap
-			map<int,string>::iterator idnameIter=factorIDToNameMap.find(fIter->first);
-			map<string,int>::iterator nameidIter=factorNameToIDMap.find(idnameIter->second);
-			delFactors_MI[nameidIter->first]=fIter->second->mutualInfo;
-			//factorIDToNameMap.erase(idnameIter);
-			//factorNameToIDMap.erase(nameidIter);
-			//slimFactorSet.erase(fIter);
-			if(badFactors.find(sFactor->vCnt)==badFactors.end())
-			{
-				badFactors[sFactor->vCnt]=1;
-			}
-			else
-			{
-				badFactors[sFactor->vCnt]=badFactors[sFactor->vCnt]+1;
-			}
-		}
-	}
-	for(map<string,double>::iterator bIter=delFactors_MI.begin();bIter!=delFactors_MI.end();bIter++)
-        {
-                map<string,int>::iterator nameidIter=factorNameToIDMap.find(bIter->first);
-                map<int,string>::iterator idnameIter=factorIDToNameMap.find(nameidIter->second);
-                map<int,SlimFactor*>::iterator gIter=slimFactorSet.find(idnameIter->first);
-                if(gIter==slimFactorSet.end())
-                {
-                        cout <<"Problem: factor " << idnameIter->first << " not found " << endl;
-                        return -1;
-                }
-                factorIDToNameMap.erase(idnameIter);
-                factorNameToIDMap.erase(nameidIter);
-                slimFactorSet.erase(gIter);
-        }
-	for(INTINTMAP_ITER imIter=badFactors.begin();imIter!=badFactors.end();imIter++)
-	{
-		cout <<"Eliminated " << imIter->second << " bad factors of size " << imIter->first << endl;
-	}
-	showAllFactors(eps);
-	return 0;
-}
-
-int
-FactorManager::applyDPICorrection(double threshold, double dpiPercent)
-{
-	if(maxFactorSize>2)
-	{
-		cout << "Cannot perform DPI correction on factors larger than 2" << endl;
-		return 0;
-	}
-	cout <<"Applying DPI correction " << endl;
-
-	map<int,bool> factorStatus;
-	for(map<int,SlimFactor*>::iterator aIter=slimFactorSet.begin();aIter!=slimFactorSet.end();aIter++)
-	{
-		factorStatus[aIter->first]=true;
-	}
-
-	VSET& variableSet=vMgr->getVariableSet();
-	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++)
-	{
-		SlimFactor* sFactor=fIter->second;
-		if(sFactor->vCnt==1)
-		{
-			factorStatus[fIter->first]=false;		
-			continue;
-		}
-		if(sFactor->mutualInfo<threshold)
-		{
-			factorStatus[fIter->first]=false;
-			continue;
-		}
-		//Other wise make a triple
-		int triple[3];
-		triple[0]=sFactor->vIds[0];
-		triple[1]=sFactor->vIds[1];
-		int factorIds[3];
-		for(int j=sFactor->vIds[1]+1;j<variableSet.size();j++)
-		{
-			triple[2]=j;
-			
-			int fVars[2];
-			for(int k=0;k<3;k++)
-			{
-				if(k==0)
-				{
-					fVars[0]=triple[0];
-					fVars[1]=triple[1];
-				}
-				else if(k==1)
-				{
-					fVars[0]=triple[0];
-					fVars[1]=triple[2];
-				}
-				else if(k==2)
-				{
-					fVars[0]=triple[1];
-					fVars[1]=triple[2];
-				}
-				int fid=getFactorIndex(fVars,2);
-				factorIds[k]=fid;
-			}
-			for(int k=0;k<3;k++)
-			{
-				for(int l=k+1;l<3;l++)
-				{
-					if(slimFactorSet[factorIds[k]]->mutualInfo < slimFactorSet[factorIds[l]]->mutualInfo)
-					{
-						int tempId=factorIds[k];
-						factorIds[k]=factorIds[l];
-						factorIds[l]=tempId;
-					}
-				}
-			}
-			double minInfo=slimFactorSet[factorIds[2]]->mutualInfo;
-			double nextToMin=slimFactorSet[factorIds[1]]->mutualInfo;
-			double withDpiInfo=nextToMin-(dpiPercent*nextToMin);
-			if(minInfo<=withDpiInfo)
-			{
-				factorStatus[factorIds[2]]=false;
-			}
-		
-		}
-	}
-	char aFName[1024];
-//	sprintf(aFName,"%s/dpi.txt",outputDir);
-//	ofstream oFile(aFName);
-	map<int,INTINTMAP*> varNeighbour;
-	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++)
-	{
-		if(factorStatus[fIter->first])
-		{
-			SlimFactor* factor=fIter->second;
-			int uid=factor->vIds[0];
-			int vid=factor->vIds[1];
-//			oFile<<variableSet[uid]->getName()
-//				<<"\t" <<variableSet[vid]->getName() << endl;
-			INTINTMAP* nhood1=NULL;
-			INTINTMAP* nhood2=NULL;
-			if(varNeighbour.find(uid)==varNeighbour.end())
-			{
-				nhood1=new INTINTMAP;
-				varNeighbour[uid]=nhood1;
-			}
-			else
-			{
-				nhood1=varNeighbour[uid];
-			}
-			if(varNeighbour.find(vid)==varNeighbour.end())
-			{
-				nhood2=new INTINTMAP;
-				varNeighbour[vid]=nhood2;
-			}
-			else
-			{
-				nhood2=varNeighbour[vid];
-			}
-			(*nhood1)[vid]=0;
-			(*nhood2)[uid]=0;
-		}
-	}
-//	oFile.close();
-	/*// soyoun uncomment
-	sprintf(aFName,"%s/mbscore_dpi.txt",outputDir,dpiPercent,threshold);
-	ofstream nFile(aFName);
-
-	nFile<< "Var\tMB\tCondEntr\tMargEntr" << endl;
-	for(map<int,INTINTMAP*>::iterator fIter=varNeighbour.begin();fIter!=varNeighbour.end();fIter++)
-	{
-		nFile <<variableSet[fIter->first]->getName() <<"\t";
-		INTINTMAP* nhood=fIter->second;
-                for(INTINTMAP_ITER vIter=nhood->begin();vIter!=nhood->end();vIter++)
-                {
-                        if(vIter!=nhood->begin())
-                        {
-                                nFile <<"-";
-                        }
-                        nFile<< variableSet[vIter->first]->getName();
-                }
-		(*nhood)[fIter->first]=0;
-		double condEntr=potMgr->getConditionalEntropy(fIter->first,*nhood,variableSet);
-		INTINTMAP_ITER delIter=nhood->find(fIter->first);
-		nhood->erase(delIter);
-                nFile <<"\t" << condEntr <<"\t" << slimFactorSet[fIter->first]->jointEntropy << endl;
-	}
-	nFile.close();
-	*/
-	return 0;
-}
-
-
-int
-FactorManager::findTrueHO(double sdCnt)
-{
-	int** subset=new int* [maxFactorSize_Approx];
-	int* subsetId=new int [maxFactorSize_Approx];
-	for(int i=0;i<maxFactorSize_Approx;i++)
-	{
-		subset[i]=new int[maxFactorSize_Approx-1];
-	}
-	//Count those k>2 clusters for which at the k-1 there was little information
-	//but adding the kth variable increased information beyond random chance
-	//Such clusters would not be detected if we used a greedy algorithm
-	INTINTMAP trueHO;
-	//Count up those k>2 clusters that would be detected if we used a greedy approach
-	INTINTMAP greedyHO;
-	filterClustersWithMI(sdCnt);
-	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++)
-	{
-		SlimFactor* sFactor=fIter->second;
-		if(sFactor->vCnt<3)
-		{
-			continue;
-		}
-
-		//Check if the mutual information
-		//of this factor is greater than random
-		//because of the pairwise information
-		//or because of true higher order dependency
-			
-		//Create all subsets of variables of sFactor of size one less
-		int sSize=sFactor->vCnt-1;
-		//sInd will be the index that will be eliminated
-		for(int sInd=0;sInd<sFactor->vCnt;sInd++)
-		{
-			int vInd=0;
-			int currSize=0;
-			while(currSize<sSize)
-			{
-				if(vInd!=sInd)
-				{
-					subset[sInd][currSize]=sFactor->vIds[vInd];
-					currSize++;
-				}
-				vInd++;
-			}
-		}
-		//Now that we have created sFactor->vCnt subsets of 1 less 
-		//we need to check if the addition of one variable significantly increases
-		//the MI.
-		int foundSubsets=0;
-		int ssId=0;
-		while((ssId<sFactor->vCnt) && (foundSubsets==0))
-		{
-			int fId=getFactorIndex(subset[ssId],sSize);
-			if(slimFactorSet.find(fId)!=slimFactorSet.end())
-			{
-				foundSubsets++;
-			}
-			ssId++;
-		}
-		//If there is atleast one subset that is found at the lower level
-		//we can find the higher order dependency via a greedy approach
-		if(foundSubsets)
-		{
-			if(greedyHO.find(sFactor->vCnt)==greedyHO.end())
-			{
-				greedyHO[sFactor->vCnt]=1;
-			}
-			else
-			{
-				greedyHO[sFactor->vCnt]=greedyHO[sFactor->vCnt]+1;
-			}
-		}
-		else
-		{
-			if(trueHO.find(sFactor->vCnt)==trueHO.end())
-			{
-				trueHO[sFactor->vCnt]=1;
-			}
-			else
-			{
-				trueHO[sFactor->vCnt]=trueHO[sFactor->vCnt]+1;
-			}
-		}
-	}
-	char aFName[1024];
-	sprintf(aFName,"%s/hotype.txt",outputDir);
-	ofstream oFile(aFName);
-	oFile <<"k\tGreedyHO\tTrueHO"<< endl;
-	for(int k=3;k<=maxFactorSize_Approx;k++)
-	{
-		oFile << k;
-		if(greedyHO.find(k)==greedyHO.end())
-		{
-			oFile <<"\t0";
-		}
-		else
-		{
-			oFile <<"\t" << greedyHO[k];
-		}
-		if(trueHO.find(k)==trueHO.end())
-		{
-			oFile <<"\t0";
-		}
-		else
-		{
-			oFile <<"\t" << trueHO[k];
-		}
-		oFile << endl;
-	}
-	oFile.close();
-	delete [] subsetId;
-	for(int i=0;i<maxFactorSize_Approx;i++)
-	{
-		delete [] subset[i];
-	}
-	delete[] subset;
-	return 0;
-}
-
-
 
 //We use simple Apriori-like algorithm to find clusters. For clusters of size k<=maxFactorSize, for
 //which we can compute multi-information exactly we use the random-mutual information as a threshold
@@ -1899,230 +1255,6 @@ FactorManager::removeDupFactors()
 	oFile.close();
 	return 0;
 }
-
-
-//This function must be called only after we have estimated the information theoretic 
-//variables: joint entropy and multiinformation
-int 
-FactorManager::generateClusters_Apriori(double confidence, double eps_support,int maxClusterSize, bool remDup)
-{
-	//Get rid of the bad clusters/factors
-	filterClustersWithMI(eps_support);
-	if(maxFactorSize_Approx>maxFactorSize)
-	{
-		generateApproximateClusters(eps_support,confidence);
-	}
-	if(!checkMonotonicity())
-	{
-		cout <<"Monotonic property of factor ids is violated. Quitting! " << endl;
-		return -1;	
-	}
-	//Now find the best Markov blankets using the greedy approach and also merge multiple Markov blankets together
-	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++)
-	{
-		if(getBestMarkovBlanket(fIter->second,eps_support,confidence)==-1)
-		{
-			return -1;
-		}
-		//The moment we reach a factor which is of size maxFactorSize, there is no point
-		//in continuing because we can't exactly find its Markov blanket.
-		if(fIter->second->vCnt==maxFactorSize_Approx)
-		{
-			break;
-		}
-	}
-	
-	VSET& variableSet=vMgr->getVariableSet();
-	char aFName[1024];
-	sprintf(aFName,"%s/mbsize_dist_precheck%d.txt",outputDir,maxFactorSize_Approx);
-	ofstream checkFile(aFName);
-	INTINTMAP mbSizeDist;
-	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++)
-	{
-		SlimFactor* sFactor=fIter->second;
-		if(sFactor->vCnt==maxFactorSize_Approx)
-		{
-			break;
-		}
-		int asize=sFactor->mergedMB.size();
-		if(mbSizeDist.find(asize)==mbSizeDist.end())
-		{
-			mbSizeDist[asize]=1;
-		}	
-		else
-		{
-			mbSizeDist[asize]=mbSizeDist[asize]+1;
-		}
-		sFactor->showFactor(checkFile,variableSet,false);
-		checkFile << "\t" << sFactor->vCnt <<"\t" << asize<<"\t";
-		for(INTINTMAP_ITER mbIter=sFactor->mergedMB.begin();mbIter!=sFactor->mergedMB.end();mbIter++)
-		{
-			if(mbIter!=sFactor->mergedMB.begin())
-			{
-				checkFile <<"-";
-			}
-			checkFile << variableSet[mbIter->first]->getName();
-		}
-		checkFile << endl;
-	}
-	checkFile << "MBSize\tFactorCnt"  << endl;
-	for(INTINTMAP_ITER sIter= mbSizeDist.begin();sIter!=mbSizeDist.end(); sIter++)
-	{
-		checkFile << sIter->first <<"\t " << sIter->second << endl;
-	}
-	checkFile.close();
-	mbSizeDist.clear();
-	//Make Markov blankets consistent
-	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++)
-	{
-		//No need to make Markov blankets of factors of size maxFactorSize consistent.
-		if(fIter->second->vCnt==(maxFactorSize_Approx-1))
-		{
-			break;
-		}
-		//This function starts from the smallest superset and makes it consistent
-		//with all the children of this superset
-		//makeMarkovBlanketConsistent(fIter->second);
-	}
-	sprintf(aFName,"%s/mbsize_dist_%d.txt",outputDir,maxFactorSize_Approx);
-	ofstream oFile(aFName);
-	oFile << "fId\tfVars\tsize\tmbsize\tmb" << endl;
-	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++)
-	{
-		SlimFactor* sFactor=fIter->second;
-		if(sFactor->vCnt==maxFactorSize_Approx)
-		{
-			break;
-		}
-		int asize=sFactor->mergedMB.size();
-		if(mbSizeDist.find(asize)==mbSizeDist.end())
-		{
-			mbSizeDist[asize]=1;
-		}
-		else
-		{
-			mbSizeDist[asize]=mbSizeDist[asize]+1;
-		}
-		oFile <<sFactor->fId<<"\t";
-		sFactor->showFactor(oFile,variableSet,false);
-		oFile << "\t" << sFactor->vCnt <<"\t" << asize <<"\t";
-		for(INTINTMAP_ITER mbIter=sFactor->mergedMB.begin();mbIter!=sFactor->mergedMB.end();mbIter++)
-		{
-			if(mbIter!=sFactor->mergedMB.begin())
-			{
-				oFile <<"-";
-			}
-			oFile << variableSet[mbIter->first]->getName();
-		}
-		oFile << endl;
-	}
-	oFile  << "MBSize\tFactorCnt"  << endl;
-	for(INTINTMAP_ITER sIter= mbSizeDist.begin();sIter!=mbSizeDist.end(); sIter++)
-	{
-		oFile << sIter->first <<"\t " << sIter->second << endl;
-	}
-	oFile.close();
-	if(removeDupFactors()==-1)
-	{
-		return -1;
-	}
-	if(remDup)
-	{
-		produceClusters_NoDup(confidence,maxClusterSize);
-	}
-	else
-	{
-		produceClusters(confidence,maxClusterSize);
-	}
-	return 0;
-}
-
-
-int 
-FactorManager::learnMBStructure(double eps_support,double confidence)
-{
-	//Get rid of the bad clusters/factors
-	filterClustersWithMI(eps_support);
-	if(!checkMonotonicity())
-	{
-		cout <<"Monotonic property of factor ids is violated. Quitting! " << endl;
-		return -1;	
-	}
-	//Now find the best Markov blankets using the greedy approach and also merge multiple Markov blankets together
-	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++)
-	{
-		if(fIter->second->vCnt>1)
-		{
-			break;
-		}
-		if(getBestMarkovBlanket(fIter->second,eps_support,confidence)==-1)
-		{
-			return -1;
-		}
-	}
-	makeMBMutuallyConsistent();
-	VSET& variableSet=vMgr->getVariableSet();
-	INTINTMAP mbSizeDist;
-	char aFName[1024];
-	sprintf(aFName,"%s/mbsize_dist_%d.txt",outputDir,maxFactorSize_Approx);
-	ofstream oFile(aFName);
-	oFile << "fId\tfVars\tsize\tmbsize\tmb" << endl;
-	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++)
-	{
-		SlimFactor* sFactor=fIter->second;
-		if(sFactor->vCnt>1)
-		{
-			break;
-		}
-		int asize=sFactor->mergedMB.size();
-		if(mbSizeDist.find(asize)==mbSizeDist.end())
-		{
-			mbSizeDist[asize]=1;
-		}
-		else
-		{
-			mbSizeDist[asize]=mbSizeDist[asize]+1;
-		}
-		oFile <<sFactor->fId<<"\t";
-		sFactor->showFactor(oFile,variableSet,false);
-		oFile << "\t" << sFactor->vCnt <<"\t" << asize <<"\t";
-		for(INTINTMAP_ITER mbIter=sFactor->mergedMB.begin();mbIter!=sFactor->mergedMB.end();mbIter++)
-		{
-			if(mbIter!=sFactor->mergedMB.begin())
-			{
-				oFile <<"-";
-			}
-			oFile << variableSet[mbIter->first]->getName();
-		}
-		oFile << endl;
-	}
-	oFile  << "MBSize\tFactorCnt"  << endl;
-	for(INTINTMAP_ITER sIter= mbSizeDist.begin();sIter!=mbSizeDist.end(); sIter++)
-	{
-		oFile << sIter->first <<"\t " << sIter->second << endl;
-	}
-	oFile.close();
-
-	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++)
-	{
-		if(fIter->second->vCnt>1)
-		{
-			break;
-		}
-		canonicalFactorSet[fIter->first]=fIter->second;
-	}
-	generateCanonicalFactors();
-	//getPseudoLikelihood();
-	setBaseInstantiation();
-	estimateCanonicalParameters("paramLearn_approx");
-	double dll=getLikelihood();
-	cout <<"Data likelihood canonical" << dll << endl;
-	double dll_exact=getLikelihood_ChainRule();
-	cout <<"Data likelihood exact " << dll_exact << endl;
-	evaluateMarkovBlanket(eps_support);
-	return 0;
-}
-
 
 double
 FactorManager::getPseudoLikelihood()
@@ -2731,95 +1863,6 @@ FactorManager::evaluateMarkovBlanket(double eps_support)
 	return 0;
 }
 
-//Here we generate clusters of size greater than max factor size upto the value for which 
-//we can compute random mutual information exactly
-
-int
-FactorManager::generateApproximateClusters(double eps, double confThresh)
-{
-	map<int,int> parentIDs;
-	/*VSET& variableSet=vMgr->getVariableSet();
-	//get all the parent factor ids.
-	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++)
-	{
-		SlimFactor* sFactor=fIter->second;
-		if(sFactor->vCnt<=2)
-		{
-			sFactor->confidence=1;
-		}
-		else 
-		{
-			INTINTMAP* subsets=lattice.getSubsets(fIter->first);
-			if(subsets==NULL)
-			{
-				cout <<"No subsets for " << fIter->first << endl;
-				continue;
-			}
-			if(subsets->size()==0)
-			{
-				continue;
-			}
-			//get all subsets and check for confidence
-			//We need to check the last sFactor->vCnt subsets as these
-			//will be the ones that correspond to the maximal subsets
-			map<int,int>::reverse_iterator rIter=subsets->rbegin();
-			int sscnt=0;
-			double hitConf=0;
-			//However check for subsets in slimFactorSet
-			SlimFactor* aSubset=slimFactorSet[rIter->first];
-			while((sscnt<sFactor->vCnt) && ((sFactor->vCnt-aSubset->vCnt)==1 ))
-			{
-				int ssId=rIter->first;
-				map<int,SlimFactor*>::iterator ssIter=slimFactorSet.find(ssId);
-				if(ssIter!=slimFactorSet.end())
-				{
-					hitConf=hitConf+ssIter->second->confidence;
-				}
-				sscnt++;
-				rIter++;
-				aSubset=slimFactorSet[rIter->first];
-			}
-			double conf=hitConf/((double) sFactor->vCnt);
-			sFactor->confidence=conf;
-		}
-		if(fIter->second->vCnt==maxFactorSize)
-		{
-			if(sFactor->confidence >=confThresh)
-			{
-				parentIDs[fIter->first]=0;
-			}
-		}
-	}*/
-	/*int fSize=maxFactorSize+1;
-	int oldCnt=slimFactorSet.size();
-	while(fSize<=maxFactorSize_Approx)
-	{
-		double randmi_mean=randMI_mean[fSize];
-		double randmi_sd=randMI_std[fSize];
-		map<int,int> tempParentIDs;
-		for(map<int,int>::iterator pIter=parentIDs.begin();pIter!=parentIDs.end();pIter++)
-		{
-			SlimFactor* pFactor=slimFactorSet[pIter->first];
-			generateNextLevelClusters(pFactor,eps,confThresh,tempParentIDs);
-			if((tempParentIDs.size() % 100)==0)
-			{
-				cout <<"Populated " << tempParentIDs.size() << " parents " << endl;
-			}
-		}
-		parentIDs.clear();
-		for(map<int,int>::iterator pIter=tempParentIDs.begin();pIter!=tempParentIDs.end();pIter++)
-		{
-			parentIDs[pIter->first]=0;
-		}
-		tempParentIDs.clear();
-		fSize++;
-		cout <<"Populated " << slimFactorSet.size()-oldCnt<< " new factors "<< endl; 
-		oldCnt=slimFactorSet.size();
-	}*/
-
-	return 0;
-}
-
 //This function generates all k+1 possible clusters from pFactor, where k is the size of this cluster
 int
 FactorManager::generateNextLevelClusters(SlimFactor* pFactor,double eps_support,double confThresh,INTINTMAP& newParentIDs)
@@ -3379,24 +2422,6 @@ FactorManager::getRestrictedVarlist()
 	return restrictedNeighborList;
 }
 
-
-int
-FactorManager::showAllFactors(double eps)
-{
-	char aFName[1024];
-	//sprintf(aFName,"%s/mifilter_%.3ftxt",outputDir,eps);
-	sprintf(aFName,"%s/mifilter_k%d.txt",outputDir,maxFactorSize);
-
-	ofstream oFile(aFName);
-	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++)
-	{
-		fIter->second->showFactor(oFile,vMgr->getVariableSet());
-	}
-	oFile.close();
-	return 0;
-}
-
-
 bool 
 FactorManager::checkMonotonicity()
 {
@@ -3517,172 +2542,6 @@ FactorManager::getFactorAt(int fId)
 	}
 	return slimFactorSet[fId];
 }
-
-
-//Find the best Markov blankets for sFactor. 
-//Populates the set of Markov blankets for sFactor
-int
-FactorManager::getBestMarkovBlanket(SlimFactor* sFactor,double eps_support, double confidence)
-{
-	VSET& variableSet=vMgr->getVariableSet();
-	if(sFactor->fId==9)
-	{
-		cout <<"Stop here " << endl;
-	}
-	int currK=sFactor->vCnt+1;
-	double marginalEntropy=0;
-	for(int i=0;i<sFactor->vCnt;i++)
-	{
-		SlimFactor* vFactor=slimFactorSet[sFactor->vIds[i]];
-		marginalEntropy=marginalEntropy+vFactor->jointEntropy;
-	}
-	//Initialize to the sum of the marginal entropy of the variables in sFactor
-	double minEntropy=marginalEntropy;
-	while(currK<=maxFactorSize_Approx)
-	{
-		if(currK==sFactor->vCnt+1)
-		{
-			INTINTMAP* supersets=lattice.getSupersets(sFactor->fId);
-			if(getGoodCandidateMarkovBlankets(sFactor,supersets,currK,minEntropy,marginalEntropy,sFactor->goodMBIDs)==-1)
-			{
-				return -1;
-			}
-		}
-		//Implementing stage II exactly for markov blankets of size 3
-		else if(currK<=maxFactorSize)
-		{
-			INTDBLMAP tempGoodMBIDs;
-			//Get all supersets of sFactor at level 2
-			INTINTMAP supersets;
-			lattice.getSupersets(sFactor->fId,supersets,currK-sFactor->vCnt);
-			if(getGoodCandidateMarkovBlankets(sFactor,&supersets,currK,minEntropy,marginalEntropy,tempGoodMBIDs)==-1)
-			{
-				return -1;
-			}
-			//else update sFactor's mbIds
-			if(tempGoodMBIDs.size()>0)
-			{
-				sFactor->goodMBIDs.clear();
-				for(INTDBLMAP_ITER aIter=tempGoodMBIDs.begin();aIter!=tempGoodMBIDs.end();aIter++)
-				{
-					if(aIter->second<=minEntropy)
-					{
-						sFactor->goodMBIDs[aIter->first]=minEntropy;
-					}
-				}
-			}
-		}
-		else
-		{
-			INTDBLMAP tempGoodMBIDs;
-			//This holds the id of Markov blankets that could be successfully grown
-			//We must delete these ids from the set of good MBs
-			INTINTMAP replaceID;
-			for(INTDBLMAP_ITER mbIter=sFactor->goodMBIDs.begin();mbIter!=sFactor->goodMBIDs.end();mbIter++)
-			{
-				SlimFactor* currMBFactor=slimFactorSet[mbIter->first];
-				if(currMBFactor->vCnt<(currK-1))
-				{
-					continue;
-				}
-				//INTINTMAP newExtensions;
-				//generateNextLevelClusters(currMBFactor,eps_support,confidence,newExtensions);
-				generateNextLevelClusters(currMBFactor,eps_support,sFactor->candidateNeighbours);
-				INTINTMAP* supersets=lattice.getSupersets(mbIter->first);
-				int mbCnt=tempGoodMBIDs.size();
-				if(getGoodCandidateMarkovBlankets(sFactor,supersets,currK,minEntropy,marginalEntropy,tempGoodMBIDs)==-1)
-				{
-					return -1;
-				}
-				if(tempGoodMBIDs.size()>mbCnt)
-				{
-					replaceID[mbIter->first]=0;
-				}
-			}
-			//Replace all entries from goodMBIDs which are in replaceID or are above the minEntropy threshold
-			for(INTDBLMAP_ITER rIter=sFactor->goodMBIDs.begin();rIter!=sFactor->goodMBIDs.end();rIter++)
-			{
-				if(replaceID.find(rIter->first)!=replaceID.end())
-				{
-					sFactor->goodMBIDs.erase(rIter);
-				}
-				else if(rIter->second > minEntropy)
-				{
-					sFactor->goodMBIDs.erase(rIter);
-				}
-			}
-			//Add the new MBs that have been created that have entropy equal to minEntropy
-			for(INTDBLMAP_ITER aIter=tempGoodMBIDs.begin();aIter!=tempGoodMBIDs.end();aIter++)
-			{
-				if(aIter->second<=minEntropy)
-				{
-					sFactor->goodMBIDs[aIter->first]=minEntropy;
-				}
-			}
-			tempGoodMBIDs.clear();
-			replaceID.clear();
-		}
-		currK++;
-	}
-	
-	//Finally merge the Markov blankets together
-	SlimFactor* maxMbFactor=NULL;
-	int maxMB=0;
-	vector<int> mbIds;
-	for(INTDBLMAP_ITER mbIter=sFactor->goodMBIDs.begin();mbIter!=sFactor->goodMBIDs.end();mbIter++)
-	{
-		/*SlimFactor* mbFactor=slimFactorSet[mbIter->first];
-		for(int i=0;i<mbFactor->vCnt;i++)
-		{
-			if(!sFactor->isMemberVariable(mbFactor->vIds[i]))
-			{
-				sFactor->mergedMB[mbFactor->vIds[i]]=0;
-			}
-		}*/
-		mbIds.push_back(mbIter->first);
-	}
-	for(int i=0;i<mbIds.size();i++)
-	{
-		for(int j=i+1;j<mbIds.size();j++)
-		{
-			if(sFactor->goodMBIDs[mbIds[i]]>sFactor->goodMBIDs[mbIds[j]])
-			{
-				int tempfid=mbIds[i];
-				mbIds[i]=mbIds[j];
-				mbIds[j]=tempfid;
-			}
-		}
-	}
-	int i=0;
-	while(sFactor->mergedMB.size()<(maxFactorSize_Approx*beamSize))
-	{
-		if(i>=mbIds.size())
-		{
-			break;
-		}
-		SlimFactor* mbFactor=slimFactorSet[mbIds[i]];
-		for(int j=0;j<mbFactor->vCnt;j++)
-		{
-			if(!sFactor->isMemberVariable(mbFactor->vIds[j]))
-			{
-				sFactor->mergedMB[mbFactor->vIds[j]]=0;
-			}
-			//Add variable of sFactor into the Markov blanket of mbFactor
-		/*	SlimFactor* mbVarFactor=slimFactorSet[mbFactor->vIds[j]];
-			for(int k=0;k<sFactor->vCnt;k++)
-			{
-				if(!mbVarFactor->isMemberVariable(sFactor->vIds[k]))
-				{
-					mbVarFactor->mergedMB[sFactor->vIds[k]]=0;
-				}
-			}*/
-		}
-		i++;
-	}
-	sFactor->mbScore=minEntropy;
-	return 0;
-}
-
 
 int
 FactorManager::makeMBMutuallyConsistent()
@@ -4449,8 +3308,6 @@ FactorManager::produceClusters_NoDup(double reqConf,int maxClusterSize)
 	return 0;
 }
 
-
-
 int
 FactorManager::getGoodCandidateMarkovBlankets(SlimFactor* sFactor,INTINTMAP* supersets,int currK, double& minEntropy,double marginalEntropy,INTDBLMAP& goodMBs)
 {
@@ -4847,79 +3704,28 @@ FactorManager::getClusterCnt(int vId, int cSize, int N)
 
 int
 FactorManager::initFactorSet()
-{
-	struct timeval begintime;
-	struct timeval endtime;
-	gettimeofday(&begintime,NULL);
-	
-	int factorCnt=0;
-	int fSize=1;
+{	
 	int vCnt=vMgr->getVariableSet().size();
-	int rCnt=restrictedNeighborList.size();
-	while(fSize<=maxFactorSize)
-	{
-		int fCnt=0;
-		if(rCnt==0)
-		{
-			fCnt=combCnt(vCnt,fSize);
-		}
-		else
-		{
-			fCnt=combCnt(rCnt,vCnt-rCnt,fSize);
-		}
-		factorCnt=factorCnt+fCnt;
-		fSize++;
-	}
-	//Calculate the number of factors
-	cout <<" Number of factors "  << factorCnt << endl;
-	fSize=1;
-	int fCnt=combCnt(vCnt,fSize);
-	for(int i=0;i<factorCnt;i++)
+	cout <<" Number of factors " << vCnt << endl;
+	for(int i=0;i<vCnt;i++)
 	{
 		SlimFactor* sFactor=new SlimFactor;
 		slimFactorSet[i]=sFactor;
-
-		if(i==fCnt)
-		{
-			fSize++;
-			if(rCnt==0)
-			{
-				fCnt=fCnt+combCnt(vCnt,fSize);
-			}
-			else
-			{
-				fCnt=fCnt+combCnt(rCnt,vCnt-rCnt,fSize);
-			}
-		}
-		sFactor->vIds=new int[fSize];
-		sFactor->vCnt=fSize;
-		//sFactor->secondPId=-1;
+		sFactor->vIds=new int[1];
+		sFactor->vCnt=1;
 		sFactor->mutualInfo=0;
 		sFactor->jointEntropy=0;
 		sFactor->fId=globalFactorID;
 		globalFactorID++;
 	}
 	cout << "Global factor id " << globalFactorID << endl;
-	gettimeofday(&endtime,NULL);
-	cout << "Time elapsed " << endtime.tv_sec-begintime.tv_sec<< " seconds and " << endtime.tv_usec-begintime.tv_usec << " micro secs" << endl;
-
 	return 0;
 }
-
-
 
 //Here we simply write to the memory that we have allocated
 int
 FactorManager::populateFactorSet()
 {
-	struct timeval begintime;
-	struct timeval endtime;
-	gettimeofday(&begintime,NULL);
-	int fSize=1;
-	//These indices are simply used to create factors of size k+1
-	//from factors of size k
-	int startFid=0;
-	int endFid=0;
 	int currFid=0;
 	map<int,Variable*>& variableSet=vMgr->getVariableSet();
 	for(map<int,Variable*>::iterator vIter=variableSet.begin();vIter!=variableSet.end();vIter++)
@@ -4932,108 +3738,6 @@ FactorManager::populateFactorSet()
 		factorNameToIDMap[fKey]=sFactor->fId;
 		factorIDToNameMap[sFactor->fId]=fKey;
 	}
-	endFid=currFid;
-	fSize++;
-	
-	//This int matrix is allocated before hand and reused
-	//This is done to avoid the allocation and deallocation repeatedly
-	//The maximum of subsets is equal to the maxFactorSize
-	//Each subset can be at most maxFactorSize-1
-	int** subsetSpace=new int*[maxFactorSize];
-	for(int i=0;i<maxFactorSize;i++)
-	{
-		subsetSpace[i]=new int[maxFactorSize-1];
-	}
-	VSET* neighborSet=&vMgr->getVariableSet();
-	if(restrictedNeighborList.size()>0)
-	{
-		neighborSet=&restrictedNeighborList;
-	}
-	while(fSize<=maxFactorSize)
-	{
-		int pFidCnt=endFid-startFid;
-		//The number of newFids added
-		//For each parent factor, iterate over the set of variables
-		//and add the variable in the parent to the new factor 
-		for(int i=0;i<pFidCnt;i++)
-		{
-			SlimFactor* pFactor=slimFactorSet[startFid+i];
-			for(map<int,Variable*>::iterator vIter=neighborSet->begin();vIter!=neighborSet->end();vIter++)
-			{
-				int newVId=vIter->first;
-				if(restrictedNeighborList.size()==0)
-				{
-					if(newVId<=pFactor->vIds[pFactor->vCnt-1])
-					{
-						continue;
-					}
-				}
-				else
-				{
-					int pvar=pFactor->vIds[pFactor->vCnt-1];
-					if(restrictedNeighborList.find(pvar)!=restrictedNeighborList.end())
-					{
-						if(newVId<=pvar)
-						{
-							continue;
-						}
-					}
-					else
-					{
-						//Dont think I need this check
-						if(pFactor->isMemberVariable(newVId))
-						{
-							continue;
-						}
-					}
-				}
-				SlimFactor* sFactor=slimFactorSet[currFid];
-				int fIter=0;
-				int dIter=0;
-				while((fIter!=pFactor->vCnt) && (pFactor->vIds[fIter]<newVId))
-				{
-					sFactor->vIds[dIter]=pFactor->vIds[fIter];
-					dIter++;
-					fIter++;
-				}
-				sFactor->vIds[dIter]=newVId;
-				dIter++;
-				while(fIter<pFactor->vCnt)
-				{
-					sFactor->vIds[dIter]=pFactor->vIds[fIter];
-					fIter++;
-					dIter++;
-				}
-				//Here we need to add the super-set and sub-set relationships
-				//Specifically, sFactor is a super-set of pFactor
-				//pFactor is a sub-set of sFactor
-				/*for(int j=0;j<pFactor->vCnt;j++)
-				{
-					sFactor->vIds[j]=pFactor->vIds[j];
-				}
-				sFactor->vIds[sFactor->vCnt-1]=newVId;*/
-				string fKey;
-				getFactorKey(sFactor->vIds,sFactor->vCnt,fKey);
-				factorNameToIDMap[fKey]=sFactor->fId;
-				factorIDToNameMap[sFactor->fId]=fKey;
-				//sFactor->secondPId=startFid+i;
-				currFid++;
-				addToLattice(sFactor,subsetSpace);
-			}
-		}
-		fSize++;
-		startFid=endFid;
-		endFid=currFid;
-		cout <<"Populated " << endFid-startFid << " new factors "<< endl; 
-	}
-	for(int i=0;i<maxFactorSize;i++)
-	{
-		delete [] subsetSpace[i];
-	}
-	delete[] subsetSpace;
-	cout << "Global factor id " << globalFactorID << endl;
-	gettimeofday(&endtime,NULL);
-	cout << "Time elapsed " << endtime.tv_sec-begintime.tv_sec<< " seconds and " << endtime.tv_usec-begintime.tv_usec << " micro secs" << endl;
 	return 0;
 }
 
@@ -5054,45 +3758,6 @@ FactorManager::checkFactorIds()
 	return 0;
 }
 
-//Computes n choose k, where k is very small
-int
-FactorManager::combCnt(int n, int k)
-{
-	int fCnt=1;
-	int start=n;
-	int i=0;
-	while(i<k)
-	{
-		fCnt=fCnt*start;
-		start--;
-		i++;
-	}
-	start=k;
-	i=1;
-	while(i<=k)
-	{
-		fCnt=fCnt/i;
-		i++;
-	}
-	return fCnt;
-}
-
-int
-FactorManager::combCnt(int n1, int n2, int k)
-{
-	int fCnt=0;
-	if(k==1)
-	{
-		fCnt=n1+n2;
-	}
-	else
-	{
-		fCnt=combCnt(n1,k)+(combCnt(n1,k-1)*n2);
-	}
-	return fCnt;
-}
-
-
 Error::ErrorCode
 FactorManager::estimateClusterProperties()
 {
@@ -5100,7 +3765,6 @@ FactorManager::estimateClusterProperties()
 	struct timeval endtime;
 	gettimeofday(&begintime,NULL);
 	
-	//Error::ErrorCode err=potMgr->populatePotentialsSlimFactors_Summary(slimFactorSet,vMgr->getVariableSet(),maxFactorSize);
 	Error::ErrorCode err=potMgr->populatePotentialsSlimFactors(slimFactorSet,vMgr->getVariableSet());
 
 	gettimeofday(&endtime,NULL);

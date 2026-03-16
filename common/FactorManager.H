@@ -27,10 +27,8 @@ class FactorManager
 		int setPotentialManager(PotentialManager*);
 		int setBaseInstantiation();
 		int setBaseInstantiation_Variable();
-		int setMaxFactorSize(int);
 		int setMaxFactorSize_Approx(int);
 		int setRandMISdCnt(double);
-		int getMaxFactorSize();
 		int getMaxFactorSize_Approx();
 
 		int setModelName(const char*);
@@ -52,32 +50,9 @@ class FactorManager
 		int estimateCanonicalParameters(const char*);
 
 		int learnStructure();
-		int showStructure();
-		int showStructure_allK();
-		int showStructure_allK(int);
-		int showValidationStructure_allK(int);
-		
-		int readStructure();
-		int readStructure(int);
-		int readValidationStructure(int);
-		int readClusterProperties(const char*);
-		
-		int estimateRandomInfo();
+
 		int estimateRandomInfo_Approximate(int);
 		int readRandomInfo();
-
-		
-		//This function is called to remove all factors that have less than the reqd. number of sds
-		//random mutual information
-		int filterClustersWithMI(double eps);
-		
-		int applyDPICorrection(double mithreshold, double dpiPercent);
-
-		//This is used to check if the information between k+1 variables
-		//is significantly greater than the mutual information between
-		//any set of k variables. If so there is a higher order dependency
-		//If not then there is no higher order dependency.
-		int findTrueHO(double eps);
 
 		int getFactorIndex(int*, int);
 		int getFactorKey(int*, int,string&);
@@ -93,8 +68,6 @@ class FactorManager
 		//Here we populate the factSignMap
 		int removeDupFactors();
 
-		int generateClusters_Apriori(double,double,int,bool);
-		int learnMBStructure(double,double);
 		double getPseudoLikelihood();
 		double getPseudoLikelihood(FactorGraph*,bool);
 		double getMVGaussianLikelihood(FactorGraph*,bool);
@@ -109,8 +82,6 @@ class FactorManager
 		int getNextSample(FactorGraph* fg,INTINTMAP* currSample,INTINTMAP* nextSample,gsl_rng* r);
 
 		int evaluateMarkovBlanket(double);
-		
-		int showAllFactors(double);
 
 		bool checkMonotonicity();
 
@@ -134,9 +105,7 @@ class FactorManager
 		int readRestrictedVarlist(const char*);
 		map<int,Variable*>& getRestrictedVarlist();
 	private:
-		int generateApproximateClusters(double,double);
 		int generateNextLevelClusters(SlimFactor*,double,double,INTINTMAP&);
-		int getBestMarkovBlanket(SlimFactor*,double,double);
 		int makeMBMutuallyConsistent();
 		int makeMarkovBlanketConsistent(SlimFactor*);
 		int produceClusters(double,int);
@@ -148,8 +117,6 @@ class FactorManager
 		int initFactorSet();
 		int populateFactorSet();
 		int checkFactorIds();
-		int combCnt(int,int);
-		int combCnt(int,int,int);
 		int qsort(int*,int,int);
 		//Create all subsets of the random variables
 		//without taking into account the information
@@ -163,7 +130,6 @@ class FactorManager
 		double getOverlap(SlimFactor*,SlimFactor*,int&);
 		
 		int globalFactorID;	
-		int maxFactorSize;
 		int maxFactorSize_Approx;
 		VariableManager* vMgr;
 		PotentialManager* potMgr;
