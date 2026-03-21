@@ -695,8 +695,7 @@ MetaLearner::start(int f)
 				}
 			}
 			scorePremodule=currGlobalScore;
-			//redefineModules();
-			redefineModules_Global();
+			redefineModules();
 			moduleiter++;
 		}
 		cout <<"Final Score " << currGlobalScore << endl;
@@ -831,7 +830,7 @@ MetaLearner::start_gradualMBIncrease(int f)
 				}
 				else
 				{
-					redefineModules_Global();
+					redefineModules();
 				}
 				iter++;
 				scorePremodule=currGlobalScore;
@@ -949,7 +948,7 @@ MetaLearner::start_gradualMBIncrease_RankRegulators(int f)
 				}
 				else
 				{
-					redefineModules_Global();
+					redefineModules();
 				}
 				iter++;
 				scorePremodule=currGlobalScore;
@@ -2806,95 +2805,17 @@ MetaLearner::getModuleContribLogistic(string& tgtName, string& tfName)
 //regulatory program. recompute similarity of all nodes to this merged node. repeat with
 //finding the next most similar pair of nodes.
 
-//To redefine the modules we will start with the original set of modules 
-//For each original module, find for every gene its pairwise similarity to every other
-//gene. merge two nodes that have the greatest pairwise similarity. replace by the merged
-//regulatory program. recompute similarity of all nodes to this merged node. repeat with
-//finding the next most similar pair of nodes.
 int
 MetaLearner::redefineModules()
 {
 	FactorGraph* aGraph=fgGraphSet.begin()->second;
-	map<int,map<string,int>*> newModules;
-	for(map<int,map<string,int>*>::iterator gIter=moduleGeneSet.begin();gIter!=moduleGeneSet.end();gIter++)
-	{
-		map<string,int>* moduleMembers=gIter->second;
-		map<string,HierarchicalClusterNode*> nodeSet;
-		for(map<string,int>::iterator mIter=moduleMembers->begin();mIter!=moduleMembers->end();mIter++)
-		{
-			int mID=varManager->getVarID(mIter->first.c_str());
-			SlimFactor* mFactor=aGraph->getFactorAt(mID);
-			INTINTMAP& mbvars1=mFactor->mergedMB;
-			HierarchicalClusterNode* node=new HierarchicalClusterNode;
-			for(INTINTMAP_ITER bIter=mbvars1.begin();bIter!=mbvars1.end();bIter++)
-			{
-				node->attrib[bIter->first]=bIter->second;
-			}
-			node->nodeName.append(mIter->first);
-			nodeSet[mIter->first]=node;
-		}
-		HierarchicalCluster hc;
-		hc.cluster(newModules,nodeSet,clusterThreshold);
-	}
-	moduleGeneSet.clear();
-	geneModuleID.clear();
-	for(map<int,map<string,int>*>::iterator mIter=moduleIndegree.begin();mIter!=moduleIndegree.end();mIter++)
-	{
-		mIter->second->clear();
-		delete mIter->second;
-	}
-	moduleIndegree.clear();
-	regulatorModuleOutdegree.clear();
-	VSET& varSet=varManager->getVariableSet();
-	for(map<int,map<string,int>*>::iterator mIter=newModules.begin();mIter!=newModules.end();mIter++)
-	{
-		moduleGeneSet[mIter->first]=mIter->second;
-		map<string,int>* geneSet=mIter->second;
-		map<string,int>* indegree=new map<string,int>;
-		for(map<string,int>::iterator gIter=geneSet->begin();gIter!=geneSet->end();gIter++)
-		{
-			geneModuleID[gIter->first]=mIter->first;
-			int mID=varManager->getVarID(gIter->first.c_str());
-			SlimFactor* mFactor=aGraph->getFactorAt(mID);
-			INTINTMAP& mbvars1=mFactor->mergedMB;
-		
-			for(INTINTMAP_ITER nIter=mbvars1.begin();nIter!=mbvars1.end();nIter++)
-			{
-				Variable* var=varSet[nIter->first];
-				if(indegree->find(var->getName())==indegree->end())
-				{
-					(*indegree)[var->getName()]=1;
-				}
-				else
-				{
-					(*indegree)[var->getName()]=(*indegree)[var->getName()]+1;
-				}
-				if(regulatorModuleOutdegree.find(var->getName())==regulatorModuleOutdegree.end())
-				{
-					regulatorModuleOutdegree[var->getName()]=1;
-				}	
-				else
-				{
-					regulatorModuleOutdegree[var->getName()]=regulatorModuleOutdegree[var->getName()]+1;
-				}
-			}
-		}
-		moduleIndegree[mIter->first]=indegree;
-	}
-
-	return 0;
-}
-
-
-int
-MetaLearner::redefineModules_Global()
-{
-	FactorGraph* aGraph=fgGraphSet.begin()->second;
-	map<int,map<string,int>*> newModules;
-	map<string,HierarchicalClusterNode*> nodeSet;
-	map<string,int> genesWithNoNeighbors;
 	EvidenceManager* evMgr=evMgrSet.begin()->second;
 	INTINTMAP& tSet=evMgr->getTrainingSet();
+
+	map<string,HierarchicalClusterNode*> nodeSet;
+	map<string,int> genesWithNoNeighbors;
+
+	// Create a node for each member of each module
 	for(map<int,map<string,int>*>::iterator gIter=moduleGeneSet.begin();gIter!=moduleGeneSet.end();gIter++)
 	{
 		map<string,int>* moduleMembers=gIter->second;
@@ -2908,19 +2829,27 @@ MetaLearner::redefineModules_Global()
 			SlimFactor* mFactor=aGraph->getFactorAt(mID);
 			INTINTMAP& mbvars1=mFactor->mergedMB;
 			INTDBLMAP& regWts=mFactor->potFunc->getCondWeight();
+
+			// If a gene has no neighbors, we dont include it in the clustering algorithm.
 			if(mbvars1.size()==0)
 			{
 				genesWithNoNeighbors[mIter->first]=0;
 				continue;
 			}
 
+			// Create a node for this gene
 			HierarchicalClusterNode* node=new HierarchicalClusterNode;
-			//for(INTINTMAP_ITER bIter=mbvars1.begin();bIter!=mbvars1.end();bIter++)
+			node->size=1;
+			node->nodeName.append(mIter->first);
+			nodeSet[mIter->first]=node;
+
+			// Add weights for incoming edges onto the node
 			for(INTDBLMAP_ITER bIter=regWts.begin();bIter!=regWts.end();bIter++)
 			{
 				node->attrib[bIter->first]=bIter->second;
 			}
-			//Get the expression data
+
+			// Add expression data on the new node
 			for(INTINTMAP_ITER eIter=tSet.begin();eIter!=tSet.end();eIter++)
 			{	
 				EMAP* evidMap=evMgr->getEvidenceAt(eIter->first);
@@ -2928,15 +2857,18 @@ MetaLearner::redefineModules_Global()
 				double v=evid->getEvidVal();
 				node->expr.push_back(v);
 			}
-			node->nodeName.append(mIter->first);
-			nodeSet[mIter->first]=node;
-			node->size=1;
 		}
 	}
+
 	HierarchicalCluster hc;
 	hc.setOutputDir(foldoutDirName);
 	hc.setVariableManager(varManager);
+
+	// Perform the new clustering
+	map<int,map<string,int>*> newModules;
 	hc.cluster(newModules,nodeSet,clusterThreshold);
+
+	// Clear out any data representing the old module assignments
 	moduleGeneSet.clear();
 	geneModuleID.clear();
 	regulatorModuleOutdegree.clear();
@@ -2946,13 +2878,15 @@ MetaLearner::redefineModules_Global()
 		delete mIter->second;
 	}
 	moduleIndegree.clear();
-	VSET& varSet=varManager->getVariableSet();
-	int largestModuleID=0;
+
 	char moduleFName[1024];
-	
 	string& dirname=outLocMap[evMgrSet.begin()->first];
 	sprintf(moduleFName,"%s/fold%d/modules.txt",dirname.c_str(),currFold);
 	ofstream modFile(moduleFName);
+
+	// Read in the new module assignments
+	int largestModuleID=0;
+	VSET& varSet=varManager->getVariableSet();
 	for(map<int,map<string,int>*>::iterator mIter=newModules.begin();mIter!=newModules.end();mIter++)
 	{
 		moduleGeneSet[mIter->first]=mIter->second;
@@ -2965,9 +2899,10 @@ MetaLearner::redefineModules_Global()
 			int mID=varManager->getVarID(gIter->first.c_str());
 			SlimFactor* mFactor=aGraph->getFactorAt(mID);
 			INTINTMAP& mbvars1=mFactor->mergedMB;
-		
+
 			for(INTINTMAP_ITER nIter=mbvars1.begin();nIter!=mbvars1.end();nIter++)
 			{
+				// Count incoming edges to this module per regulator
 				Variable* var=varSet[nIter->first];
 				if(indegree->find(var->getName())==indegree->end())
 				{
@@ -2977,6 +2912,7 @@ MetaLearner::redefineModules_Global()
 				{
 					(*indegree)[var->getName()]=(*indegree)[var->getName()]+1;
 				}
+				// Count outgoing edges from regulator to any module
 				if(regulatorModuleOutdegree.find(var->getName())==regulatorModuleOutdegree.end())
 				{
 					regulatorModuleOutdegree[var->getName()]=1;
@@ -2991,6 +2927,8 @@ MetaLearner::redefineModules_Global()
 		largestModuleID=mIter->first;
 	}
 	modFile.close();
+
+	// For any genes with no neighbors, create single gene modules
 	for(map<string,int>::iterator gIter=genesWithNoNeighbors.begin();gIter!=genesWithNoNeighbors.end();gIter++)
 	{
 		largestModuleID++;
@@ -3000,5 +2938,6 @@ MetaLearner::redefineModules_Global()
 		geneModuleID[gIter->first]=largestModuleID;
 	}
 	genesWithNoNeighbors.clear();
+
 	return 0;
 }

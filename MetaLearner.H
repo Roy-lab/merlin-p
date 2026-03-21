@@ -110,7 +110,6 @@ class MetaLearner
 
 	int setPriorGraph(const char* aFName, map<string,map<string,double>*>& priorGraph);
 	int redefineModules();
-	int redefineModules_Global();
 	double getModuleContrib(string& tgtName, string& tfName);
 	double getModuleContribLogistic(string& tgtName, string& tfName);
 	int initPhysicalDegree();
