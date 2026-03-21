@@ -36,9 +36,6 @@ class MetaLearner
 	int initEdgePriorMeta(map<string,map<string,double>*>& graph, map<int,INTDBLMAP*>& edgePrior);
 	int doCrossValidation(int);
 	int start(int);
-	int start_gradualMBIncrease(int);
-	int start_gradualMBIncrease_RankRegulators(int);
-	int getTopRegs(map<int,int>&);
 	int setGlobalEvidenceManager(EvidenceManager*);
 	int setVariableManager(VariableManager*);
 	int setOutputDirName(const char*);
