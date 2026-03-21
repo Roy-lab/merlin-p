@@ -13,111 +13,103 @@
 #include "VariableManager.H"
 #include "HierarchicalClusterNode.H"
 #include "HierarchicalCluster.H"
-int sortfunc(const void* first, const void* second);
-int* sortingind=NULL;
-double* sorteddist=NULL;
 
-
-HierarchicalCluster::HierarchicalCluster()
+HierarchicalClusterNode*
+HierarchicalCluster::getNode(string nodeName)
 {
-	root=NULL;
+	if(nodeSet.find(nodeName)==nodeSet.end())
+	{
+		return nullptr;
+	}
+	return nodeSet[nodeName];
 }
 
-HierarchicalCluster::~HierarchicalCluster()
+void
+HierarchicalCluster::addNode(HierarchicalClusterNode* node)
 {
-}
-
-int
-HierarchicalCluster::setVariableManager(VariableManager* p)
-{
-	vMgr=p;
-	return 0;
-}
-
-int
-HierarchicalCluster::setOutputDir(const char* aFName)
-{
-	strcpy(outputDir,aFName);
-	return 0;
+	nodeSet[node->nodeName] = node;
 }
 
 int 
-HierarchicalCluster::cluster(map<int,map<string,int>*>& modules,map<string,HierarchicalClusterNode*>& attribs,double t)
+HierarchicalCluster::cluster(map<int,map<string,int>*>& modules, double threshold)
 {
-	threshold=t;
-	map<int,HierarchicalClusterNode*> attribs_integer;
-	globalNodeID=0;
-	for(map<string,HierarchicalClusterNode*>::iterator nIter=attribs.begin();nIter!=attribs.end();nIter++)
+	// currNodeSet holds the subset of nodes in the dendrogram that currently have no parent.
+	map<int,HierarchicalClusterNode*> currNodeSet;
+
+	// Load leaves into currNodeSet
+	for(map<string,HierarchicalClusterNode*>::iterator nIter=nodeSet.begin();nIter!=nodeSet.end();nIter++)
 	{
-		attribs_integer[globalNodeID]=nIter->second;
-		nIter->second->id=globalNodeID;
-		globalNodeID++;
+		int nextNodeIndex = currNodeSet.size();
+		currNodeSet[nextNodeIndex]=nIter->second;
+		nIter->second->id=nextNodeIndex;
 	}
-	estimatePairwiseDist(attribs_integer);
-	for(map<string,HierarchicalClusterNode*>::iterator aIter=attribs.begin();aIter!=attribs.end();aIter++)
+
+	//The total number of nodes that can be there in a hierarchical cluster is 2n-1
+	int treenodecnt = (nodeSet.size()*2) - 1;
+
+	priority_queue<Pair*, vector<Pair*>, ComparePair> pairQueue;
+
+	// Populate distances between the leaf nodes.
+	estimatePairwiseDist(currNodeSet, pairQueue, treenodecnt);
+
+	vector<HierarchicalClusterNode*> internalNodes;
+
+	// Merge pairs until threshold distance is reached.
+	int nextNodeID = currNodeSet.size();
+	while(currNodeSet.size()>1)
 	{
-		backup[aIter->first]=aIter->second;
-	}
-	
-	bool keepMerging=true;
-	
-	while(keepMerging && attribs_integer.size()>1)
-	{
-		struct timeval begintime;
-		struct timeval endtime;
-		gettimeofday(&begintime,NULL);
-		keepMerging=mergePairs_LazyDelete(attribs_integer);
-		gettimeofday(&endtime,NULL);
-		//cout << "Time elapsed " << endtime.tv_sec-begintime.tv_sec<< " seconds and " << endtime.tv_usec-begintime.tv_usec << " micro secs" << endl;
-	}
-	generateModules(attribs_integer,modules,backup);
-	calculatePercentVarianceExplained(modules,backup);
-	//calculateSilhouetteIndex(modules,backup);
-	for(map<string,HierarchicalClusterNode*>::iterator aIter=backup.begin();aIter!=backup.end();aIter++)
-	{
-		map<string,HierarchicalClusterNode*>::iterator cIter=attribs.find(aIter->first);
-		if(cIter!=attribs.end())
+		Pair *nextPair = getNextPair(pairQueue, threshold);
+		if (nextPair == nullptr)
 		{
-			attribs.erase(cIter);
+			break;
 		}
-		delete aIter->second;
+
+		HierarchicalClusterNode *newNode = createMergeNode(nextPair, currNodeSet, nextNodeID);
+		internalNodes.push_back(newNode);
+		addMergeNode(newNode, currNodeSet, pairQueue);
+
+		nextNodeID += 1;
 	}
-	for(map<string,HierarchicalClusterNode*>::iterator aIter=attribs.begin();aIter!=attribs.end();aIter++)
+
+	// Populates modules with the clustering represented by currNodeSet
+	generateModules(currNodeSet, modules);
+
+	// Just logs the percent variance explained by the clustering.
+	calculatePercentVarianceExplained(modules);
+
+	// Reset parent to null on all the cached leaf nodes.
+	for(map<string,HierarchicalClusterNode*>::iterator aIter=nodeSet.begin();aIter!=nodeSet.end();aIter++)
 	{
-		delete aIter->second;
+		aIter->second->parent = nullptr;
 	}
-	for(map<int,HierarchicalClusterNode*>::iterator aIter=attribs_integer.begin();aIter!=attribs_integer.end();aIter++)
+
+	// Clean up all the data
+	for (vector<HierarchicalClusterNode*>::iterator it = internalNodes.begin(); it != internalNodes.end(); it++)
 	{
-	//	delete aIter->second;
+		delete *it;
 	}
-	attribs_integer.clear();
-	delete [] visited;
 	for(int i=0;i<treenodecnt;i++)
 	{
 		delete [] distvalues[i];
 	}
 	delete [] distvalues;
-	attribs.clear();
-	backup.clear();
-	while(!myqueue.empty())
+	while(!pairQueue.empty())
 	{
-		HierarchicalCluster::Pair* p=myqueue.top();
-		myqueue.pop();
-		delete p;
+		Pair* pair = pairQueue.top();
+		pairQueue.pop();
+		delete pair;
 	}
+
 	return 0;
 }
 
 int
-HierarchicalCluster::estimatePairwiseDist(map<int,HierarchicalClusterNode*>& currNodeSet)
+HierarchicalCluster::estimatePairwiseDist(map<int,HierarchicalClusterNode*>& currNodeSet, priority_queue<Pair*, vector<Pair*>, ComparePair>& pairQueue, int treenodecnt)
 {
 	Distance d;
-	int size=currNodeSet.size();
-	size=size*(size-1)/2;
-	//The total number of nodes that can be there in a hierarchical cluster is 2n-1
-	treenodecnt=(currNodeSet.size()*2) - 1;
+
+	// Intantiate default distances
 	distvalues=new double*[treenodecnt];
-	visited=new int[treenodecnt];
 	for(int i=0;i<treenodecnt;i++)
 	{
 		distvalues[i]=new double[treenodecnt];
@@ -126,24 +118,19 @@ HierarchicalCluster::estimatePairwiseDist(map<int,HierarchicalClusterNode*>& cur
 			distvalues[i][j]=-1000;
 		}
 	}
-	for(int i=0;i<treenodecnt;i++)
-	{
-		visited[i]=0;
-	}
-	int globalPairID=0;
-	//for(map<int,HierarchicalClusterNode*>::iterator nIter=currNodeSet.begin();nIter!=currNodeSet.end();nIter++)
+
 	for(int i=0;i<currNodeSet.size();i++)
 	{
 		for(int j=i+1;j<currNodeSet.size();j++)
 		{
 			HierarchicalClusterNode* hcNode1=currNodeSet[i];
 			HierarchicalClusterNode* hcNode2=currNodeSet[j];
-			double rdist=0;
+
 			double ccdist=d.computeCC(hcNode1->expr,hcNode2->expr);
+			ccdist=0.5*(1-ccdist);
+
 			double sharedSign=0;
 			double den1=0;
-			double den2=0;
-			ccdist=0.5*(1-ccdist);
 			for(map<int,double>::iterator aIter=hcNode1->attrib.begin();aIter!=hcNode1->attrib.end();aIter++)
 			{
 				den1=den1+fabs(aIter->second);
@@ -155,170 +142,133 @@ HierarchicalCluster::estimatePairwiseDist(map<int,HierarchicalClusterNode*>& cur
 					}
 				}
 			}
+
+			double den2=0;
 			for(map<int,double>::iterator aIter=hcNode2->attrib.begin();aIter!=hcNode2->attrib.end();aIter++)
 			{
 				den2=den2+fabs(aIter->second);
 			}
-			rdist=1- (((double)sharedSign)/((double)(den1+den2-sharedSign)));
+
+			double rdist=1 - (((double)sharedSign)/((double)(den1+den2-sharedSign)));
 			double dist=(ccdist+rdist)/2;
 			distvalues[i][j]=dist;
 			distvalues[j][i]=dist;
-			HierarchicalCluster::Pair* p=new HierarchicalCluster::Pair;
-			p->node1=i;
-			p->node2=j;
+
+			Pair* p=new Pair;
+			p->node1=hcNode1;
+			p->node2=hcNode2;
 			p->value=dist;
-			myqueue.push(p);
-			globalPairID++;
+			pairQueue.push(p);
 		}
 	}
 	return 0;
 }
 
-
-int
-HierarchicalCluster::mergePairs_LazyDelete(map<int,HierarchicalClusterNode*>& currNodeSet)
+HierarchicalCluster::Pair*
+HierarchicalCluster::getNextPair(priority_queue<Pair*, vector<Pair*>, ComparePair>& pairQueue, double threshold)
 {
-	double maxSum=0;
-	double minDist=100000;
-	if(myqueue.empty())
+	if (pairQueue.empty())
 	{
-		return false;
+		return nullptr;
 	}
-	HierarchicalCluster::Pair* p=myqueue.top();
-	if(p->value>=threshold)
+
+	// If the closest pair is further than threshold, then we are done merging.
+	Pair* pair = pairQueue.top();
+	if (pair->value >= threshold)
 	{
-		return false;
+		return nullptr;
 	}
+
 	//Keep popping until we reach a pair whose both members have not been visited
-	while(!myqueue.empty() && (visited[p->node1]==1 || visited[p->node2]==1))
+	while(!pairQueue.empty())
 	{
-		delete p;
-		myqueue.pop();
-		p=myqueue.top();
+		HierarchicalCluster::Pair* pair = pairQueue.top();
+
+		if (pair->node1->parent == nullptr && pair->node2->parent == nullptr)
+		{
+			return pair;
+		}
+
+		delete pair;
+		pairQueue.pop();
 	}
-	minDist=p->value;
-	
-	visited[p->node1]=1;
-	visited[p->node2]=1;
-	if(currNodeSet.find(p->node1)==currNodeSet.end())
-	{
-		cerr << "node1 " << p->node1 << " not found in pair " << p->node1<<"-" <<p->node2 << endl;
-		exit(-1);
-	}
-	if(currNodeSet.find(p->node2)==currNodeSet.end())
-	{
-		cerr << "node2 " << p->node2 << " not found in pair " << p->node1 <<"-" << p->node2<<  endl;
-		exit(-1);
-	}
-	HierarchicalClusterNode* c1=currNodeSet[p->node1];
-	HierarchicalClusterNode* c2=currNodeSet[p->node2];
-	//cout << "Merging " << c1->nodeName << " " << c2->nodeName  << " dist=" << minDist << endl;
+
+	// There was no unvisited node, so we are done merging.
+	return nullptr;
+}
+
+HierarchicalClusterNode*
+HierarchicalCluster::createMergeNode(Pair *pair, map<int,HierarchicalClusterNode*>& currNodeSet, int nextNodeID)
+{
+	HierarchicalClusterNode* c1=pair->node1;
+	HierarchicalClusterNode* c2=pair->node2;
+
+	// Create a new node for the merged pair
 	HierarchicalClusterNode* c12=new HierarchicalClusterNode;
+	c12->id = nextNodeID;
 	c12->left=c1;
 	c12->right=c2;
+	c12->size=c1->size+c2->size;
+
 	c1->parent=c12;
 	c2->parent=c12;
-	c12->nodeName.append(c1->nodeName);
-	c12->nodeName.append("-");
-	c12->nodeName.append(c2->nodeName);
-	map<int,HierarchicalClusterNode*>::iterator hIter1=currNodeSet.find(c1->id);
-	map<int,HierarchicalClusterNode*>::iterator hIter2=currNodeSet.find(c2->id);
-	currNodeSet.erase(hIter1);
-	currNodeSet.erase(hIter2);
+
+	// Remove child nodes from the currNodeSet
+	currNodeSet.erase(c1->id);
+	currNodeSet.erase(c2->id);
+
+	return c12;
+}
+
+void
+HierarchicalCluster::addMergeNode(HierarchicalClusterNode* node, map<int,HierarchicalClusterNode*>& currNodeSet, priority_queue<Pair*, vector<Pair*>, ComparePair>& pairQueue)
+{
+	HierarchicalClusterNode* c1=node->left;
+	HierarchicalClusterNode* c2=node->right;
+
 	double* dist_n1=distvalues[c1->id];
 	double* dist_n2=distvalues[c2->id];
-	double* dist_n12=distvalues[globalNodeID];
+	double* dist_n12=distvalues[node->id];
+
+	// For every other node, set the distance to the new node and create a new pair.
 	for(map<int,HierarchicalClusterNode*>::iterator nIter=currNodeSet.begin();nIter!=currNodeSet.end();nIter++)
 	{
-		if(visited[nIter->first]==1)
-		{
-			continue;
-		}
 		double d1=dist_n1[nIter->first];
 		double d2=dist_n2[nIter->first];
-		double dkm_rdist=((c1->size*d1) + (c2->size*d2))/((double)(c1->size+ c2->size));
+		double dkm_rdist=((c1->size*d1) + (c2->size*d2))/((double)(c1->size + c2->size));
 		double dist=dkm_rdist;
 		dist_n12[nIter->first]=dist;
 		double* dist_other=distvalues[nIter->first];
-		dist_other[globalNodeID]=dist;
-		if(globalPairID==14412)
-		{	
-			cout <<"Stop here " << endl;
-		}
-		HierarchicalCluster::Pair* newp=new HierarchicalCluster::Pair;
-		newp->value=dist;
-		if(globalNodeID<nIter->first)
-		{
-			newp->node1=globalNodeID;
-			newp->node2=nIter->first;
-		}
-		else
-		{
-			newp->node1=nIter->first;
-			newp->node2=globalNodeID;
-		}
-		myqueue.push(newp);
-		globalPairID++;
+		dist_other[node->id]=dist;
+
+		Pair* newPair=new Pair;
+		newPair->value=dist;
+		newPair->node1=nIter->second;
+		newPair->node2=node;
+		pairQueue.push(newPair);
 	}
-	c12->id=globalNodeID;
-	currNodeSet[globalNodeID]=c12;
-	globalNodeID++;
-	c12->size=c1->size+c2->size;
-	
-	if(c1->left!=NULL || c1->right!=NULL)
-	{
-		backup[c1->nodeName]=c1;
-	}
-	if(c2->left!=NULL || c2->right!=NULL)
-	{
-		backup[c2->nodeName]=c2;
-	}
-	return true;
+
+	currNodeSet[node->id]=node;
 }
 
 int
-HierarchicalCluster::generateModules(map<int,HierarchicalClusterNode*>& currNodeSet,map<int,map<string,int>*>& modules,map<string,HierarchicalClusterNode*>& origAttrib)
+HierarchicalCluster::generateModules(map<int,HierarchicalClusterNode*>& currNodeSet,map<int,map<string,int>*>& modules)
 {
 	int moduleCnt=modules.size();
-	/*
-	char outFName[1024];
-	sprintf(outFName,"%s/clusters_pw.txt",outputDir);
-	ofstream oFile(outFName);
-	*/
 	for(map<int,HierarchicalClusterNode*>::iterator cIter=currNodeSet.begin();cIter!=currNodeSet.end();cIter++)
 	{
 		HierarchicalClusterNode* node=cIter->second;
 		map<string,int>* moduleMembers=new map<string,int>;
 		modules[moduleCnt]=moduleMembers;
 		populateMembers(moduleMembers,node);
-
-		/*
-		for(map<string,int>::iterator aIter=moduleMembers->begin();aIter!=moduleMembers->end();aIter++)
-		{
-			HierarchicalClusterNode* childNode=origAttrib[aIter->first];
-			oFile << aIter->first <<"||5\tModule||5\t" << moduleCnt <<"|1|"<< moduleCnt << endl;
-			for(int i=0;i<childNode->expr.size();i++)
-			{
-				oFile <<aIter->first <<"||5\tExp"<< i << "||5\t" << childNode->expr[i] << "|2"<< endl; 
-			}
-			for(map<int,double>::iterator mIter=childNode->attrib.begin();mIter!=childNode->attrib.end();mIter++)
-			{
-				oFile << aIter->first <<"||5\t" << (mIter->first) << "||5\t1|2" << endl;
-			}
-		}
-		oFile <<"|Spacer||"<<moduleCnt<<"|-" << endl;
-		*/
 		cout <<"Module: " << moduleCnt << "\tSize="<< moduleMembers->size() << endl;
-	
 		moduleCnt=moduleCnt+1;
 	}
-	//oFile << endl;
 	return 0;
 }
 
-
 int
-HierarchicalCluster::calculatePercentVarianceExplained(map<int,map<string,int>*>& modules,map<string,HierarchicalClusterNode*>& origAttrib)
+HierarchicalCluster::calculatePercentVarianceExplained(map<int,map<string,int>*>& modules)
 {
 	double s_total=0;
 	double s_err=0;
@@ -329,7 +279,7 @@ HierarchicalCluster::calculatePercentVarianceExplained(map<int,map<string,int>*>
 		map<string,int>* geneset=mIter->second;
 		for(map<string,int>::iterator gIter=geneset->begin();gIter!=geneset->end();gIter++)
 		{
-			HierarchicalClusterNode* n=origAttrib[gIter->first];
+			HierarchicalClusterNode* n=nodeSet[gIter->first];
 			for(int i=0;i<n->expr.size();i++)
 			{
 				if(localMean.find(i)==localMean.end())
@@ -353,11 +303,11 @@ HierarchicalCluster::calculatePercentVarianceExplained(map<int,map<string,int>*>
 				globalMean[dIter->first]=globalMean[dIter->first]+dIter->second;
 			}
 			dIter->second=dIter->second/((double)geneset->size());
-		}	
+		}
 		double s_err_m=0;
 		for(map<string,int>::iterator gIter=geneset->begin();gIter!=geneset->end();gIter++)
 		{
-			HierarchicalClusterNode* n=origAttrib[gIter->first];
+			HierarchicalClusterNode* n=nodeSet[gIter->first];
 			for(int i=0;i<n->expr.size();i++)
 			{
 				double diff=n->expr[i]-localMean[i];
@@ -369,14 +319,14 @@ HierarchicalCluster::calculatePercentVarianceExplained(map<int,map<string,int>*>
 	}
 	for(map<int,double>::iterator dIter=globalMean.begin();dIter!=globalMean.end();dIter++)
 	{
-		dIter->second=dIter->second/((double)origAttrib.size());
+		dIter->second=dIter->second/((double)nodeSet.size());
 	}
 	for(map<int,map<string,int>*>::iterator mIter=modules.begin();mIter!=modules.end();mIter++)
 	{
 		map<string,int>* geneset=mIter->second;
 		for(map<string,int>::iterator gIter=geneset->begin();gIter!=geneset->end();gIter++)
 		{
-			HierarchicalClusterNode* n=origAttrib[gIter->first];
+			HierarchicalClusterNode* n=nodeSet[gIter->first];
 			for(int i=0;i<n->expr.size();i++)
 			{
 				double diff=n->expr[i]-globalMean[i];
@@ -389,72 +339,6 @@ HierarchicalCluster::calculatePercentVarianceExplained(map<int,map<string,int>*>
 	globalMean.clear();
 	return 0;
 }
-
-int
-HierarchicalCluster::calculateSilhouetteIndex(map<int,map<string,int>*>& modules,map<string,HierarchicalClusterNode*>& origAttrib)
-{
-	map<string,double> silhouette;
-	int positive_s=0;
-	double totals=0;
-	for(map<int,map<string,int>*>::iterator mIter=modules.begin(); mIter!=modules.end();mIter++)
-	{
-		double module_s=0;
-		map<string,int>* geneset=mIter->second;
-		for(map<string,int>::iterator gIter=geneset->begin();gIter!=geneset->end();gIter++)
-		{
-			HierarchicalClusterNode* n=origAttrib[gIter->first];
-			double a=0;
-			for(map<string,int>::iterator hIter=geneset->begin();hIter!=geneset->end();hIter++)
-			{
-				if(gIter==hIter)
-				{
-					continue;
-				}
-				a=a+n->distToNeighbors_CC[hIter->first];
-			}
-			if(geneset->size()>1)
-			{
-				a=a/(geneset->size()-1);
-			}
-			double minb=100;
-			for(map<int,map<string,int>*>::iterator nIter=modules.begin();nIter!=modules.end();nIter++)
-			{
-				double b=0;
-				map<string,int>* geneset2=nIter->second;
-				if(mIter==nIter)
-				{
-					continue;
-				}
-				for(map<string,int>::iterator hIter=geneset2->begin();hIter!=geneset2->end();hIter++)
-				{
-					b=b+n->distToNeighbors_CC[hIter->first];
-				}
-				b=b/geneset2->size();
-				if(b<minb)
-				{
-					minb=b;
-				}
-			}
-			double s=minb-a;
-			if(s<0)
-			{
-				s=s/a;
-			}
-			else
-			{
-				s=s/minb;
-				positive_s=positive_s+1;
-			}
-			silhouette[gIter->first]=s;
-			module_s=module_s+s;
-		}
-		totals=totals+module_s;
-		cout <<"Silhoutte for module " << mIter->first <<" " << module_s/geneset->size() << endl;
-	}
-	cout <<"Silhoutte Avg. " << totals/origAttrib.size() << " total positive " << positive_s << " of total " << origAttrib.size()<< endl;
-	return 0;
-}
-
 
 int
 HierarchicalCluster::populateMembers(map<string,int>* members,HierarchicalClusterNode* node)
@@ -475,53 +359,4 @@ HierarchicalCluster::populateMembers(map<string,int>* members,HierarchicalCluste
 		}
 	}
 	return 0;
-}
-
-
-HierarchicalClusterNode*
-HierarchicalCluster::getRoot()
-{
-	if(root==NULL)
-	{
-		if(backup.size()==0)
-		{
-			cerr <<"No nodes you fool!!" << endl;
-			exit(-1);
-		}
-		findRoot(backup.begin()->second);
-	}
-	return root;
-}
-
-int
-HierarchicalCluster::findRoot(HierarchicalClusterNode* n)
-{
-	if(n->parent==NULL)
-	{
-		root=n;
-	}
-	else
-	{
-		findRoot(n->parent);
-	}
-	return 0;
-}
-
-int 
-sortfunc(const void* first, const void* second)
-{
-	int ind1=*((int*)first);	
-	int ind2=*((int*)second);
-	double pval1=sorteddist[ind1];
-	double pval2=sorteddist[ind2];
-	int compstat=0;
-	if(pval1>pval2)
-	{
-		compstat=-1;
-	}
-	else if(pval1<pval2)
-	{
-		compstat=1;
-	}
-	return compstat;
 }

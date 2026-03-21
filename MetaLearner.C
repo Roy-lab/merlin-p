@@ -2567,7 +2567,6 @@ MetaLearner::redefineModules()
 	EvidenceManager* evMgr=evMgrSet.begin()->second;
 	INTINTMAP& tSet=evMgr->getTrainingSet();
 
-	map<string,HierarchicalClusterNode*> nodeSet;
 	map<string,int> genesWithNoNeighbors;
 
 	// Create a node for each member of each module
@@ -2593,35 +2592,34 @@ MetaLearner::redefineModules()
 			}
 
 			// Create a node for this gene
-			HierarchicalClusterNode* node=new HierarchicalClusterNode;
-			node->size=1;
-			node->nodeName.append(mIter->first);
-			nodeSet[mIter->first]=node;
+			HierarchicalClusterNode* node = hc.getNode(mIter->first);
+			if (node == nullptr)
+			{
+				node = new HierarchicalClusterNode;
+				node->nodeName.append(mIter->first);
+				hc.addNode(node);
+
+				// Add expression data on the new node
+				for(INTINTMAP_ITER eIter=tSet.begin();eIter!=tSet.end();eIter++)
+				{
+					EMAP* evidMap=evMgr->getEvidenceAt(eIter->first);
+					Evidence* evid=(*evidMap)[mID];
+					double v=evid->getEvidVal();
+					node->expr.push_back(v);
+				}
+			}
 
 			// Add weights for incoming edges onto the node
 			for(INTDBLMAP_ITER bIter=regWts.begin();bIter!=regWts.end();bIter++)
 			{
 				node->attrib[bIter->first]=bIter->second;
 			}
-
-			// Add expression data on the new node
-			for(INTINTMAP_ITER eIter=tSet.begin();eIter!=tSet.end();eIter++)
-			{	
-				EMAP* evidMap=evMgr->getEvidenceAt(eIter->first);
-				Evidence* evid=(*evidMap)[mID];
-				double v=evid->getEvidVal();
-				node->expr.push_back(v);
-			}
 		}
 	}
 
-	HierarchicalCluster hc;
-	hc.setOutputDir(foldoutDirName);
-	hc.setVariableManager(varManager);
-
 	// Perform the new clustering
 	map<int,map<string,int>*> newModules;
-	hc.cluster(newModules,nodeSet,clusterThreshold);
+	hc.cluster(newModules,clusterThreshold);
 
 	// Clear out any data representing the old module assignments
 	moduleGeneSet.clear();

@@ -3,8 +3,9 @@
 
 #include <map>
 #include "CommonTypes.H"
-using namespace std;
+#include "HierarchicalCluster.H"
 
+using namespace std;
 
 //This is gamma map for each variable within each datapoint
 typedef map<int,INTDBLMAP*> DATA_GAMMA_MAP;
@@ -16,6 +17,8 @@ class EvidenceManager;
 class PotentialManager;
 class MetaMove;
 class Graph;
+class HierarchicalCluster;
+
 class MetaLearner
 {
 	public:
@@ -162,5 +165,6 @@ class MetaLearner
 	int currFold;
 	char foldoutDirName[1024];
 	int specificFold;
+	HierarchicalCluster hc;
 };
 #endif
