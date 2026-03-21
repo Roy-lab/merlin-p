@@ -32,9 +32,7 @@ class MetaLearner
 	int setPreRandomizeSplit();
 	int setTargetList(const char*);
 	int setNoPrune(bool);
-	int init();
 	int initPartitions(int);
-	int initEdgePriorMeta();
 	int initEdgePriorMeta(map<string,map<string,double>*>& graph, map<int,INTDBLMAP*>& edgePrior);
 	int doCrossValidation(int);
 	int start(int);
@@ -46,7 +44,6 @@ class MetaLearner
 	int setOutputDirName(const char*);
 	int setClusteringThreshold(double);
 	int setSpecificFold(int);
-	int showModelParameters(int);
 	int getPredictionError_CrossValid(int);
 	int setRandom(bool);
 	int readModuleMembership(const char*);
@@ -78,7 +75,6 @@ class MetaLearner
 	double getPLLScore_Datapoint(int datapoint);
 	int clearFoldSpecData();
 	int initEdgeSet(bool);
-	int initVariableComponents();
 	int initCondsetMap_Nopool();
 	INTINTMAP* getConditionSet(int cind);
 
@@ -97,7 +93,6 @@ class MetaLearner
 
 	int genCondSetKey(INTINTMAP& condSet, string& aKey);
 
-	int cleanUp();
 	int dumpAllGraphs(int,int,int);
 	int getEdgeVars(string&, char*, char*);
 	bool checkMBSize(INTINTMAP*,int,int,int);
