@@ -111,7 +111,7 @@ class MetaLearner
 	int getEnrichedTFs(map<string,int>& tfSet,map<string,int>* genes,map<string,map<string,double>*>& edgeSet);
 	double getModuleWideScoreImprovement(int cid,INTINTMAP& conditionSet,Variable* u, Variable* v,map<string,int>* moduleMembers);
 	
-	map<int,FactorManager*> fgMgrSet;
+	FactorManager* factorManager;
 	map<int,PotentialManager*> potMgrSet;
 	map<int,EvidenceManager*> evMgrSet;
 	map<int,FactorGraph*> fgGraphSet;

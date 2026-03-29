@@ -39,6 +39,7 @@ MetaLearner::MetaLearner()
 	clusterThreshold=0.5;
 	specificFold=-1;
 	convThreshold=1e-3;
+	factorManager=nullptr;
 }
 
 MetaLearner::~MetaLearner()
@@ -565,25 +566,26 @@ MetaLearner::doCrossValidation(int foldCnt)
 			potMgr->reset();
 			potMgr->setRandom(random);
 			potMgr->init();
-			if(fgMgrSet.find(eIter->first)!=fgMgrSet.end())
+
+			if (factorManager != nullptr)
 			{
-				FactorManager* delMe=fgMgrSet[eIter->first];
-				delete delMe;
+				delete factorManager;
 			}
-			FactorManager* fgMgr=new FactorManager;
-			fgMgr->setPotentialManager(potMgr);
-			fgMgr->setEvidenceManager(evMgr);
-			fgMgr->setVariableManager(varManager);
-			fgMgr->setOutputDir(outLocMap[eIter->first].c_str());
-			fgMgr->setMaxFactorSize_Approx(maxFactorSizeApprox);
-			fgMgr->setPenalty(penalty);
-			fgMgrSet[eIter->first]=fgMgr;
+
+			factorManager=new FactorManager;
+			factorManager->setPotentialManager(potMgr);
+			factorManager->setEvidenceManager(evMgr);
+			factorManager->setVariableManager(varManager);
+			factorManager->setOutputDir(outLocMap[eIter->first].c_str());
+			factorManager->setMaxFactorSize_Approx(maxFactorSizeApprox);
+			factorManager->setPenalty(penalty);
 			if(strlen(restrictedFName)>0)
 			{
-				fgMgr->readRestrictedVarlist(restrictedFName);
+				factorManager->readRestrictedVarlist(restrictedFName);
 			}
-			fgMgr->allocateFactorSpace();
-			fgMgr->learnStructure();
+			factorManager->allocateFactorSpace();
+			factorManager->learnStructure();
+
 			char outputDir[1024];
 			sprintf(outputDir,"%s/fold%d",outLocMap[eIter->first].c_str(),f);
 			char foldOutputDirCmd[1024];
@@ -896,15 +898,9 @@ MetaLearner::initEdgeSet(bool validation)
 	{
 		initCondsetMap_Nopool();
 	}
+
 	//Create a factorgraph for conditionset combination
-	//It does not matter which factor manager we use now
-	//for(map<int,INTINTMAP*>::iterator cIter=condsetMap.begin();cIter!=condsetMap.end();cIter++)
-	for(map<int,FactorManager*>::iterator fIter=fgMgrSet.begin();fIter!=fgMgrSet.end();fIter++)
-	{
-		FactorManager* fMgr=fIter->second;
-		FactorGraph* condspecGraph=fMgr->createInitialFactorGraph();
-		fgGraphSet[fIter->first]=condspecGraph;
-	}
+	fgGraphSet[1]=factorManager->createInitialFactorGraph();
 
 	map<string,int> testedEdges;
 	VSET& varSet=varManager->getVariableSet();
