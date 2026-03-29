@@ -727,7 +727,7 @@ MetaLearner::getInitPLLScore()
 			continue;
 		}
 		Variable* var=varSet[vIter->first];
-		double newPLL_s=getNewPLLScore_Condition(vIter->first);
+		double newPLL_s=getInitPLLScore(vIter->first);
 		double priorScore=varNeighborhoodPrior[vIter->first];
 		(*currPLL)[vIter->first]=newPLL_s+priorScore;
 		initScore=initScore+(*currPLL)[vIter->first];
@@ -1207,7 +1207,7 @@ MetaLearner::getNewPLLScore(Variable* u, Variable* v, string& edgeKey, double& m
 
 	if(scoreImprovement!=-1)
 	{
-		newPLL_d=getNewPLLScore_Condition_Tracetrick(v->getID(),u->getID(),*newdPot);
+		newPLL_d=getNewPLLScore_Tracetrick(v->getID(),u->getID(),*newdPot);
 		newPLL_d=newPLL_d+currPrior;
 		double oldPLL_d=(*currPLL)[v->getID()];
 		double dImpr=newPLL_d-oldPLL_d;
@@ -1247,7 +1247,7 @@ MetaLearner::getNewPLLScore(Variable* u, Variable* v, string& edgeKey, double& m
 }
 
 double
-MetaLearner::getNewPLLScore_Condition(int vId)
+MetaLearner::getInitPLLScore(int vId)
 {
 	double pll=0; 
 	//Need to fix this to be set automatically
@@ -1290,7 +1290,7 @@ MetaLearner::getNewPLLScore_Condition(int vId)
 }
 
 double
-MetaLearner::getNewPLLScore_Condition_Tracetrick(int vId, int uId, Potential* newPot)
+MetaLearner::getNewPLLScore_Tracetrick(int vId, int uId, Potential* newPot)
 {
 	double pll=0; 
 	//Need to fix this to be set automatically

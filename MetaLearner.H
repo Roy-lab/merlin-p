@@ -68,6 +68,7 @@ class MetaLearner
 	map <string,map<string,map<string,double>*>*> priorgraphmap;
 		
 	double getInitPLLScore();
+	double getInitPLLScore(int vId);
 	double getPLLScore();
 	double getInitPrior();
 	double getEdgePrior(int tfID, int targetID);
@@ -79,8 +80,7 @@ class MetaLearner
 	int makeMoves();
 	int attemptMove(MetaMove*, INTINTMAP*);
 	int getNewPLLScore(Variable* u, Variable* v, string& edgeKey, double& mbScore, double& scoreImprovement,Potential**);
-	double getNewPLLScore_Condition(int vId);
-	double getNewPLLScore_Condition_Tracetrick(int vId, int uID, Potential* newPot);
+	double getNewPLLScore_Tracetrick(int vId, int uID, Potential* newPot);
 
 	int dumpAllGraphs(int,int,int);
 	int getEdgeVars(string&, char*, char*);
