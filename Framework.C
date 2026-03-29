@@ -52,7 +52,6 @@ Error::ErrorCode
 Framework::init(int argc, char** argv)
 {
 	int c;
-	int condCnt = 1;
 	//char outFilePrefix[256];
 	bool cvDefault = true;
 	bool hDefault = true;
@@ -256,7 +255,7 @@ Framework::init(int argc, char** argv)
 		metaLearner.setBeta_Motif(4);
 	}
 
-	metaLearner.initPartitions(condCnt);
+	metaLearner.initPartitions();
 	return Error::SUCCESS;
 }
 

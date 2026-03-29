@@ -35,7 +35,7 @@ class MetaLearner
 	int setPreRandomizeSplit();
 	int setTargetList(const char*);
 	int setNoPrune(bool);
-	int initPartitions(int);
+	int initPartitions();
 	int initEdgePriorMeta(map<string,map<string,double>*>& graph, map<int,INTDBLMAP*>& edgePrior);
 	int doCrossValidation(int);
 	int start(int);
@@ -142,7 +142,6 @@ class MetaLearner
 	bool preRandomizeSplit;
 	gsl_rng* rnd;
 	char outputDirName[1024];
-	map<int,INTINTMAP*> datasetInd;
 	map<string,double> edgePresenceProb;
 	map<int,double> varNeighborhoodPrior;
 	//These are the edges that got added

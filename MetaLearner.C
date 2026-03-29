@@ -453,10 +453,10 @@ MetaLearner::setNoPrune(bool pruneStatus)
 }
 
 int
-MetaLearner::initPartitions(int numberOfComponents)
+MetaLearner::initPartitions()
 {
-	int randseed=0;
-	globalEvMgr->partitionData(numberOfComponents,evMgrSet,randseed,datasetInd);
+	evMgrSet[1] = globalEvMgr;
+
 	char outputLoc[1024];
 	char commandName[1024];
 
@@ -467,15 +467,14 @@ MetaLearner::initPartitions(int numberOfComponents)
 		PotentialManager* potMgr=new PotentialManager;
 		potMgr->setEvidenceManager(evMgr);
 		evMgr->setVariableManager(varManager);
-		//sprintf(outputLoc,"%s/model%d/",outputDirName,datasetId);
+
 		sprintf(outputLoc,"%s",outputDirName);
-		//sprintf(commandName,"mkdir %s",outputLoc);
-		//system(commandName);
+
 		string outputLocKey(outputLoc);
 		outLocMap[datasetId]=outputLocKey;
 		potMgrSet[datasetId]=potMgr;
 	}
-	cout <<"Created data for " << potMgrSet.size() << " partitions" << endl;
+
 	return 0;
 }
 

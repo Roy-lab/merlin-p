@@ -468,53 +468,6 @@ EvidenceManager::standardizeData()
 	return 0;
 }
 
-int
-EvidenceManager::partitionData(int numberOfComponents,map<int,EvidenceManager*>& evMgrSet,int& rseed,map<int,INTINTMAP*>& datasetInd)
-{
-	int datasubsetSize=evidenceSet.size()/numberOfComponents;
-	int* randInds=new int[evidenceSet.size()];
-	//generate a random vector of indices ranging from 0 to evidenceSet.size()-1
-	gsl_rng* r=gsl_rng_alloc(gsl_rng_default);
-	//randseed=getpid();
-	randseed=18721;
-	rseed=randseed;
-	gsl_rng_set(r,randseed);
-	populateRandIntegers(r,randInds,evidenceSet.size());	
-	for(int i=0;i<evidenceSet.size();i++)
-	{
-		cout << randInds[i] << endl;
-	}
-	gsl_rng_free(r);
-	int ind=0;
-	for(int n=1;n<=numberOfComponents;n++)
-	{
-		int startIndex=(n-1)*(datasubsetSize);
-		int endIndex=n*datasubsetSize;
-		if(n==numberOfComponents)
-		{
-			endIndex=evidenceSet.size();
-		}
-		EvidenceManager* localManager=new EvidenceManager;
-		INTINTMAP* origIDs=new INTINTMAP;
-		int currind=(int)pow(2.0,ind);
-		datasetInd[currind]=origIDs;
-		evMgrSet[currind]=localManager;
-		int dId=0;
-		for(int e=startIndex;e<endIndex;e++)
-		{
-			//int rId=randInds[e];
-			int rId=e;
-			EMAP* evidSet=evidenceSet[rId];
-			localManager->addEvidence(evidSet);
-			(*origIDs)[dId]=rId;
-			dId++;
-		}
-		ind++;
-	}
-	delete[] randInds;
-	return 0;
-}
-
 int 
 EvidenceManager::populateEvidence(Evidence** evid,const char* evidStr)
 {

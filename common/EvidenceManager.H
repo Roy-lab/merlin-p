@@ -55,7 +55,7 @@ class EvidenceManager
 		int populateRandIntegers(gsl_rng*, INTINTMAP&,int,int);
 		int populateRandIntegers(gsl_rng*, vector<int>&,int,int);
 		int standardizeData();
-		int partitionData(int,map<int,EvidenceManager*>&,int&,map<int,INTINTMAP*>&);
+
 	private:
 		int populateEvidence(Evidence**,const char*);
 		int populateRandIntegers(gsl_rng*, int*,int);
