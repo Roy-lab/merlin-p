@@ -7,7 +7,6 @@ MetaMove::MetaMove()
 
 MetaMove::~MetaMove()
 {
-	pll.clear();
 }
 
 int 

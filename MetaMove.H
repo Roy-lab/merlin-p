@@ -26,7 +26,7 @@ class MetaMove
 	double getTargetMBScore();
 	double getScoreImprovement();
 	Potential* getDestPot();
-	INTDBLMAP pll;
+
 	private:
 	double scoreDelta;
 	double mbscore;

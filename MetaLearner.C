@@ -776,12 +776,7 @@ MetaLearner::clearFoldSpecData()
 		delete factorGraph;
 		factorGraph = nullptr;
 	}
-	for(map<string,INTINTMAP*>::iterator eIter=edgeConditionMap.begin();eIter!=edgeConditionMap.end();eIter++)
-	{
-		eIter->second->clear();
-		delete eIter->second;
-	}
-	edgeConditionMap.clear();
+	edgeMap.clear();
 	if (currPLL != nullptr)
 	{
 		delete currPLL;
@@ -822,9 +817,7 @@ MetaLearner::initEdgeSet(bool validation)
 			edgeKey.append("\t");
 			edgeKey.append(v->getName().c_str());
 
-			INTINTMAP* conditionSet=new INTINTMAP;
-			edgeConditionMap[edgeKey]=conditionSet;
-			(*conditionSet)[1]=0;
+			edgeMap[edgeKey]=0;
 
 			double initPrior=getEdgePrior(uIter->first,vIter->first);
 			initPrior=1/(1+exp(-1*initPrior));
@@ -851,7 +844,7 @@ MetaLearner::initEdgeSet(bool validation)
 	int n=varSet.size();
 	int r=restrictedVarList.size();
 	int expEdgeCnt=((r*(r-1))/2) + (r*(n-r)) ;
-	cout <<"Inited " << edgeConditionMap.size() << " edges. Expected " << expEdgeCnt << endl;
+	cout <<"Inited " << edgeMap.size() << " edges. Expected " << expEdgeCnt << endl;
 	testedEdges.clear();	
 
 	//Init the potentials
@@ -1003,156 +996,120 @@ MetaLearner::getPredictionError_CrossValid(int foldid)
 int
 MetaLearner::collectMoves(int currK,int rind)
 {
-	VSET& varSet=varManager->getVariableSet();
 	for(int i=0;i<moveSet.size();i++)
 	{
 		delete moveSet[i];
 	}
 	moveSet.clear();
-	map<string,int> testedEdges;
+
 	int vID=idVidMap[rind];
+	VSET& varSet=varManager->getVariableSet();
 	VSET_ITER vIter=varSet.find(vID);
 	if(vIter==varSet.end())
 	{
 		return 0;
 	}
-	//for(VSET_ITER vIter=varSet.begin();vIter!=varSet.end();vIter++)
-	//{
-		Variable* v=vIter->second;
-		if(geneModuleID.find(v->getName())==geneModuleID.end())
-		{
-			return 0;
-			//continue;
-		}
-		int moduleID=geneModuleID[v->getName()];
-		map<string,int>* moduleMembers=moduleGeneSet[moduleID];
-		double bestTargetScore=0;
-		double bestScoreImprovement=0;
-		int bestCondSetInd=-1;
-		Variable* bestu=NULL;
-		map<string,INTDBLMAP*> impEdgeScoreImprovement;
-		map<int,double> bestConditionImprovement;
-		map<int,double> bestConditionScore;
-		map<int,double> bestCondSpecPLL;
-		Potential* bestPot=NULL;
-		bool bestUpdate=false;
-		for(map<string,int>::iterator uIter=restrictedVarList.begin();uIter!=restrictedVarList.end();uIter++)
-		{
-			int regID=varManager->getVarID(uIter->first.c_str());
-			if(regID==-1)
-			{
-				continue;
-			}
-			
-			if(vIter->first==regID)
-			{
-				continue;
-			}
-			Variable* u=varSet[regID];
 
-			string edgeKey;
-			edgeKey.append(u->getName().c_str());
-			edgeKey.append("\t");
-			edgeKey.append(v->getName().c_str());
+	Variable* v=vIter->second;
+	if(geneModuleID.find(v->getName())==geneModuleID.end())
+	{
+		return 0;
+	}
 
-			if(testedEdges.find(edgeKey)!=testedEdges.end())
-			{
-				continue;
-			}
-			testedEdges[edgeKey]=0;
-			//Generate next condition assignments
-			if(edgeConditionMap.find(edgeKey)==edgeConditionMap.end())
-			{
-				cout <<"No edge " << edgeKey.c_str() << " u " << u->getID() << " v " << v->getID()<< endl;
-				exit(0);
-			}
-			INTINTMAP* conditionSet=edgeConditionMap[edgeKey];
-			map<int,double> conditionImprovement;
-			map<int,double> conditionScore;
-			for(INTINTMAP_ITER cIter=conditionSet->begin();cIter!=conditionSet->end();cIter++)
-			{
-				double scoreImprovement=0;
-				double newTargetScore=0;
-				Potential* aPot=NULL;
-				INTDBLMAP pll;
-				if(cIter->second==1)
-				{
-					pll.clear();
-					continue;
-				}
-				if(!checkMBSize(regID,vIter->first,currK))
-				{
-					pll.clear();
-					continue;
-				}
-				getNewPLLScore(u,v,edgeKey,newTargetScore,scoreImprovement,&aPot);
-				double moduleWideScoreImprovement=getModuleWideScoreImprovement(u,v,moduleMembers);
-				conditionImprovement[cIter->first]=scoreImprovement;
-				conditionScore[cIter->first]=newTargetScore;
-				if(scoreImprovement<0)
-				{
-					pll.clear();
-					continue;
-				}
-				if((bestCondSetInd==-1) || (bestScoreImprovement<(scoreImprovement+moduleWideScoreImprovement)))
-				{
-					bestu=u;
-					bestTargetScore=newTargetScore;
-					bestScoreImprovement=scoreImprovement;
-					bestCondSetInd=cIter->first;
-					bestUpdate=true;
-					bestCondSpecPLL.clear();
-					for(INTDBLMAP_ITER dIter=pll.begin();dIter!=pll.end();dIter++)
-					{
-						bestCondSpecPLL[dIter->first]=dIter->second;
-					}
-					if(bestPot!=NULL)
-					{
-						delete bestPot;
-					}
-					bestPot=aPot;
-				}
-				else
-				{
-					delete aPot;
-				}
-				pll.clear();
-			}
-			if(bestUpdate)
-			{
-				bestConditionImprovement.clear();
-				for(INTDBLMAP_ITER cvIter=conditionImprovement.begin();cvIter!=conditionImprovement.end();cvIter++)
-				{
-					bestConditionImprovement[cvIter->first]=cvIter->second;
-					bestConditionScore[cvIter->first]=conditionScore[cvIter->first];
-				}
-			}
-			conditionImprovement.clear();
-			conditionScore.clear();
-			bestUpdate=false;
-		}
-		//At this stage we have the best condition set for the pair {u,bestv}.
-		if((bestu==NULL) || (bestScoreImprovement<=0))
+	map<string,int> testedEdges;
+	int moduleID=geneModuleID[v->getName()];
+	map<string,int>* moduleMembers=moduleGeneSet[moduleID];
+	double bestTargetScore=0;
+	double bestScoreImprovement=0;
+	Variable* bestu=NULL;
+	Potential* bestPot=NULL;
+	for(map<string,int>::iterator uIter=restrictedVarList.begin();uIter!=restrictedVarList.end();uIter++)
+	{
+		int regID=varManager->getVarID(uIter->first.c_str());
+
+		// Ensure we can find the regulator, and that it isnt the same node as the target.
+		if(regID==-1 || vIter->first==regID)
 		{
-			testedEdges.clear();
-			return 0;
-		//	continue;
+			continue;
 		}
-		MetaMove* move=new MetaMove;
-		move->setSrcVertex(bestu->getID());
-		for(INTDBLMAP_ITER dIter=bestCondSpecPLL.begin();dIter!=bestCondSpecPLL.end();dIter++)
+
+		Variable* u=varSet[regID];
+
+		string edgeKey;
+		edgeKey.append(u->getName().c_str());
+		edgeKey.append("\t");
+		edgeKey.append(v->getName().c_str());
+
+		if(testedEdges.find(edgeKey)!=testedEdges.end())
 		{
-			move->pll[dIter->first]=dIter->second;
+			continue;
 		}
-		bestCondSpecPLL.clear();
-		bestConditionScore.clear();
-		move->setTargetVertex(v->getID());
-		move->setTargetMBScore(bestTargetScore);
-		move->setScoreImprovement(bestScoreImprovement);
-		move->setDestPot(bestPot);
-		moveSet.push_back(move);
-	//}
-	testedEdges.clear();
+		testedEdges[edgeKey]=0;
+
+		if(edgeMap.find(edgeKey)==edgeMap.end())
+		{
+			// If the edge key doesnt exist in the map, then something went wrong during initEdgeSet
+			cout <<"No edge " << edgeKey.c_str() << " u " << u->getID() << " v " << v->getID()<< endl;
+			exit(0);
+		}
+
+		// If the edge already exists, no need to test adding it.
+		int edgeValue=edgeMap[edgeKey];
+		if(edgeValue==1)
+		{
+			continue;
+		}
+
+		// If v already has the max number of parents, dont test adding another.
+		if(!checkMBSize(regID,vIter->first,currK))
+		{
+			continue;
+		}
+
+		double improvement=0;
+		double score=0;
+
+		Potential* aPot=NULL;
+		getNewPLLScore(u,v,edgeKey,score,improvement,&aPot);
+
+		if(improvement<0)
+		{
+			continue;
+		}
+
+		double moduleWideScoreImprovement=getModuleWideScoreImprovement(u,v,moduleMembers);
+
+		if((bestu==NULL) || (bestScoreImprovement<(improvement+moduleWideScoreImprovement)))
+		{
+			bestu=u;
+			bestTargetScore=score;
+			bestScoreImprovement=improvement;
+			if(bestPot!=NULL)
+			{
+				delete bestPot;
+			}
+			bestPot=aPot;
+		}
+		else
+		{
+			delete aPot;
+		}
+	}
+
+	// We could not find a parent to add to v that would improve the score.
+	if((bestu==NULL) || (bestScoreImprovement<=0))
+	{
+		return 0;
+	}
+
+	MetaMove* move=new MetaMove;
+	move->setSrcVertex(bestu->getID());
+	move->setTargetVertex(v->getID());
+	move->setTargetMBScore(bestTargetScore);
+	move->setScoreImprovement(bestScoreImprovement);
+	move->setDestPot(bestPot);
+	moveSet.push_back(move);
+
 	return 0;
 }
 double
@@ -1455,12 +1412,12 @@ MetaLearner::attemptMove(MetaMove* move, INTINTMAP* affectedVars)
 	edgeKey.append("\t");
 	edgeKey.append(v->getName().c_str());
 
-	if(edgeConditionMap.find(edgeKey)==edgeConditionMap.end())
+	if(edgeMap.find(edgeKey)==edgeMap.end())
 	{
 		cout <<"Edge " << edgeKey << " not found " << endl;
 		return -1;
 	}
-	INTINTMAP* conditionSet=edgeConditionMap[edgeKey];
+
 	if((affectedVars->find(move->getSrcVertex())!=affectedVars->end()) || (affectedVars->find(move->getTargetVertex())!=affectedVars->end()))
 	{
 		return -1;
@@ -1474,7 +1431,6 @@ MetaLearner::attemptMove(MetaMove* move, INTINTMAP* affectedVars)
 	}
 	dFactor->mergedMB[move->getSrcVertex()]=0;
 	dFactor->mbScore=move->getTargetMBScore();
-	(*conditionSet)[1]=1;
 	delete dFactor->potFunc;
 	dFactor->potFunc=move->getDestPot();
 	dFactor->updatePartialMeans(dFactor->potFunc->getAllPartialMeans());
@@ -1511,7 +1467,7 @@ MetaLearner::attemptMove(MetaMove* move, INTINTMAP* affectedVars)
 		regulatorModuleOutdegree[u->getName()]=regulatorModuleOutdegree[u->getName()]+1;
 	}
 	//cout << "Made move for " << edgeKey.c_str() << endl;
-	(*conditionSet)[1]=1;
+	edgeMap[edgeKey]=1;
 	int curriter=0;
 	if(variableStatus.find(v->getName())==variableStatus.end())
 	{

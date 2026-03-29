@@ -106,8 +106,7 @@ class MetaLearner
 	double penalty;
 	double convThreshold;
 	char restrictedFName[1024];
-	map<string,INTINTMAP*> edgeConditionMap;
-	FactorGraph* fg;
+	map<string,int> edgeMap;
 	vector<MetaMove*> moveSet;
 	map<string,int> restrictedVarList;
 	INTDBLMAP* currPLL;
