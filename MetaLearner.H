@@ -24,7 +24,6 @@ class MetaLearner
 	public:
 	MetaLearner();
 	~MetaLearner();
-	int setInputFName(const char*);
 	int setMaxFactorSize_Approx(int);
 	int setPenalty(double);
 	int setBeta1(double aval);
@@ -33,8 +32,6 @@ class MetaLearner
 	int setConvergenceThreshold(double);
 	int setRestrictedList(const char*);
 	int setPreRandomizeSplit();
-	int setTargetList(const char*);
-	int setNoPrune(bool);
 	int initPartitions();
 	int initEdgePriorMeta(map<string,map<string,double>*>& graph, map<int,INTDBLMAP*>& edgePrior);
 	int doCrossValidation(int);
@@ -48,20 +45,9 @@ class MetaLearner
 	int setRandom(bool);
 	int readModuleMembership(const char*);
 	int setDefaultModuleMembership();
-
-	//int setMotifGraph(const char*);
-	//int setChIPGraph(const char*);
-	//int setBeta_ChIP(double bval);
 	int setPriorGraph_All(const char*);
 	private:
-	
-	//map<int,INTDBLMAP*> edgePriors_Motif;
-	//map<int,INTDBLMAP*> edgePriors_ChIP;
-	//map<string,map<string,double>*> priorGraph_Motif;
-	//map<string,map<string,double>*> priorGraph_ChIP;
-	//double beta_chip;
-	//int initEdgePriorMeta_Motif();
-	//int initEdgePriorMeta_ChIP();
+
 	int initEdgePriorMeta_All();
 	map <string,double> betamap;
 	map <string,map<int,INTDBLMAP*>*> edgepriormap;
@@ -83,12 +69,10 @@ class MetaLearner
 	double getNewPLLScore_Tracetrick(int vId, int uID, Potential* newPot);
 
 	int dumpAllGraphs(int,int,int);
-	int getEdgeVars(string&, char*, char*);
 	bool checkMBSize(int,int,int);
 
 	int setPriorGraph(const char* aFName, map<string,map<string,double>*>& priorGraph);
 	int redefineModules();
-	double getModuleContrib(string& tgtName, string& tfName);
 	double getModuleContribLogistic(string& tgtName, string& tfName);
 	int initPhysicalDegree();
 	int getEnrichedTFs(map<string,int>& tfSet,map<string,int>* genes,map<string,map<string,double>*>& edgeSet);
@@ -101,8 +85,6 @@ class MetaLearner
 	VariableManager* varManager;
 
 	int maxFactorSizeApprox;
-	int maxMBCntGreedy;
-	char inputFName[1024];
 	double penalty;
 	double convThreshold;
 	char restrictedFName[1024];
@@ -120,16 +102,13 @@ class MetaLearner
 	double beta1;
 	double beta_motif;
 	double lambda;
-	map<string,int> reqdTargetList;
 	bool random;
 	bool randomData;
-	bool noprune;
 	map<int,map<string,int>*> moduleGeneSet;
 	map<string,int> geneModuleID;
 	map<int,map<string,int>*> moduleIndegree;
 	map<string,int> regulatorModuleOutdegree;
 	map<int,int> idVidMap;
-	int globalID;
 	double clusterThreshold;
 	map<string,int> variableStatus;
 	int currFold;

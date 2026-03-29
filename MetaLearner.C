@@ -34,7 +34,6 @@ MetaLearner::MetaLearner()
 	trueGraphFName[0]='\0';
 	preRandomizeSplit=false;
 	random=false;
-	noprune=false;
 	lambda=0;
 	clusterThreshold=0.5;
 	specificFold=-1;
@@ -46,13 +45,6 @@ MetaLearner::MetaLearner()
 
 MetaLearner::~MetaLearner()
 {
-}
-
-int
-MetaLearner::setInputFName(const char* aFName)
-{
-	strcpy(inputFName,aFName);
-	return 0;
 }
 
 int
@@ -75,44 +67,6 @@ MetaLearner::setBeta1(double aval)
 	beta1=aval;
 	return 0;
 }
-
-/*
-int
-MetaLearner::setBeta_ChIP(double aval)
-{
-	beta_chip=aval;
-	return 0;
-}
-
-int
-MetaLearner::setMotifGraph(const char* aFName)
-{
-	setPriorGraph(aFName,priorGraph_Motif);	
-	return 0;
-}
-
-int
-MetaLearner::setChIPGraph(const char* aFName)
-{
-	setPriorGraph(aFName,priorGraph_ChIP);
-	return 0;
-}
-
-int
-MetaLearner::initEdgePriorMeta_Motif()
-{
-	initEdgePriorMeta(priorGraph_Motif,edgePriors_Motif);
-	return 0;
-}
-
-int
-MetaLearner::initEdgePriorMeta_ChIP()
-{	
-	initEdgePriorMeta(priorGraph_ChIP,edgePriors_ChIP);
-	return 0;
-}
-
-*/
 
 int
 MetaLearner::initEdgePriorMeta_All()
@@ -304,26 +258,6 @@ MetaLearner::setPriorGraph(const char* aFName, map<string,map<string,double>*>& 
 	return 0;
 }
 
-
-int 
-MetaLearner::setTargetList(const char* aFName)
-{
-	ifstream inFile(aFName);
-	char buffer[1024];
-	while(inFile.good())
-	{
-		inFile.getline(buffer,1023);
-		if(strlen(buffer)<=0)
-		{
-			continue;
-		}
-		string tgtname(buffer);
-		reqdTargetList[tgtname]=0;
-	}
-	inFile.close();
-	return 0;
-}
-
 int
 MetaLearner::setRandom(bool flag)
 {
@@ -445,13 +379,6 @@ MetaLearner::setDefaultModuleMembership()
 	randIndex.clear();
 	matIdvIdMap.clear();
 	usedInit.clear();
-	return 0;
-}
-
-int 
-MetaLearner::setNoPrune(bool pruneStatus)
-{
-	noprune=pruneStatus;
 	return 0;
 }
 
@@ -598,8 +525,6 @@ MetaLearner::start(int f)
 	int rseed=getpid();
 	gsl_rng_set(rnd,rseed);
 	cout <<rseed << endl;
-	//initEdgePriorMeta_Motif();
-	//initEdgePriorMeta_ChIP();
 	initEdgePriorMeta_All();
 	initEdgeSet(false);
 	initPhysicalDegree();
@@ -1492,26 +1417,6 @@ MetaLearner::dumpAllGraphs(int currK,int foldid,int iter)
 	return 0;
 }
 
-int 
-MetaLearner::getEdgeVars(string& edgeKey, char* var1, char* var2) 
-{
-	char buffer[1024];
-	strcpy(buffer,edgeKey.c_str());
-	char* pos=strchr(buffer,'\t');
-	if(pos==NULL)
-	{
-		cout <<"Bad edge format" << endl;
-		exit(0);
-	}
-	*pos='\0';
-	int s=atoi(buffer);
-	int d=atoi(pos+1);
-	VSET& varSet=varManager->getVariableSet();
-	strcpy(var1,varSet[s]->getName().c_str());
-	strcpy(var2,varSet[d]->getName().c_str());
-	return 0;
-}
-
 bool 
 MetaLearner::checkMBSize(int u,int v, int currK)
 {
@@ -1640,41 +1545,6 @@ MetaLearner::getEnrichedTFs(map<string,int>& tfSet,map<string,int>* genes,map<st
 	}
 	return 0;
 }
-
-double
-MetaLearner::getModuleContrib(string& tgtName, string& tfName)
-{
-	//return 0;
-	int moduleID=-1;
-	if(geneModuleID.find(tgtName)==geneModuleID.end())
-	{
-		return log(1.0/(double)geneModuleID.size());	
-	}
-	moduleID=geneModuleID[tgtName];
-	int moduleSize=moduleGeneSet[moduleID]->size();
-	double contrib=0;
-	if(moduleIndegree.find(moduleID)==moduleIndegree.end())
-	{
-		contrib=1.0/(moduleSize);
-		return log(contrib);
-	}
-	int degree=0;
-	double total=0;
-	map<string,int>* moddegree=moduleIndegree[moduleID];
-	for(map<string,int>::iterator rIter=moddegree->begin();rIter!=moddegree->end();rIter++)
-	{
-		total=total+rIter->second;
-	}
-	if(moddegree->find(tfName)==moddegree->end())
-	{
-		contrib=1.0/(moduleSize);
-		return log(contrib);		
-	}
-	degree=(*moddegree)[tfName];
-	contrib=log((double)(degree)/(moduleSize));
-	return contrib;
-}
-
 
 double
 MetaLearner::getModuleContribLogistic(string& tgtName, string& tfName)
