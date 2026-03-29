@@ -463,19 +463,20 @@ MetaLearner::initPartitions()
 	char outputLoc[1024];
 	char commandName[1024];
 
+	potManager = new PotentialManager;
+	potManager->setEvidenceManager(globalEvMgr);
+
 	for(map<int,EvidenceManager*>::iterator eIter=evMgrSet.begin();eIter!=evMgrSet.end();eIter++)
 	{
-		EvidenceManager* evMgr=eIter->second;
 		int datasetId=eIter->first;
-		PotentialManager* potMgr=new PotentialManager;
-		potMgr->setEvidenceManager(evMgr);
+
+		EvidenceManager* evMgr=eIter->second;
 		evMgr->setVariableManager(varManager);
 
 		sprintf(outputLoc,"%s",outputDirName);
 
 		string outputLocKey(outputLoc);
 		outLocMap[datasetId]=outputLocKey;
-		potMgrSet[datasetId]=potMgr;
 	}
 
 	return 0;
@@ -564,10 +565,10 @@ MetaLearner::doCrossValidation(int foldCnt)
 			{	
 				evMgr->randomizeEvidence(r);
 			}
-			PotentialManager* potMgr=potMgrSet[eIter->first];
-			potMgr->reset();
-			potMgr->setRandom(random);
-			potMgr->init();
+
+			potManager->reset();
+			potManager->setRandom(random);
+			potManager->init();
 
 			if (factorManager != nullptr)
 			{
@@ -575,7 +576,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 			}
 
 			factorManager=new FactorManager;
-			factorManager->setPotentialManager(potMgr);
+			factorManager->setPotentialManager(potManager);
 			factorManager->setEvidenceManager(evMgr);
 			factorManager->setVariableManager(varManager);
 			factorManager->setOutputDir(outLocMap[eIter->first].c_str());
@@ -912,7 +913,6 @@ MetaLearner::initEdgeSet(bool validation)
 	cout <<"Inited " << edgeConditionMap.size() << " edges. Expected " << expEdgeCnt << endl;
 	testedEdges.clear();	
 
-	PotentialManager* potMgr=potMgrSet[1];
 	//Init the potentials
 	for(int f=0;f<factorGraph->getFactorCnt();f++)
 	{
@@ -920,7 +920,7 @@ MetaLearner::initEdgeSet(bool validation)
 		sFactor->potFunc=new Potential;
 		sFactor->potFunc->setAssocVariable(varSet[sFactor->fId],Potential::FACTOR);
 		sFactor->potFunc->potZeroInit();
-		potMgr->populatePotential(sFactor->potFunc);
+		potManager->populatePotential(sFactor->potFunc);
 		sFactor->potFunc->initMBCovMean();
 	}
 
@@ -1536,7 +1536,6 @@ MetaLearner::getNewPLLScore(int cid, INTINTMAP& conditionSet, Variable* u, Varia
 	double minus=0;
 	for(INTINTMAP_ITER cIter=conditionSet.begin();cIter!=conditionSet.end();cIter++)
 	{
-		PotentialManager* potMgr=potMgrSet[cIter->first];
 		SlimFactor* dFactor=factorGraph->getFactorAt(v->getID());
 		//Pretend as if we were already adding dFactor into sFactor's MB
 		if(cIter->second==1)
@@ -1570,10 +1569,9 @@ MetaLearner::getNewPLLScore(int cid, INTINTMAP& conditionSet, Variable* u, Varia
 	currPrior=currPrior+plus-minus;
 	string condKey;
 	genCondSetKey(conditionSet,condKey);
-	PotentialManager* potMgr=potMgrSet[cid];
 	double newPLL_d=0;
 	*newdPot=dPots[cid];
-	potMgr->populatePotential(*newdPot);
+	potManager->populatePotential(*newdPot);
 	(*newdPot)->initMBCovMean();
 	for(map<int,Potential*>::iterator pIter=dPots.begin();pIter!=dPots.end();pIter++)
 	{
@@ -1732,8 +1730,7 @@ MetaLearner::getNewPLLScore_Condition_Tracetrick(int csetId, int vId, int uId, P
 		parentPot->setAssocVariable(aVar,Potential::MARKOV_BNKT);
 	}
 	parentPot->potZeroInit();
-	PotentialManager* potMgr=potMgrSet.begin()->second;
-	potMgr->populatePotential(parentPot);
+	potManager->populatePotential(parentPot);
 	//parentPot->initMBCovMean();
 	EvidenceManager* evMgr=evMgrSet.begin()->second;
 	INTINTMAP* tSet=&evMgr->getTrainingSet();

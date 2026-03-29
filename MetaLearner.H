@@ -102,8 +102,8 @@ class MetaLearner
 	
 	FactorManager* factorManager;
 	FactorGraph* factorGraph;
+	PotentialManager* potManager;
 
-	map<int,PotentialManager*> potMgrSet;
 	map<int,EvidenceManager*> evMgrSet;
 
 	EvidenceManager* globalEvMgr;
