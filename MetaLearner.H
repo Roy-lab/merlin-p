@@ -72,7 +72,6 @@ class MetaLearner
 	double getInitPrior();
 	double getPriorChange();
 	double getEdgePrior(int tfID, int targetID);
-	double getPLLScore_Datapoint(int datapoint);
 	int clearFoldSpecData();
 	int initEdgeSet(bool);
 	int initCondsetMap_Nopool();
@@ -84,20 +83,14 @@ class MetaLearner
 	int makeMoves();
 	int attemptMove(MetaMove*,map<int,INTINTMAP*>&);
 	int getNewPLLScore(int cid, INTINTMAP& conditionSet, Variable* u, Variable* v, string& edgeKey, double& mbScore, double& scoreImprovement,Potential**);
-	double getNewPLLScore_Condition(int cId, int csetId, int vId, Potential* newPot,int);
 	double getNewPLLScore_Condition(int csetId, int vId, Potential* newPot);
-	double getNewPLLScore_Condition(int csetId, int vId, int uID, Potential* newPot);
 	double getNewPLLScore_Condition_Tracetrick(int csetId, int vId, int uID, Potential* newPot);
-	double getNewPLLScore_Condition_Noprior(int csetId, int vId, Potential* newPot);
-	double getMBPrior(int targetID);
 
 	int genCondSetKey(INTINTMAP& condSet, string& aKey);
 
 	int dumpAllGraphs(int,int,int);
 	int getEdgeVars(string&, char*, char*);
-	bool checkMBSize(INTINTMAP*,int,int,int);
-	bool checkMBSize(int,int,int,int);
-	int populateGraphsFromFile();
+	bool checkMBSize(int,int,int);
 	
 	int normalizeWeight(INTDBLMAP&);
 	//Update the potentials to reflect the new covariance and mean estimates and also recompute the likelihood.
@@ -112,9 +105,10 @@ class MetaLearner
 	double getModuleWideScoreImprovement(int cid,INTINTMAP& conditionSet,Variable* u, Variable* v,map<string,int>* moduleMembers);
 	
 	FactorManager* factorManager;
+	FactorGraph* factorGraph;
+
 	map<int,PotentialManager*> potMgrSet;
 	map<int,EvidenceManager*> evMgrSet;
-	map<int,FactorGraph*> fgGraphSet;
 
 	EvidenceManager* globalEvMgr;
 

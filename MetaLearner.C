@@ -40,6 +40,7 @@ MetaLearner::MetaLearner()
 	specificFold=-1;
 	convThreshold=1e-3;
 	factorManager=nullptr;
+	factorGraph=nullptr;
 }
 
 MetaLearner::~MetaLearner()
@@ -775,7 +776,6 @@ MetaLearner::getInitPLLScore()
 	return initScore;
 }
 
-
 double
 MetaLearner::getPLLScore()
 {
@@ -826,54 +826,15 @@ MetaLearner::getInitPrior()
 	return graphPrior;
 }
 
-double
-MetaLearner::getPLLScore_Datapoint(int datapoint)
-{
-	double pll=0;
-	double wt=0;
-	VSET& varSet=varManager->getVariableSet();
-	for(map<int,EvidenceManager*>::iterator eIter=evMgrSet.begin();eIter!=evMgrSet.end();eIter++)
-	{
-		EvidenceManager* evMgr=eIter->second;
-		EMAP* evidMap=evMgr->getEvidenceAt(datapoint);
-		for(VSET_ITER vIter=varSet.begin();vIter!=varSet.end();vIter++)
-		{
-			int vId=vIter->first;
-			double cll=0;
-			for(map<int,INTINTMAP*>::iterator csIter=condsetMap.begin();csIter!=condsetMap.end();csIter++)
-			{
-				INTINTMAP* cset=csIter->second;
-				if((*cset)[eIter->first]==0)
-				{
-					continue;
-				}
-				int tempid=csIter->first;
-				FactorGraph* fg=fgGraphSet[csIter->first];
-				SlimFactor* sFactor=fg->getFactorAt(vId);
-				Potential* sPot=sFactor->potFunc;
-				double pval=sPot->getCondPotValueFor(evidMap);
-				if(pval<1e-50)
-				{
-					pval=1e-50;
-				}
-				cll=cll+(pval*wt);
-			}
-			pll=pll+log(cll);
-		}
-	}
-
-	return pll;
-}
-
 int
 MetaLearner::clearFoldSpecData()
 {
-	//Clear existing graphs
-	for(map<int,FactorGraph*>::iterator fIter=fgGraphSet.begin();fIter!=fgGraphSet.end();fIter++)
+	//Clear existing graph
+	if (factorGraph != nullptr)
 	{
-		delete fIter->second;
+		delete factorGraph;
+		factorGraph = nullptr;
 	}
-	fgGraphSet.clear();
 	for(map<string,INTINTMAP*>::iterator eIter=edgeConditionMap.begin();eIter!=edgeConditionMap.end();eIter++)
 	{
 		eIter->second->clear();
@@ -899,8 +860,7 @@ MetaLearner::initEdgeSet(bool validation)
 		initCondsetMap_Nopool();
 	}
 
-	//Create a factorgraph for conditionset combination
-	fgGraphSet[1]=factorManager->createInitialFactorGraph();
+	factorGraph = factorManager->createInitialFactorGraph();
 
 	map<string,int> testedEdges;
 	VSET& varSet=varManager->getVariableSet();
@@ -965,21 +925,19 @@ MetaLearner::initEdgeSet(bool validation)
 	int expEdgeCnt=((r*(r-1))/2) + (r*(n-r)) ;
 	cout <<"Inited " << edgeConditionMap.size() << " edges. Expected " << expEdgeCnt << endl;
 	testedEdges.clear();	
-	for(map<int,FactorGraph*>::iterator gIter=fgGraphSet.begin();gIter!=fgGraphSet.end();gIter++)
+
+	PotentialManager* potMgr=potMgrSet[1];
+	//Init the potentials
+	for(int f=0;f<factorGraph->getFactorCnt();f++)
 	{
-		FactorGraph* condspecGraph=gIter->second;
-		PotentialManager* potMgr=potMgrSet[gIter->first];
-		//Init the potentials
-		for(int f=0;f<condspecGraph->getFactorCnt();f++)
-		{
-			SlimFactor* sFactor=condspecGraph->getFactorAt(f);
-			sFactor->potFunc=new Potential;
-			sFactor->potFunc->setAssocVariable(varSet[sFactor->fId],Potential::FACTOR);
-			sFactor->potFunc->potZeroInit();
-			potMgr->populatePotential(sFactor->potFunc);
-			sFactor->potFunc->initMBCovMean();
-		}
+		SlimFactor* sFactor=factorGraph->getFactorAt(f);
+		sFactor->potFunc=new Potential;
+		sFactor->potFunc->setAssocVariable(varSet[sFactor->fId],Potential::FACTOR);
+		sFactor->potFunc->potZeroInit();
+		potMgr->populatePotential(sFactor->potFunc);
+		sFactor->potFunc->initMBCovMean();
 	}
+
 	return 0;
 }
 
@@ -1047,8 +1005,6 @@ MetaLearner::getPredictionError_CrossValid(int foldid)
 		EMAP* evidMap=evMgr->getEvidenceAt(dIter->first);
 		for(map<int,INTINTMAP*>::iterator csIter=condsetMap.begin();csIter!=condsetMap.end();csIter++)
 		{
-			FactorGraph* fg=fgGraphSet[csIter->first];
-			//for(map<string,int>::iterator vIter=reqdTargetList.begin();vIter!=reqdTargetList.end();vIter++)
 			for(map<string,int>::iterator vIter=geneModuleID.begin();vIter!=geneModuleID.end();vIter++)
 			{
 				int vId=varManager->getVarID(vIter->first.c_str());
@@ -1058,7 +1014,7 @@ MetaLearner::getPredictionError_CrossValid(int foldid)
 				}
 				Variable* v=varSet[vId];
 				double cll=0;
-				SlimFactor* sFactor=fg->getFactorAt(vId);
+				SlimFactor* sFactor=factorGraph->getFactorAt(vId);
 				Potential* sPot=sFactor->potFunc;
 				if(sPot==NULL)
 				{
@@ -1114,8 +1070,7 @@ MetaLearner::getPredictionError_CrossValid(int foldid)
 		predvect.clear();
 		for(map<int,INTINTMAP*>::iterator csIter=condsetMap.begin();csIter!=condsetMap.end();csIter++)
 		{
-			FactorGraph* fg=fgGraphSet[csIter->first];
-			SlimFactor* sFactor=fg->getFactorAt(vId);
+			SlimFactor* sFactor=factorGraph->getFactorAt(vId);
 			Potential* sPot=sFactor->potFunc;
 			for(INTINTMAP_ITER dIter=testSet.begin();dIter!=testSet.end();dIter++)
 			{
@@ -1130,8 +1085,7 @@ MetaLearner::getPredictionError_CrossValid(int foldid)
 		//First the predicted time course
 		for(map<int,INTINTMAP*>::iterator csIter=condsetMap.begin();csIter!=condsetMap.end();csIter++)
 		{
-			FactorGraph* fg=fgGraphSet[csIter->first];
-			SlimFactor* sFactor=fg->getFactorAt(vId);
+			SlimFactor* sFactor=factorGraph->getFactorAt(vId);
 			Potential* sPot=sFactor->potFunc;
 			for(INTINTMAP_ITER dIter=testSet.begin();dIter!=testSet.end();dIter++)
 			{
@@ -1258,7 +1212,7 @@ MetaLearner::collectMoves(int currK)
 					pll.clear();
 					continue;
 				}
-				if(!checkMBSize(cIter->first,regID,vIter->first,currK))
+				if(!checkMBSize(regID,vIter->first,currK))
 				{
 					pll.clear();
 					continue;
@@ -1443,7 +1397,7 @@ MetaLearner::collectMoves(int currK,int rind)
 					pll.clear();
 					continue;
 				}
-				if(!checkMBSize(cIter->first,regID,vIter->first,currK))
+				if(!checkMBSize(regID,vIter->first,currK))
 				{
 					pll.clear();
 					continue;
@@ -1547,7 +1501,6 @@ MetaLearner::getModuleWideScoreImprovement(int cid,INTINTMAP& conditionSet,Varia
 	int uID=u->getID();
 	double moduleScore=0;
 	double neighborCnt=0;
-	FactorGraph* currGraph=fgGraphSet.begin()->second;
 	for(map<string,int>::iterator mIter=moduleMembers->begin();mIter!=moduleMembers->end();mIter++)
 	{
 		int nID=varManager->getVarID(mIter->first.c_str());
@@ -1560,7 +1513,7 @@ MetaLearner::getModuleWideScoreImprovement(int cid,INTINTMAP& conditionSet,Varia
 		{
 			continue;
 		}
-		SlimFactor* sFactor=currGraph->getFactorAt(nID);
+		SlimFactor* sFactor=factorGraph->getFactorAt(nID);
 		if(sFactor->mergedMB.find(uID)!=sFactor->mergedMB.end())
 		{
 			continue;
@@ -1598,8 +1551,7 @@ MetaLearner::getNewPLLScore(int cid, INTINTMAP& conditionSet, Variable* u, Varia
 	for(INTINTMAP_ITER cIter=conditionSet.begin();cIter!=conditionSet.end();cIter++)
 	{
 		PotentialManager* potMgr=potMgrSet[cIter->first];
-		FactorGraph* fg=fgGraphSet[cIter->first];
-		SlimFactor* dFactor=fg->getFactorAt(v->getID());
+		SlimFactor* dFactor=factorGraph->getFactorAt(v->getID());
 		//Pretend as if we were already adding dFactor into sFactor's MB
 		if(cIter->second==1)
 		{
@@ -1648,8 +1600,6 @@ MetaLearner::getNewPLLScore(int cid, INTINTMAP& conditionSet, Variable* u, Varia
 	}
 	if(scoreImprovement!=-1)
 	{
-		//newPLL_d=getNewPLLScore_Condition(cid,v->getID(),*newdPot);
-		//newPLL_d=getNewPLLScore_Condition(cid,v->getID(),u->getID(),*newdPot);
 		newPLL_d=getNewPLLScore_Condition_Tracetrick(cid,v->getID(),u->getID(),*newdPot);
 		newPLL_d=newPLL_d+currPrior;
 		int keyid=evMgrSet.begin()->first;
@@ -1696,8 +1646,7 @@ MetaLearner::getNewPLLScore(int cid, INTINTMAP& conditionSet, Variable* u, Varia
 			continue;
 		}
 		bool delFromD=bIter->first;
-		FactorGraph* fg=fgGraphSet[bIter->first];
-		SlimFactor* dFactor=fg->getFactorAt(v->getID());
+		SlimFactor* dFactor=factorGraph->getFactorAt(v->getID());
 		INTINTMAP_ITER dIter=dFactor->mergedMB.find(u->getID());
 		dFactor->mergedMB.erase(dIter);
 	}
@@ -1712,8 +1661,6 @@ MetaLearner::getNewPLLScore(int cid, INTINTMAP& conditionSet, Variable* u, Varia
 	}
 	return 0;
 }
-
-
 
 double
 MetaLearner::getNewPLLScore_Condition(int csetId, int vId, Potential* newPot)
@@ -1742,8 +1689,7 @@ MetaLearner::getNewPLLScore_Condition(int csetId, int vId, Potential* newPot)
 				{
 					continue;
 				}
-				FactorGraph* fg=fgGraphSet[csIter->first];
-				SlimFactor* sFactor=fg->getFactorAt(vId);
+				SlimFactor* sFactor=factorGraph->getFactorAt(vId);
 				Potential* sPot=sFactor->potFunc;
 				if((csIter->first==csetId) && (newPot!=NULL))
 				{
@@ -1771,8 +1717,7 @@ MetaLearner::getNewPLLScore_Condition(int csetId, int vId, Potential* newPot)
 	}	
 	if(newPot==NULL)
 	{
-		FactorGraph* fg=fgGraphSet.begin()->second;
-		SlimFactor* sFactor=fg->getFactorAt(vId);
+		SlimFactor* sFactor=factorGraph->getFactorAt(vId);
 		Potential* sPot=sFactor->potFunc;
 		double testll=sPot->computeLL_Tracetrick(datasize);
 		//cout <<"TestLL: " << testll << " pll " << pll << endl; 
@@ -1783,78 +1728,6 @@ MetaLearner::getNewPLLScore_Condition(int csetId, int vId, Potential* newPot)
 	return pll;
 
 }
-
-
-double
-MetaLearner::getNewPLLScore_Condition(int csetId, int vId, int uId, Potential* newPot)
-{
-	double pll=0; 
-	//Need to fix this to be set automatically
-	double paramCnt=0;
-	int datasize=0;
-	//get parameter prior
-	double paramPrior=0;
-	for(map<int,EvidenceManager*>::iterator dIter=evMgrSet.begin();dIter!=evMgrSet.end();dIter++)
-	{
-		EvidenceManager* evMgr=evMgrSet[dIter->first];
-		INTINTMAP* tSet=NULL;
-		tSet=&evMgr->getTrainingSet();
-		datasize=datasize+tSet->size();
-		for(INTINTMAP_ITER eIter=tSet->begin();eIter!=tSet->end();eIter++)
-		{
-			EMAP* evidMap=evMgr->getEvidenceAt(eIter->first);
-			//Go over all condition sets that include cInd
-			double cll=0;
-			for(map<int,INTINTMAP*>::iterator csIter=condsetMap.begin();csIter!=condsetMap.end();csIter++)
-			{
-				INTINTMAP* cset=csIter->second;
-				if((*cset)[dIter->first]==0)
-				{
-					continue;
-				}
-				FactorGraph* fg=fgGraphSet[csIter->first];
-				SlimFactor* sFactor=fg->getFactorAt(vId);
-				Potential* sPot=sFactor->potFunc;
-				if((csIter->first==csetId) && (newPot!=NULL))
-				{
-					sPot=newPot;
-				}
-				INTDBLMAP& cacheMeans=sFactor->cachePartialMean;
-				double pval=0;
-				if(cacheMeans.size()==0)
-				{
-					pval=sPot->getCondPotValueFor(evidMap,eIter->first);
-				}
-				else
-				{
-					//pval=sPot->getCondPotValueFor(evidMap,uId,cacheMeans,eIter->first);
-					//double checkpval=sPot->getCondPotValueFor(evidMap);
-					pval=sPot->getCondPotValueFor(evidMap);
-				}
-				if(isnan(pval))
-				{
-					cout <<"Pval is nan for condition " << csIter->first << " datapoint " << eIter->first << endl;
-				}
-				if(pval<1e-50)
-				{
-					pval=1e-50;
-				}
-				cll=cll+pval;
-				if((eIter==tSet->begin()) && (dIter==evMgrSet.begin()))
-				{
-					double vCnt=(double)sPot->getAssocVariables().size();
-					paramCnt=paramCnt+(2*vCnt)+((vCnt*(vCnt-1))/2);
-					//paramCnt=vCnt-1;
-				}
-			}
-			pll=pll+log(cll);
-		}
-	}
-	//pll=pll-(0.5*paramCnt*log(datasize));
-	pll=pll-(lambda*paramCnt*log(datasize));
-	return pll;
-}
-
 
 double
 MetaLearner::getNewPLLScore_Condition_Tracetrick(int csetId, int vId, int uId, Potential* newPot)
@@ -1959,13 +1832,7 @@ MetaLearner::sortMoves()
 int
 MetaLearner::makeMoves()
 {
-	//map<int,INTINTMAP*> affectedVariables;
-	for(map<int,FactorGraph*>::iterator gIter=fgGraphSet.begin();gIter!=fgGraphSet.end();gIter++)
-	{
-		int cind=gIter->first;
-		INTINTMAP* csVars=new INTINTMAP;
-		affectedVariables[cind]=csVars;
-	}
+	affectedVariables[1]=new INTINTMAP;
 	int successMove=0;
 	double netScoreDelta=0;
 	for(int m=0;m<moveSet.size();m++)
@@ -2030,8 +1897,7 @@ MetaLearner::attemptMove(MetaMove* move,map<int,INTINTMAP*>& affectedVars)
 		{
 			continue;
 		}
-		FactorGraph* csGraph=fgGraphSet[cIter->first];
-		SlimFactor* dFactor=csGraph->getFactorAt(move->getTargetVertex());
+		SlimFactor* dFactor=factorGraph->getFactorAt(move->getTargetVertex());
 		if(dFactor->mergedMB.find(move->getSrcVertex())!=dFactor->mergedMB.end())
 		{
 			cout <<"Stop !! Trying to add the same edge " <<edgeKey << "   "<< v->getName() << endl;
@@ -2090,7 +1956,6 @@ MetaLearner::attemptMove(MetaMove* move,map<int,INTINTMAP*>& affectedVars)
 	return 0;
 }
 
-
 int
 MetaLearner::dumpAllGraphs(int currK,int foldid,int iter)
 {
@@ -2105,38 +1970,11 @@ MetaLearner::dumpAllGraphs(int currK,int foldid,int iter)
 		ofstream oFile(aFName);
 		//sprintf(aFName,"%s/bias.txt",foldoutDirName,currK);
 		//ofstream bFile(aFName);
-		for(map<int,FactorGraph*>::iterator gIter=fgGraphSet.begin();gIter!=fgGraphSet.end();gIter++)
-		{
-			//Now we need to check if the subset of conditions corresponding to gIter->first
-			//includes eIter->first
-			INTINTMAP* cset=condsetMap[gIter->first];
-			if((*cset)[eIter->first]==0)
-			{
-				continue;
-			}
-			FactorGraph* fg=gIter->second;
-			fg->dumpVarMB_PairwiseFormat(oFile,varSet);
-			//fg->dumpBias(bFile,varSet,reqdTargetList);
-		}
+		factorGraph->dumpVarMB_PairwiseFormat(oFile,varSet);
 		oFile.close();
-	}
-	for(map<int,FactorGraph*>::iterator gIter=fgGraphSet.begin();gIter!=fgGraphSet.end();gIter++)
-	{
-		if(gIter->first>2)
-		{
-			char aFName[1024];
-			string& dirname=outLocMap.begin()->second;
-			//sprintf(aFName,"%s/fold%d/shared_mb_pw_k%d.txt",dirname.c_str(),foldid,currK);
-			sprintf(aFName,"%s/fold%d/shared_mb_pw_k%d.txt",dirname.c_str(),foldid,currK+1);
-			ofstream oFile(aFName);
-			FactorGraph* fg=gIter->second;
-			fg->dumpVarMB_PairwiseFormat(oFile,varSet);
-			oFile.close();
-		}
 	}
 	return 0;
 }
-
 
 int 
 MetaLearner::getEdgeVars(string& edgeKey, char* var1, char* var2) 
@@ -2158,138 +1996,16 @@ MetaLearner::getEdgeVars(string& edgeKey, char* var1, char* var2)
 	return 0;
 }
 
-
 bool 
-MetaLearner::checkMBSize(INTINTMAP* cset,int u,int v, int currK)
+MetaLearner::checkMBSize(int u,int v, int currK)
 {
 	bool check=true;
-	for(INTINTMAP_ITER cIter=cset->begin();cIter!=cset->end();cIter++)
-	{
-		if(cIter->second==0)
-		{
-			continue;
-		}
-		FactorGraph* fg=fgGraphSet[cIter->first];
-		SlimFactor* sFactor=fg->getFactorAt(u);
-		SlimFactor* dFactor=fg->getFactorAt(v);
-		if((dFactor->mergedMB.size()>=currK) && (dFactor->mergedMB.find(u)==dFactor->mergedMB.end()))
-		{
-			check=false;
-		}
-	}
-	return check;
-}
-
-
-bool 
-MetaLearner::checkMBSize(int cid, int u,int v, int currK)
-{
-	bool check=true;
-	if(fgGraphSet.find(cid)==fgGraphSet.end())
-	{
-		return check;
-	}
-	FactorGraph* fg=fgGraphSet[cid];
-	SlimFactor* sFactor=fg->getFactorAt(u);
-	SlimFactor* dFactor=fg->getFactorAt(v);
-	/*if((sFactor->mergedMB.size()>=currK) && (sFactor->mergedMB.find(v)==sFactor->mergedMB.end()))
-	{
-		check=false;
-	}*/
+	SlimFactor* dFactor=factorGraph->getFactorAt(v);
 	if((dFactor->mergedMB.size()>=currK) && (dFactor->mergedMB.find(u)==dFactor->mergedMB.end()))
 	{
 		check=false;
 	}
 	return check;
-}
-
-int
-MetaLearner::populateGraphsFromFile()
-{
-	ifstream inFile(trueGraphFName);
-	char buffer[1024];
-	VSET& varSet=varManager->getVariableSet();
-	while(inFile.good())
-	{	
-		inFile.getline(buffer,1023);
-		if(strlen(buffer)<=0)
-		{
-			continue;
-		}
-		char* tok=strtok(buffer,"\t");
-		int tokCnt=0;
-		Variable* u=NULL;
-		Variable* v=NULL;
-		INTINTMAP condSet;
-		for(map<int,EvidenceManager*>::iterator eIter=evMgrSet.begin();eIter!=evMgrSet.end();eIter++)
-		{
-			condSet[eIter->first]=0;
-		}
-		while(tok!=NULL)
-		{
-			if(tokCnt==0)
-			{
-				int vid=varManager->getVarID(tok);
-				u=varSet[vid];
-			}
-			else if(tokCnt==1)
-			{
-				int vid=varManager->getVarID(tok);
-				v=varSet[vid];
-			}
-			else
-			{
-				int cid=atoi(tok);
-				condSet[cid]=1;
-			}
-			tok=strtok(NULL,"\t");
-			tokCnt++;
-		}
-
-		/*string condKey;
-		genCondSetKey(condSet,condKey);
-		if(pooledData.find(condKey)==pooledData.end())
-		{
-			genPooledDataset(condSet,condKey);
-		}
-		PotentialManager* potMgr=pooledPotentials[condKey];
-		int csetid=condsetKeyIDMap[condKey];*/
-		for(INTINTMAP_ITER cIter=condSet.begin();cIter!=condSet.end();cIter++)
-		{
-			if(cIter->second==0)
-			{
-				continue;
-			}
-			FactorGraph* fg=fgGraphSet[cIter->first];
-			SlimFactor* sFactor=fg->getFactorAt(u->getID());
-			SlimFactor* dFactor=fg->getFactorAt(v->getID());
-			sFactor->mergedMB[dFactor->fId]=0;
-			dFactor->mergedMB[sFactor->fId]=0;
-		}
-	}
-	//Populate all the potentials of all the graphs
-	for(map<int,FactorGraph*>::iterator fIter=fgGraphSet.begin();fIter!=fgGraphSet.end();fIter++)
-	{
-		FactorGraph* condspecGraph=fIter->second;
-		map<int,SlimFactor*>& factorSet=condspecGraph->getAllFactors();
-		string& condKey=condsetIDKeyMap[fIter->first];
-		PotentialManager* potMgr=potMgrSet[fIter->first];
-		for(map<int,SlimFactor*>::iterator sIter=factorSet.begin();sIter!=factorSet.end();sIter++)
-		{
-			SlimFactor* sFactor=sIter->second;
-			sFactor->potFunc=new Potential;
-			sFactor->potFunc->setAssocVariable(varSet[sFactor->fId],Potential::FACTOR);
-			for(INTINTMAP_ITER mIter=sFactor->mergedMB.begin();mIter!=sFactor->mergedMB.end();mIter++)
-			{
-				sFactor->potFunc->setAssocVariable(varSet[mIter->first],Potential::MARKOV_BNKT);
-			}
-			sFactor->potFunc->potZeroInit();
-			potMgr->populatePotential(sFactor->potFunc);
-			sFactor->potFunc->initMBCovMean();
-		}
-	}
-	inFile.close();
-	return 0;
 }
 
 int
@@ -2558,7 +2274,6 @@ MetaLearner::getModuleContribLogistic(string& tgtName, string& tfName)
 int
 MetaLearner::redefineModules()
 {
-	FactorGraph* aGraph=fgGraphSet.begin()->second;
 	EvidenceManager* evMgr=evMgrSet.begin()->second;
 	INTINTMAP& tSet=evMgr->getTrainingSet();
 
@@ -2575,7 +2290,7 @@ MetaLearner::redefineModules()
 			{
 				continue;
 			}
-			SlimFactor* mFactor=aGraph->getFactorAt(mID);
+			SlimFactor* mFactor=factorGraph->getFactorAt(mID);
 			INTINTMAP& mbvars1=mFactor->mergedMB;
 			INTDBLMAP& regWts=mFactor->potFunc->getCondWeight();
 
@@ -2645,7 +2360,7 @@ MetaLearner::redefineModules()
 			modFile << gIter->first <<"\t" << mIter->first << endl;
 			geneModuleID[gIter->first]=mIter->first;
 			int mID=varManager->getVarID(gIter->first.c_str());
-			SlimFactor* mFactor=aGraph->getFactorAt(mID);
+			SlimFactor* mFactor=factorGraph->getFactorAt(mID);
 			INTINTMAP& mbvars1=mFactor->mergedMB;
 
 			for(INTINTMAP_ITER nIter=mbvars1.begin();nIter!=mbvars1.end();nIter++)
