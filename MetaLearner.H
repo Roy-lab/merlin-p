@@ -81,7 +81,7 @@ class MetaLearner
 	int collectMoves(int,int);
 	int sortMoves();
 	int makeMoves();
-	int attemptMove(MetaMove*,map<int,INTINTMAP*>&);
+	int attemptMove(MetaMove*, INTINTMAP*);
 	int getNewPLLScore(int cid, INTINTMAP& conditionSet, Variable* u, Variable* v, string& edgeKey, double& mbScore, double& scoreImprovement,Potential**);
 	double getNewPLLScore_Condition(int csetId, int vId, Potential* newPot);
 	double getNewPLLScore_Condition_Tracetrick(int csetId, int vId, int uID, Potential* newPot);
@@ -132,7 +132,6 @@ class MetaLearner
 	map<int,INTDBLMAP*> currPLLMap;
 	char trueGraphFName[1024];
 	map<int,double> finalScores;
-	map<int,INTINTMAP*> affectedVariables;
 	bool preRandomizeSplit;
 	gsl_rng* rnd;
 	char outputDirName[1024];

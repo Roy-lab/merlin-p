@@ -719,13 +719,7 @@ MetaLearner::start(int f)
 					//dumpAllGraphs(currK,f,iter);
 					currGlobalScore=newScore;
 					//cout <<"Current iter " << iter << " Score after beta-theta " << newScore << endl;
-					for(map<int,INTINTMAP*>::iterator cIter=affectedVariables.begin();cIter!=affectedVariables.end();cIter++)
-					{
-						cIter->second->clear();
-						delete cIter->second;
-					}
 					subiter++;
-					affectedVariables.clear();
 					showid++;
 					attemptedMoves++;
 					gettimeofday(&endtime_v,&endtimezone_v);
@@ -1832,7 +1826,7 @@ MetaLearner::sortMoves()
 int
 MetaLearner::makeMoves()
 {
-	affectedVariables[1]=new INTINTMAP;
+	INTINTMAP* affectedVariables=new INTINTMAP;
 	int successMove=0;
 	double netScoreDelta=0;
 	for(int m=0;m<moveSet.size();m++)
@@ -1851,12 +1845,13 @@ MetaLearner::makeMoves()
 			delete apot;
 		}
 	}
+	delete affectedVariables;
 	//cout <<"Total successful moves " << successMove << " out of total " << moveSet.size() << " with net score improvement " << netScoreDelta<< endl;
 	return 0;
 }
 
 int
-MetaLearner::attemptMove(MetaMove* move,map<int,INTINTMAP*>& affectedVars)
+MetaLearner::attemptMove(MetaMove* move, INTINTMAP* affectedVars)
 {
 	VSET& varSet=varManager->getVariableSet();
 	string edgeKey;
@@ -1865,11 +1860,6 @@ MetaLearner::attemptMove(MetaMove* move,map<int,INTINTMAP*>& affectedVars)
 	edgeKey.append(u->getName().c_str());
 	edgeKey.append("\t");
 	edgeKey.append(v->getName().c_str());
-	
-	if(strcmp(u->getName().c_str(),"G114")==0 || strcmp(v->getName().c_str(),"G124")==0)
-	{
-		cout <<"Stop here" << endl;
-	}
 
 	if(edgeConditionMap.find(edgeKey)==edgeConditionMap.end())
 	{
@@ -1878,18 +1868,11 @@ MetaLearner::attemptMove(MetaMove* move,map<int,INTINTMAP*>& affectedVars)
 	}
 	INTINTMAP* conditionSet=edgeConditionMap[edgeKey];
 	int csetind=move->getConditionSetInd();
-	if(affectedVars.find(1)==affectedVars.end())
-	{
-		cout << "No csvars for condition " <<csetind<< endl;
-		exit(0);
-	}
-	INTINTMAP* csVars=affectedVars[1];
-	if((csVars->find(move->getSrcVertex())!=csVars->end()) || (csVars->find(move->getTargetVertex())!=csVars->end()))
+	if((affectedVars->find(move->getSrcVertex())!=affectedVars->end()) || (affectedVars->find(move->getTargetVertex())!=affectedVars->end()))
 	{
 		return -1;
 	}
-	//(*csVars)[move->getSrcVertex()]=0;
-	(*csVars)[move->getTargetVertex()]=0;
+	(*affectedVars)[move->getTargetVertex()]=0;
 	INTINTMAP* condset=condsetMap[csetind];
 	for(INTINTMAP_ITER cIter=condset->begin();cIter!=condset->end();cIter++)
 	{
