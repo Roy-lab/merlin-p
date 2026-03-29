@@ -7,7 +7,6 @@ MetaMove::MetaMove()
 
 MetaMove::~MetaMove()
 {
-	conditionSet.clear();
 	pll.clear();
 }
 
@@ -48,27 +47,6 @@ MetaMove::setTargetVertex(int vid)
 	return 0;
 }
 
-
-
-int 
-MetaMove::setConditionSet(INTINTMAP& vSet)
-{
-	for(INTINTMAP_ITER vIter=vSet.begin();vIter!=vSet.end();vIter++)
-	{
-		conditionSet[vIter->first]=vIter->second;
-	}
-
-	return 0;
-}
-
-int
-MetaMove::setConditionSetInd(int aind)
-{
-	conditionSetInd=aind;
-	return 0;
-}
-
-
 int 
 MetaMove::setDestPot(Potential* apot)
 {
@@ -87,18 +65,6 @@ int
 MetaMove::getTargetVertex()
 {
 	return target;
-}
-
-INTINTMAP& 
-MetaMove::getConditionSet()
-{
-	return conditionSet;
-}
-
-int
-MetaMove::getConditionSetInd()
-{	
-	return conditionSetInd;
 }
 
 double 

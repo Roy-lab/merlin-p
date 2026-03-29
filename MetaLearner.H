@@ -70,23 +70,17 @@ class MetaLearner
 	double getInitPLLScore();
 	double getPLLScore();
 	double getInitPrior();
-	double getPriorChange();
 	double getEdgePrior(int tfID, int targetID);
 	int clearFoldSpecData();
 	int initEdgeSet(bool);
-	int initCondsetMap_Nopool();
-	INTINTMAP* getConditionSet(int cind);
 
-	int collectMoves(int);
 	int collectMoves(int,int);
 	int sortMoves();
 	int makeMoves();
 	int attemptMove(MetaMove*, INTINTMAP*);
-	int getNewPLLScore(int cid, INTINTMAP& conditionSet, Variable* u, Variable* v, string& edgeKey, double& mbScore, double& scoreImprovement,Potential**);
-	double getNewPLLScore_Condition(int csetId, int vId, Potential* newPot);
+	int getNewPLLScore(Variable* u, Variable* v, string& edgeKey, double& mbScore, double& scoreImprovement,Potential**);
+	double getNewPLLScore_Condition(int vId);
 	double getNewPLLScore_Condition_Tracetrick(int vId, int uID, Potential* newPot);
-
-	int genCondSetKey(INTINTMAP& condSet, string& aKey);
 
 	int dumpAllGraphs(int,int,int);
 	int getEdgeVars(string&, char*, char*);
@@ -98,7 +92,7 @@ class MetaLearner
 	double getModuleContribLogistic(string& tgtName, string& tfName);
 	int initPhysicalDegree();
 	int getEnrichedTFs(map<string,int>& tfSet,map<string,int>* genes,map<string,map<string,double>*>& edgeSet);
-	double getModuleWideScoreImprovement(int cid,INTINTMAP& conditionSet,Variable* u, Variable* v,map<string,int>* moduleMembers);
+	double getModuleWideScoreImprovement(Variable* u, Variable* v,map<string,int>* moduleMembers);
 	
 	FactorManager* factorManager;
 	FactorGraph* factorGraph;
@@ -115,10 +109,6 @@ class MetaLearner
 	map<string,INTINTMAP*> edgeConditionMap;
 	FactorGraph* fg;
 	vector<MetaMove*> moveSet;
-	map<string,double> edgeValue;
-	map<int,INTINTMAP*> condsetMap;
-	map<string,int> condsetKeyIDMap;
-	map<int,string> condsetIDKeyMap;
 	map<string,int> restrictedVarList;
 	INTDBLMAP* currPLL;
 	char trueGraphFName[1024];
@@ -128,8 +118,6 @@ class MetaLearner
 	char outputDirName[1024];
 	map<string,double> edgePresenceProb;
 	map<int,double> varNeighborhoodPrior;
-	//These are the edges that got added
-	map<string,int> edgeUpdates;
 	double beta1;
 	double beta_motif;
 	double lambda;

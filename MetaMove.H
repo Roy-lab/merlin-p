@@ -16,18 +16,12 @@ class MetaMove
 	int setScoreImprovement(double);
 	int setSrcMBScore(double);
 	int setTargetMBScore(double);
-	int setScore(double);
 	int setSrcVertex(int);
 	int setTargetVertex(int);
-	int setConditionSet(INTINTMAP&);
-	int setConditionSetInd(int);
 	int setDestPot(Potential*);
 
 	int getSrcVertex();
 	int getTargetVertex();
-	INTINTMAP& getConditionSet();
-	int getConditionSetInd();
-	double getScore();
 	double getSrcMBScore();
 	double getTargetMBScore();
 	double getScoreImprovement();
@@ -39,8 +33,6 @@ class MetaMove
 	double targetMBScore;
 	int src;
 	int target;
-	INTINTMAP conditionSet;
-	int conditionSetInd;
 	Potential* destPot;
 };
 
