@@ -135,6 +135,7 @@ PotentialManager::initData()
 	}
 
 	// Copy all the samples into the data matrix
+	int sampleIndex = 0;
 	for(INTINTMAP_ITER eIter=trainEvidSet.begin();eIter!=trainEvidSet.end();eIter++)
 	{
 		EMAP* evidMap=NULL;
@@ -151,8 +152,9 @@ PotentialManager::initData()
 			int vId=vIter->first;
 			Evidence* evid=vIter->second;
 			double val=evid->getEvidVal();
-			data->setValue(val,vId,eIter->first);
+			data->setValue(val,vId,sampleIndex);
 		}
+		sampleIndex++;
 	}
 
 	// Done copying. Now we can go over the rows of data and get the means
