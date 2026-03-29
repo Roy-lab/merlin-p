@@ -383,17 +383,6 @@ MetaLearner::setDefaultModuleMembership()
 }
 
 int
-MetaLearner::initPartitions()
-{
-	evidenceManager->setVariableManager(varManager);
-
-	potManager = new PotentialManager;
-	potManager->setEvidenceManager(evidenceManager);
-
-	return 0;
-}
-
-int
 MetaLearner::initEdgePriorMeta(map<string,map<string,double>*>& graph, map<int,INTDBLMAP*>& edgePriors)
 {
 	VSET& varSet=varManager->getVariableSet();
@@ -452,8 +441,12 @@ MetaLearner::doCrossValidation(int foldCnt)
 	gsl_rng* r=gsl_rng_alloc(gsl_rng_default);
 	rnd=gsl_rng_alloc(gsl_rng_default);
 
+	evidenceManager->setVariableManager(varManager);
 	evidenceManager->setFoldCnt(foldCnt);
 	evidenceManager->splitData(0);
+
+	potManager = new PotentialManager;
+	potManager->setEvidenceManager(evidenceManager);
 
 	//The first key is for the fold number
 	//For each fold we have a trained model. For each trained model we have the likelihood on 

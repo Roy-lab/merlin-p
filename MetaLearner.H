@@ -32,10 +32,8 @@ class MetaLearner
 	int setConvergenceThreshold(double);
 	int setRestrictedList(const char*);
 	int setPreRandomizeSplit();
-	int initPartitions();
 	int initEdgePriorMeta(map<string,map<string,double>*>& graph, map<int,INTDBLMAP*>& edgePrior);
 	int doCrossValidation(int);
-	int start(int);
 	int setGlobalEvidenceManager(EvidenceManager*);
 	int setVariableManager(VariableManager*);
 	int setOutputDirName(const char*);
@@ -46,8 +44,9 @@ class MetaLearner
 	int readModuleMembership(const char*);
 	int setDefaultModuleMembership();
 	int setPriorGraph_All(const char*);
-	private:
 
+	private:
+	int start(int);
 	int initEdgePriorMeta_All();
 	map <string,double> betamap;
 	map <string,map<int,INTDBLMAP*>*> edgepriormap;

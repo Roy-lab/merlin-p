@@ -255,16 +255,14 @@ Framework::init(int argc, char** argv)
 		metaLearner.setBeta_Motif(4);
 	}
 
-	metaLearner.initPartitions();
 	return Error::SUCCESS;
 }
 
 int 
 Framework::start()
 {
-	//metaLearner.start();
 	metaLearner.doCrossValidation(cvCnt);
-        return 0;
+	return 0;
 }
 
 
