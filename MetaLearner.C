@@ -458,26 +458,11 @@ MetaLearner::setNoPrune(bool pruneStatus)
 int
 MetaLearner::initPartitions()
 {
+	globalEvMgr->setVariableManager(varManager);
 	evMgrSet[1] = globalEvMgr;
-
-	char outputLoc[1024];
-	char commandName[1024];
 
 	potManager = new PotentialManager;
 	potManager->setEvidenceManager(globalEvMgr);
-
-	for(map<int,EvidenceManager*>::iterator eIter=evMgrSet.begin();eIter!=evMgrSet.end();eIter++)
-	{
-		int datasetId=eIter->first;
-
-		EvidenceManager* evMgr=eIter->second;
-		evMgr->setVariableManager(varManager);
-
-		sprintf(outputLoc,"%s",outputDirName);
-
-		string outputLocKey(outputLoc);
-		outLocMap[datasetId]=outputLocKey;
-	}
 
 	return 0;
 }
@@ -579,7 +564,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 			factorManager->setPotentialManager(potManager);
 			factorManager->setEvidenceManager(evMgr);
 			factorManager->setVariableManager(varManager);
-			factorManager->setOutputDir(outLocMap[eIter->first].c_str());
+			factorManager->setOutputDir(outputDirName);
 			factorManager->setMaxFactorSize_Approx(maxFactorSizeApprox);
 			factorManager->setPenalty(penalty);
 			if(strlen(restrictedFName)>0)
@@ -590,7 +575,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 			factorManager->learnStructure();
 
 			char outputDir[1024];
-			sprintf(outputDir,"%s/fold%d",outLocMap[eIter->first].c_str(),f);
+			sprintf(outputDir,"%s/fold%d",outputDirName,f);
 			char foldOutputDirCmd[1024];
 			sprintf(foldOutputDirCmd,"mkdir %s",outputDir);
 			system(foldOutputDirCmd);
@@ -600,17 +585,6 @@ MetaLearner::doCrossValidation(int foldCnt)
 		getPredictionError_CrossValid(f);
 	}
 	gsl_rng_free(r);
-
-	/*
-	char scoreFName[1024];
-	sprintf(scoreFName,"%s/scoreFile.txt",outLocMap.begin()->second.c_str());
-	ofstream sFile(scoreFName);
-	for(map<int,double>::iterator dIter=finalScores.begin();dIter!=finalScores.end();dIter++)
-	{
-		sFile<< dIter->second << endl;
-	}
-	sFile.close();
-	*/
 
 	gsl_rng_free(rnd);
 	return 0;
@@ -622,7 +596,7 @@ MetaLearner::start(int f)
 	//Repeat until convergence
 	//int currK=1;
 	currFold=f;
-	sprintf(foldoutDirName,"%s/fold%d",outLocMap.begin()->second.c_str(),f);
+	sprintf(foldoutDirName,"%s/fold%d",outputDirName,f);
 	int maxMBSizeApprox=maxFactorSizeApprox-1;
 	int currK=maxMBSizeApprox;
 	rnd=gsl_rng_alloc(gsl_rng_default);
@@ -973,15 +947,7 @@ MetaLearner::getPredictionError_CrossValid(int foldid)
 {
 	VSET& varSet=varManager->getVariableSet();
 	char foldoutDirName[1024];
-	char aFName[1024];
-	string& dirname=outLocMap[evMgrSet.begin()->first];
-	sprintf(foldoutDirName,"%s/fold%d",dirname.c_str(),foldid);
-	/*
-	sprintf(aFName,"%s/predictionerr_cv.txt",foldoutDirName);
-	ofstream oFile(aFName);
-	sprintf(aFName,"%s/prediction_cv.txt",foldoutDirName);
-	ofstream pFile(aFName);
-	*/
+	sprintf(foldoutDirName,"%s/fold%d",outputDirName,foldid);
 	EvidenceManager* evMgr=evMgrSet.begin()->second;
 	INTINTMAP& testSet=evMgr->getTestSet();
 	map<int,double> varPLL;
@@ -1929,16 +1895,11 @@ int
 MetaLearner::dumpAllGraphs(int currK,int foldid,int iter)
 {
 	VSET& varSet=varManager->getVariableSet();
-	//char foldoutDirName[1024];
 	char aFName[1024];
 	for(map<int,EvidenceManager*>::iterator eIter=evMgrSet.begin();eIter!=evMgrSet.end();eIter++)
 	{
-		string& dirname=outLocMap[eIter->first];
-		//sprintf(aFName,"%s/var_mb_pw_k%d.txt",foldoutDirName,currK,iter);
 		sprintf(aFName,"%s/prediction_k%d.txt",foldoutDirName,currK+1);
 		ofstream oFile(aFName);
-		//sprintf(aFName,"%s/bias.txt",foldoutDirName,currK);
-		//ofstream bFile(aFName);
 		factorGraph->dumpVarMB_PairwiseFormat(oFile,varSet);
 		oFile.close();
 	}
@@ -2258,8 +2219,7 @@ MetaLearner::redefineModules()
 	moduleIndegree.clear();
 
 	char moduleFName[1024];
-	string& dirname=outLocMap[evMgrSet.begin()->first];
-	sprintf(moduleFName,"%s/fold%d/modules.txt",dirname.c_str(),currFold);
+	sprintf(moduleFName,"%s/fold%d/modules.txt",outputDirName,currFold);
 	ofstream modFile(moduleFName);
 
 	// Read in the new module assignments

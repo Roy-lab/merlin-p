@@ -108,8 +108,6 @@ class MetaLearner
 
 	EvidenceManager* globalEvMgr;
 
-	map<int,string> outLocMap;
-
 	VariableManager* varManager;
 	int maxFactorSizeApprox;
 	int maxMBCntGreedy;
