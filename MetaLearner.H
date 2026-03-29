@@ -84,7 +84,7 @@ class MetaLearner
 	int attemptMove(MetaMove*, INTINTMAP*);
 	int getNewPLLScore(int cid, INTINTMAP& conditionSet, Variable* u, Variable* v, string& edgeKey, double& mbScore, double& scoreImprovement,Potential**);
 	double getNewPLLScore_Condition(int csetId, int vId, Potential* newPot);
-	double getNewPLLScore_Condition_Tracetrick(int csetId, int vId, int uID, Potential* newPot);
+	double getNewPLLScore_Condition_Tracetrick(int vId, int uID, Potential* newPot);
 
 	int genCondSetKey(INTINTMAP& condSet, string& aKey);
 
@@ -103,12 +103,9 @@ class MetaLearner
 	FactorManager* factorManager;
 	FactorGraph* factorGraph;
 	PotentialManager* potManager;
-
-	map<int,EvidenceManager*> evMgrSet;
-
-	EvidenceManager* globalEvMgr;
-
+	EvidenceManager* evidenceManager;
 	VariableManager* varManager;
+
 	int maxFactorSizeApprox;
 	int maxMBCntGreedy;
 	char inputFName[1024];

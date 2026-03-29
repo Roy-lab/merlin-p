@@ -221,7 +221,7 @@ MetaLearner::setPreRandomizeSplit()
 int
 MetaLearner::setGlobalEvidenceManager(EvidenceManager* anEvMgr)
 {
-	globalEvMgr=anEvMgr;
+	evidenceManager=anEvMgr;
 	return 0;
 }
 
@@ -458,11 +458,10 @@ MetaLearner::setNoPrune(bool pruneStatus)
 int
 MetaLearner::initPartitions()
 {
-	globalEvMgr->setVariableManager(varManager);
-	evMgrSet[1] = globalEvMgr;
+	evidenceManager->setVariableManager(varManager);
 
 	potManager = new PotentialManager;
-	potManager->setEvidenceManager(globalEvMgr);
+	potManager->setEvidenceManager(evidenceManager);
 
 	return 0;
 }
@@ -525,11 +524,10 @@ MetaLearner::doCrossValidation(int foldCnt)
 {
 	gsl_rng* r=gsl_rng_alloc(gsl_rng_default);
 	rnd=gsl_rng_alloc(gsl_rng_default);
-	for(map<int,EvidenceManager*>::iterator eIter=evMgrSet.begin();eIter!=evMgrSet.end();eIter++)
-	{
-		eIter->second->setFoldCnt(foldCnt);
-		eIter->second->splitData(0);
-	}
+
+	evidenceManager->setFoldCnt(foldCnt);
+	evidenceManager->splitData(0);
+
 	//The first key is for the fold number
 	//For each fold we have a trained model. For each trained model we have the likelihood on 
 	//all the test sets, including the self test.
@@ -542,44 +540,41 @@ MetaLearner::doCrossValidation(int foldCnt)
 	}
 	for(int f=foldBegin;f<foldEnd;f++)
 	{	
-		for(map<int,EvidenceManager*>::iterator eIter=evMgrSet.begin();eIter!=evMgrSet.end();eIter++)
-		{
-			EvidenceManager* evMgr=eIter->second;
-			evMgr->splitData(f);
-			if(random)
-			{	
-				evMgr->randomizeEvidence(r);
-			}
-
-			potManager->reset();
-			potManager->setRandom(random);
-			potManager->init();
-
-			if (factorManager != nullptr)
-			{
-				delete factorManager;
-			}
-
-			factorManager=new FactorManager;
-			factorManager->setPotentialManager(potManager);
-			factorManager->setEvidenceManager(evMgr);
-			factorManager->setVariableManager(varManager);
-			factorManager->setOutputDir(outputDirName);
-			factorManager->setMaxFactorSize_Approx(maxFactorSizeApprox);
-			factorManager->setPenalty(penalty);
-			if(strlen(restrictedFName)>0)
-			{
-				factorManager->readRestrictedVarlist(restrictedFName);
-			}
-			factorManager->allocateFactorSpace();
-			factorManager->learnStructure();
-
-			char outputDir[1024];
-			sprintf(outputDir,"%s/fold%d",outputDirName,f);
-			char foldOutputDirCmd[1024];
-			sprintf(foldOutputDirCmd,"mkdir %s",outputDir);
-			system(foldOutputDirCmd);
+		evidenceManager->splitData(f);
+		if(random)
+		{	
+			evidenceManager->randomizeEvidence(r);
 		}
+
+		potManager->reset();
+		potManager->setRandom(random);
+		potManager->init();
+
+		if (factorManager != nullptr)
+		{
+			delete factorManager;
+		}
+
+		factorManager=new FactorManager;
+		factorManager->setPotentialManager(potManager);
+		factorManager->setEvidenceManager(evidenceManager);
+		factorManager->setVariableManager(varManager);
+		factorManager->setOutputDir(outputDirName);
+		factorManager->setMaxFactorSize_Approx(maxFactorSizeApprox);
+		factorManager->setPenalty(penalty);
+		if(strlen(restrictedFName)>0)
+		{
+			factorManager->readRestrictedVarlist(restrictedFName);
+		}
+		factorManager->allocateFactorSpace();
+		factorManager->learnStructure();
+
+		char outputDir[1024];
+		sprintf(outputDir,"%s/fold%d",outputDirName,f);
+		char foldOutputDirCmd[1024];
+		sprintf(foldOutputDirCmd,"mkdir %s",outputDir);
+		system(foldOutputDirCmd);
+
 		clearFoldSpecData();
 		start(f);
 		getPredictionError_CrossValid(f);
@@ -634,9 +629,8 @@ MetaLearner::start(int f)
 				int attemptedMoves=0;
 				int subiter=0;
 				double scorePremodule=currGlobalScore;
-				EvidenceManager* evMgr=evMgrSet.begin()->second;
 				randOrder.clear();
-				evMgr->populateRandIntegers(rnd,randOrder,varSet.size(),varSet.size());				
+				evidenceManager->populateRandIntegers(rnd,randOrder,varSet.size(),varSet.size());				
 				struct timeval begintime;
 				struct timeval endtime;
 				struct timezone begintimezone;
@@ -904,30 +898,16 @@ MetaLearner::initEdgeSet(bool validation)
 int
 MetaLearner::initCondsetMap_Nopool()
 {
-	int ind=0;
-	for(map<int,EvidenceManager*>::iterator eIter=evMgrSet.begin();eIter!=evMgrSet.end();eIter++)
-	{
-		INTINTMAP* cset=new INTINTMAP;
+	INTINTMAP* cset=new INTINTMAP;
+	(*cset)[1]=1;
 
-		for(map<int,EvidenceManager*>::iterator dIter=evMgrSet.begin();dIter!=evMgrSet.end();dIter++)
-		{
-			if(eIter==dIter)
-			{
-				(*cset)[dIter->first]=1;
-			}
-			else
-			{
-				(*cset)[dIter->first]=0;
-			}
-		}
-		int currind=(int)pow(2.0,ind);
-		condsetMap[currind]=cset;
-		string condKey;
-		genCondSetKey(*cset,condKey);
-		condsetKeyIDMap[condKey]=currind;
-		condsetIDKeyMap[currind]=condKey;
-		ind=ind+1;
-	}
+	int currind=1;
+	condsetMap[currind]=cset;
+	string condKey;
+	genCondSetKey(*cset,condKey);
+	condsetKeyIDMap[condKey]=currind;
+	condsetIDKeyMap[currind]=condKey;
+
 	return 0;
 }
 
@@ -948,13 +928,12 @@ MetaLearner::getPredictionError_CrossValid(int foldid)
 	VSET& varSet=varManager->getVariableSet();
 	char foldoutDirName[1024];
 	sprintf(foldoutDirName,"%s/fold%d",outputDirName,foldid);
-	EvidenceManager* evMgr=evMgrSet.begin()->second;
-	INTINTMAP& testSet=evMgr->getTestSet();
+	INTINTMAP& testSet=evidenceManager->getTestSet();
 	map<int,double> varPLL;
 	for(INTINTMAP_ITER dIter=testSet.begin();dIter!=testSet.end();dIter++)
 	{
 		//for each gc, get the expected value of this datapoint
-		EMAP* evidMap=evMgr->getEvidenceAt(dIter->first);
+		EMAP* evidMap=evidenceManager->getEvidenceAt(dIter->first);
 		for(map<int,INTINTMAP*>::iterator csIter=condsetMap.begin();csIter!=condsetMap.end();csIter++)
 		{
 			for(map<string,int>::iterator vIter=geneModuleID.begin();vIter!=geneModuleID.end();vIter++)
@@ -1026,7 +1005,7 @@ MetaLearner::getPredictionError_CrossValid(int foldid)
 			Potential* sPot=sFactor->potFunc;
 			for(INTINTMAP_ITER dIter=testSet.begin();dIter!=testSet.end();dIter++)
 			{
-				EMAP* evidMap=evMgr->getEvidenceAt(dIter->first);
+				EMAP* evidMap=evidenceManager->getEvidenceAt(dIter->first);
 				Evidence* evid=(*evidMap)[vId];
 				double trueval=evid->getEvidVal();
 				truemean=truemean+trueval;
@@ -1041,7 +1020,7 @@ MetaLearner::getPredictionError_CrossValid(int foldid)
 			Potential* sPot=sFactor->potFunc;
 			for(INTINTMAP_ITER dIter=testSet.begin();dIter!=testSet.end();dIter++)
 			{
-				EMAP* evidMap=evMgr->getEvidenceAt(dIter->first);
+				EMAP* evidMap=evidenceManager->getEvidenceAt(dIter->first);
 				double predval=sPot->predictSample(evidMap);
 				Evidence* evid=(*evidMap)[vId];
 				double trueval=evid->getEvidVal();
@@ -1550,7 +1529,7 @@ MetaLearner::getNewPLLScore(int cid, INTINTMAP& conditionSet, Variable* u, Varia
 	}
 	if(scoreImprovement!=-1)
 	{
-		newPLL_d=getNewPLLScore_Condition_Tracetrick(cid,v->getID(),u->getID(),*newdPot);
+		newPLL_d=getNewPLLScore_Condition_Tracetrick(v->getID(),u->getID(),*newdPot);
 		newPLL_d=newPLL_d+currPrior;
 		double oldPLL_d=(*currPLL)[v->getID()];
 		double dImpr=newPLL_d-oldPLL_d;
@@ -1619,50 +1598,43 @@ MetaLearner::getNewPLLScore_Condition(int csetId, int vId, Potential* newPot)
 	int datasize=0;
 	//get parameter prior
 	double paramPrior=0;
-	for(map<int,EvidenceManager*>::iterator dIter=evMgrSet.begin();dIter!=evMgrSet.end();dIter++)
+
+	INTINTMAP* tSet=NULL;
+	tSet=&evidenceManager->getTrainingSet();
+	datasize=datasize+tSet->size();
+	for(INTINTMAP_ITER eIter=tSet->begin();eIter!=tSet->end();eIter++)
 	{
-		EvidenceManager* evMgr=evMgrSet[dIter->first];
-		INTINTMAP* tSet=NULL;
-		tSet=&evMgr->getTrainingSet();
-		datasize=datasize+tSet->size();
-		for(INTINTMAP_ITER eIter=tSet->begin();eIter!=tSet->end();eIter++)
+		EMAP* evidMap=evidenceManager->getEvidenceAt(eIter->first);
+		//Go over all condition sets that include cInd
+		double cll=0;
+		for(map<int,INTINTMAP*>::iterator csIter=condsetMap.begin();csIter!=condsetMap.end();csIter++)
 		{
-			EMAP* evidMap=evMgr->getEvidenceAt(eIter->first);
-			//Go over all condition sets that include cInd
-			double cll=0;
-			for(map<int,INTINTMAP*>::iterator csIter=condsetMap.begin();csIter!=condsetMap.end();csIter++)
+			SlimFactor* sFactor=factorGraph->getFactorAt(vId);
+			Potential* sPot=sFactor->potFunc;
+			if((csIter->first==csetId) && (newPot!=NULL))
 			{
-				INTINTMAP* cset=csIter->second;
-				if((*cset)[dIter->first]==0)
-				{
-					continue;
-				}
-				SlimFactor* sFactor=factorGraph->getFactorAt(vId);
-				Potential* sPot=sFactor->potFunc;
-				if((csIter->first==csetId) && (newPot!=NULL))
-				{
-					sPot=newPot;
-				}
-				double pval=sPot->getCondPotValueFor(evidMap);
-				if(isnan(pval))
-				{
-					cout <<"Pval is nan for condition " << csIter->first << " datapoint " << eIter->first << endl;
-				}
-				if(pval<1e-50)
-				{
-					pval=1e-50;
-				}
-				cll=cll+pval;
-				if((eIter==tSet->begin()) && (dIter==evMgrSet.begin()))
-				{
-					double vCnt=(double)sPot->getAssocVariables().size();
-					paramCnt=paramCnt+(2*vCnt)+((vCnt*(vCnt-1))/2);
-					//paramCnt=vCnt-1;
-				}
+				sPot=newPot;
 			}
-			pll=pll+log(cll);
+			double pval=sPot->getCondPotValueFor(evidMap);
+			if(isnan(pval))
+			{
+				cout <<"Pval is nan for condition " << csIter->first << " datapoint " << eIter->first << endl;
+			}
+			if(pval<1e-50)
+			{
+				pval=1e-50;
+			}
+			cll=cll+pval;
+			if(eIter==tSet->begin())
+			{
+				double vCnt=(double)sPot->getAssocVariables().size();
+				paramCnt=paramCnt+(2*vCnt)+((vCnt*(vCnt-1))/2);
+				//paramCnt=vCnt-1;
+			}
 		}
-	}	
+		pll=pll+log(cll);
+	}
+
 	if(newPot==NULL)
 	{
 		SlimFactor* sFactor=factorGraph->getFactorAt(vId);
@@ -1678,7 +1650,7 @@ MetaLearner::getNewPLLScore_Condition(int csetId, int vId, Potential* newPot)
 }
 
 double
-MetaLearner::getNewPLLScore_Condition_Tracetrick(int csetId, int vId, int uId, Potential* newPot)
+MetaLearner::getNewPLLScore_Condition_Tracetrick(int vId, int uId, Potential* newPot)
 {
 	double pll=0; 
 	//Need to fix this to be set automatically
@@ -1698,8 +1670,7 @@ MetaLearner::getNewPLLScore_Condition_Tracetrick(int csetId, int vId, int uId, P
 	parentPot->potZeroInit();
 	potManager->populatePotential(parentPot);
 	//parentPot->initMBCovMean();
-	EvidenceManager* evMgr=evMgrSet.begin()->second;
-	INTINTMAP* tSet=&evMgr->getTrainingSet();
+	INTINTMAP* tSet=&evidenceManager->getTrainingSet();
 	int datasize=tSet->size();
 	double jointll1=newPot->computeLL_Tracetrick(datasize);
 	double jointll2=parentPot->computeLL_Tracetrick(datasize);
@@ -1896,13 +1867,10 @@ MetaLearner::dumpAllGraphs(int currK,int foldid,int iter)
 {
 	VSET& varSet=varManager->getVariableSet();
 	char aFName[1024];
-	for(map<int,EvidenceManager*>::iterator eIter=evMgrSet.begin();eIter!=evMgrSet.end();eIter++)
-	{
-		sprintf(aFName,"%s/prediction_k%d.txt",foldoutDirName,currK+1);
-		ofstream oFile(aFName);
-		factorGraph->dumpVarMB_PairwiseFormat(oFile,varSet);
-		oFile.close();
-	}
+	sprintf(aFName,"%s/prediction_k%d.txt",foldoutDirName,currK+1);
+	ofstream oFile(aFName);
+	factorGraph->dumpVarMB_PairwiseFormat(oFile,varSet);
+	oFile.close();
 	return 0;
 }
 
@@ -2150,8 +2118,7 @@ MetaLearner::getModuleContribLogistic(string& tgtName, string& tfName)
 int
 MetaLearner::redefineModules()
 {
-	EvidenceManager* evMgr=evMgrSet.begin()->second;
-	INTINTMAP& tSet=evMgr->getTrainingSet();
+	INTINTMAP& tSet=evidenceManager->getTrainingSet();
 
 	map<string,int> genesWithNoNeighbors;
 
@@ -2188,7 +2155,7 @@ MetaLearner::redefineModules()
 				// Add expression data on the new node
 				for(INTINTMAP_ITER eIter=tSet.begin();eIter!=tSet.end();eIter++)
 				{
-					EMAP* evidMap=evMgr->getEvidenceAt(eIter->first);
+					EMAP* evidMap=evidenceManager->getEvidenceAt(eIter->first);
 					Evidence* evid=(*evidMap)[mID];
 					double v=evid->getEvidVal();
 					node->expr.push_back(v);
