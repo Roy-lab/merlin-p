@@ -91,10 +91,6 @@ class MetaLearner
 	int dumpAllGraphs(int,int,int);
 	int getEdgeVars(string&, char*, char*);
 	bool checkMBSize(int,int,int);
-	
-	int normalizeWeight(INTDBLMAP&);
-	//Update the potentials to reflect the new covariance and mean estimates and also recompute the likelihood.
-	int updatePotentials();
 
 	int setPriorGraph(const char* aFName, map<string,map<string,double>*>& priorGraph);
 	int redefineModules();
@@ -129,7 +125,7 @@ class MetaLearner
 	map<string,int> condsetKeyIDMap;
 	map<int,string> condsetIDKeyMap;
 	map<string,int> restrictedVarList;
-	map<int,INTDBLMAP*> currPLLMap;
+	INTDBLMAP* currPLL;
 	char trueGraphFName[1024];
 	map<int,double> finalScores;
 	bool preRandomizeSplit;

@@ -41,6 +41,7 @@ MetaLearner::MetaLearner()
 	convThreshold=1e-3;
 	factorManager=nullptr;
 	factorGraph=nullptr;
+	currPLL=nullptr;
 }
 
 MetaLearner::~MetaLearner()
@@ -753,8 +754,7 @@ MetaLearner::getInitPLLScore()
 	double initScore=0;
 	VSET& varSet=varManager->getVariableSet();
 	//Initially we just sum up the marginal likelihoods from each condition
-	INTDBLMAP* plls=new INTDBLMAP;
-	currPLLMap[evMgrSet.begin()->first]=plls;
+	currPLL=new INTDBLMAP;
 	for(VSET_ITER vIter=varSet.begin();vIter!=varSet.end();vIter++)
 	{
 		if(varNeighborhoodPrior.find(vIter->first)==varNeighborhoodPrior.end())
@@ -764,8 +764,8 @@ MetaLearner::getInitPLLScore()
 		Variable* var=varSet[vIter->first];
 		double newPLL_s=getNewPLLScore_Condition(-1,vIter->first,NULL);
 		double priorScore=varNeighborhoodPrior[vIter->first];
-		(*plls)[vIter->first]=newPLL_s+priorScore;
-		initScore=initScore+(*plls)[vIter->first];
+		(*currPLL)[vIter->first]=newPLL_s+priorScore;
+		initScore=initScore+(*currPLL)[vIter->first];
 	}
 	return initScore;
 }
@@ -774,22 +774,16 @@ double
 MetaLearner::getPLLScore()
 {
 	double gScore=0;
-	for(map<int,INTDBLMAP*>::iterator eIter=currPLLMap.begin();eIter!=currPLLMap.end();eIter++)
+	for(INTDBLMAP_ITER dIter=currPLL->begin();dIter!=currPLL->end();dIter++)
 	{
-		//EvidenceManager* evMgr=eIter->second;
-		INTDBLMAP* plls=eIter->second;
-		for(INTDBLMAP_ITER dIter=plls->begin();dIter!=plls->end();dIter++)
+		if(isnan(gScore) || isinf(gScore))
 		{
-			if(isnan(gScore) || isinf(gScore))
-			{
-				cout << "Found nan/inf for variable " << dIter->first << endl;
-			}
-			gScore=gScore+dIter->second;
+			cout << "Found nan/inf for variable " << dIter->first << endl;
 		}
+		gScore=gScore+dIter->second;
 	}
 	return gScore;
 }
-
 
 double 
 MetaLearner::getPriorChange()
@@ -835,13 +829,11 @@ MetaLearner::clearFoldSpecData()
 		delete eIter->second;
 	}
 	edgeConditionMap.clear();
-
-	for(map<int,INTDBLMAP*>::iterator plIter=currPLLMap.begin();plIter!=currPLLMap.end();plIter++)
+	if (currPLL != nullptr)
 	{
-		plIter->second->clear();
-		delete plIter->second;
+		delete currPLL;
+		currPLL = nullptr;
 	}
-	currPLLMap.clear();
 	edgeUpdates.clear();
 	return 0;
 }
@@ -1596,9 +1588,7 @@ MetaLearner::getNewPLLScore(int cid, INTINTMAP& conditionSet, Variable* u, Varia
 	{
 		newPLL_d=getNewPLLScore_Condition_Tracetrick(cid,v->getID(),u->getID(),*newdPot);
 		newPLL_d=newPLL_d+currPrior;
-		int keyid=evMgrSet.begin()->first;
-		INTDBLMAP* plls=currPLLMap[keyid];
-		double oldPLL_d=(*plls)[v->getID()];
+		double oldPLL_d=(*currPLL)[v->getID()];
 		double dImpr=newPLL_d-oldPLL_d;
 		if(edgePresenceProb.find(edgeKey)==edgePresenceProb.end())
 		{
@@ -1891,8 +1881,7 @@ MetaLearner::attemptMove(MetaMove* move, INTINTMAP* affectedVars)
 		delete dFactor->potFunc;
 		dFactor->potFunc=move->getDestPot();
 		dFactor->updatePartialMeans(dFactor->potFunc->getAllPartialMeans());
-		INTDBLMAP* plls=currPLLMap.begin()->second;
-		(*plls)[dFactor->fId]=dFactor->mbScore;
+		(*currPLL)[dFactor->fId]=dFactor->mbScore;
 	}
 	//Get the module and update it's indegree
 	int mID=geneModuleID[v->getName()];
@@ -1989,60 +1978,6 @@ MetaLearner::checkMBSize(int u,int v, int currK)
 		check=false;
 	}
 	return check;
-}
-
-int
-MetaLearner::normalizeWeight(INTDBLMAP& wtVect)
-{
-	double maxExp=-1000000000;
-	for(INTDBLMAP_ITER dIter=wtVect.begin();dIter!=wtVect.end();dIter++)
-	{
-		double tempval=dIter->second;
-		if(dIter->second>maxExp)
-		{
-			maxExp=dIter->second;
-		}
-	}
-	double pow=-1*maxExp;
-	double total=0;
-	for(INTDBLMAP_ITER dIter=wtVect.begin();dIter!=wtVect.end();dIter++)
-	{
-		double tempval=dIter->second;
-		total=total+exp(dIter->second+pow);
-	}
-	total=log(total)-pow;
-	//correction factor
-	double newtotal=0;
-	for(INTDBLMAP_ITER dIter=wtVect.begin();dIter!=wtVect.end();dIter++)
-	{
-		double tempval=dIter->second;
-		double scWt=1e-5+exp(tempval-total);
-		dIter->second=scWt;
-		newtotal=newtotal+scWt;
-	}
-	for(INTDBLMAP_ITER dIter=wtVect.begin();dIter!=wtVect.end();dIter++)
-	{
-		double tempval=dIter->second;
-		double scWt=tempval/newtotal;
-		dIter->second=scWt;
-	}
-	return 0;
-}
-
-int
-MetaLearner::updatePotentials()
-{
-	VSET& varSet=varManager->getVariableSet();
-	//Now reestimate the plls for each dataset and potential
-	INTDBLMAP* plls=currPLLMap[evMgrSet.begin()->first];
-	for(VSET_ITER vIter=varSet.begin();vIter!=varSet.end();vIter++)
-	{
-		Variable* var=vIter->second;
-		double newPLL_s=getNewPLLScore_Condition(-1,vIter->first,NULL);
-		(*plls)[vIter->first]=newPLL_s;
-	}
-
-	return 0;
 }
 
 int
