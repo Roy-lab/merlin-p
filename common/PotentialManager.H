@@ -30,26 +30,12 @@ class PotentialManager
 		int setEvidenceManager(EvidenceManager*);
 		int setRestrictedNeighborSet(map<int,Variable*>&);
 		int setLambda(double);
-		int estimateNewCov_EM(map<int,EvidenceManager*> &,Potential*,int,map<int,map<int,INTDBLMAP*>*>&);
 		int init();
 		int reset();
 		
 		Error::ErrorCode populatePotentialsSlimFactors(map<int,SlimFactor*>&,VSET&);
 
 		int populatePotential(Potential*);
-
-		int estimatePotWeight(Potential* apot,int vId, int cid,double b, map<int,EvidenceManager*>& evSet,map<int,map<int,map<int,INTDBLMAP*>*>*>& gammas);
-		int estimatePotWeight(Potential* apot,int vId, int cid,double b, map<int,EvidenceManager*>& evSet,map<int,map<int,INTDBLMAP*>*>& gammas);
-
-		int estimatePotWeight_TiedParam(map<int,Potential*>&,int uId, int vId, map<int,EvidenceManager*>& evSet,map<int,map<int,map<int,INTDBLMAP*>*>*>& gammas,int componentID);
-		int estimatePotWeight_TiedParam(map<int,Potential*>&,int uId, int vId, map<int,EvidenceManager*>& evSet,map<int,map<int,INTDBLMAP*>*>& gammas);
-		int estimatePotWeight_TiedParamSet(map<int,Potential*>&,int xId, map<int,EvidenceManager*>& evSet,map<int,map<int,INTDBLMAP*>*>& gammas);
-		int estimatePotWeight_ExclParam(Potential* apot,int uId, int vId, int cid, map<int,EvidenceManager*>& evSet,map<int,map<int,map<int,INTDBLMAP*>*>*>& gammas,int componentID);
-		int estimatePotWeight_ExclParam(Potential* apot,int uId, int vId, int cid, map<int,EvidenceManager*>& evSet,map<int,map<int,INTDBLMAP*>*>& gammas);
-		int estimatePotWeight_ExclParamSet(map<int,Potential*>&,int xId, map<int,EvidenceManager*>& evSet,map<int,map<int,INTDBLMAP*>*>& gammas);
-		int estimatePotCondVarBias(Potential* apot,int vId, int cid,double b, map<int,EvidenceManager*>& evSet,map<int,map<int,map<int,INTDBLMAP*>*>*>& gammas,int componentID);
-		int estimatePotCondVarBias(Potential* apot,int vId, int cid,double b, map<int,EvidenceManager*>& evSet,map<int,map<int,INTDBLMAP*>*>& gammas);
-		int estimatePotCondBiasThenVar(Potential* apot,int vId, int cid,double b, map<int,EvidenceManager*>& evSet,map<int,map<int,map<int,INTDBLMAP*>*>*>& gammas);
 
 		double getLikelihood(SlimFactor*,VSET&);
 		double getLikelihood(SlimFactor*,VSET&,map<int,int>&);
@@ -65,16 +51,12 @@ class PotentialManager
 		int getVariableSample(INTINTMAP&,VSET&,int,SlimFactor*,gsl_rng*);
 
 		int clearJointEntropies();
-		int estimatePotCondBias(Potential* apot,int vId, int cid,double b, map<int,EvidenceManager*>& evSet,map<int,map<int,map<int,INTDBLMAP*>*>*>& gammas);
-		int estimatePotTiedVar(map<int,Potential*>& potSet,int vId, map<int,EvidenceManager*>& evSet,map<int,map<int,map<int,INTDBLMAP*>*>*>& gammas);
 		int setRandom(bool);
 
 	private:
 		int initData();
 		int estimateCovariance(int,int);
 
-		double estimateCanonicalValue(INTINTMAP& reqInst,INTINTMAP& defInst,INTINTMAP& allSubsets,map<int,SlimFactor*>& canFactors,Potential* condPot);
-		double estimateCanonicalValue_Joint(INTINTMAP& reqInst,INTINTMAP& defInst,INTINTMAP& allSubsets,map<int,SlimFactor*>& canFactors,Potential* condPot);
 		POTFUNC_MAP potFuncs;
 		//This stores the joint potential for a joint configuration and then can
 		//be reused over and over again to generate the conditional
