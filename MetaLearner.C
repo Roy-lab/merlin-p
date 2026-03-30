@@ -38,7 +38,6 @@ MetaLearner::MetaLearner()
 	clusterThreshold=0.5;
 	specificFold=-1;
 	convThreshold=1e-3;
-	factorManager=nullptr;
 	factorGraph=nullptr;
 	currPLL=nullptr;
 }
@@ -470,12 +469,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 		potManager->setRandom(random);
 		potManager->init();
 
-		if (factorManager != nullptr)
-		{
-			delete factorManager;
-		}
-
-		factorManager=new FactorManager;
+		FactorManager* factorManager=new FactorManager;
 		factorManager->setPotentialManager(potManager);
 		factorManager->setEvidenceManager(evidenceManager);
 		factorManager->setVariableManager(varManager);
@@ -489,15 +483,19 @@ MetaLearner::doCrossValidation(int foldCnt)
 		factorManager->allocateFactorSpace();
 		factorManager->learnStructure();
 
+		factorGraph = factorManager->createInitialFactorGraph();
+
+		delete factorManager;
+
 		char outputDir[1024];
 		sprintf(outputDir,"%s/fold%d",outputDirName,f);
 		char foldOutputDirCmd[1024];
 		sprintf(foldOutputDirCmd,"mkdir %s",outputDir);
 		system(foldOutputDirCmd);
 
-		clearFoldSpecData();
 		start(f);
 		getPredictionError_CrossValid(f);
+		clearFoldSpecData();
 	}
 	gsl_rng_free(r);
 
@@ -519,7 +517,7 @@ MetaLearner::start(int f)
 	gsl_rng_set(rnd,rseed);
 	cout <<rseed << endl;
 	initEdgePriorMeta_All();
-	initEdgeSet(false);
+	initEdgeSet();
 	initPhysicalDegree();
 	int i=0;
 	VSET& varSet=varManager->getVariableSet();
@@ -688,7 +686,6 @@ MetaLearner::getInitPrior()
 int
 MetaLearner::clearFoldSpecData()
 {
-	//Clear existing graph
 	if (factorGraph != nullptr)
 	{
 		delete factorGraph;
@@ -704,11 +701,8 @@ MetaLearner::clearFoldSpecData()
 }
 
 int
-MetaLearner::initEdgeSet(bool validation)
+MetaLearner::initEdgeSet()
 {
-	factorGraph = factorManager->createInitialFactorGraph();
-
-	map<string,int> testedEdges;
 	VSET& varSet=varManager->getVariableSet();
 	for(VSET_ITER uIter=varSet.begin();uIter!=varSet.end();uIter++)
 	{
@@ -763,7 +757,6 @@ MetaLearner::initEdgeSet(bool validation)
 	int r=restrictedVarList.size();
 	int expEdgeCnt=((r*(r-1))/2) + (r*(n-r)) ;
 	cout <<"Inited " << edgeMap.size() << " edges. Expected " << expEdgeCnt << endl;
-	testedEdges.clear();	
 
 	//Init the potentials
 	for(int f=0;f<factorGraph->getFactorCnt();f++)

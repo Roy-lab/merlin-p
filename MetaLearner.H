@@ -11,7 +11,6 @@ using namespace std;
 typedef map<int,INTDBLMAP*> DATA_GAMMA_MAP;
 typedef map<int,INTDBLMAP*>::iterator DATA_GAMMA_MAP_ITER;
 
-class FactorManager;
 class VariableManager;
 class EvidenceManager;
 class PotentialManager;
@@ -58,7 +57,7 @@ class MetaLearner
 	double getInitPrior();
 	double getEdgePrior(int tfID, int targetID);
 	int clearFoldSpecData();
-	int initEdgeSet(bool);
+	int initEdgeSet();
 
 	int collectMoves(int,int);
 	int sortMoves();
@@ -76,8 +75,7 @@ class MetaLearner
 	int initPhysicalDegree();
 	int getEnrichedTFs(map<string,int>& tfSet,map<string,int>* genes,map<string,map<string,double>*>& edgeSet);
 	double getModuleWideScoreImprovement(Variable* u, Variable* v,map<string,int>* moduleMembers);
-	
-	FactorManager* factorManager;
+
 	FactorGraph* factorGraph;
 	PotentialManager* potManager;
 	EvidenceManager* evidenceManager;
