@@ -13,17 +13,10 @@ using namespace std;
 
 #include "Potential.H"
 #include "SlimFactor.H"
-#include "LatticeStructure.H"
-
-#include "Vertex.H"
-#include "Graph.H"
 
 #include "FactorGraph.H"
 #include "PotentialManager.H"
 #include "MetaMove.H"
-#include "MotifManager.H"
-#include "BFGSWrapperData.H"
-#include "BFGSWrapper.H"
 #include "MetaLearner.H"
 
 #include "Framework.H"

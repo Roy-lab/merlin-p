@@ -15,7 +15,6 @@ class VariableManager;
 class EvidenceManager;
 class PotentialManager;
 class MetaMove;
-class Graph;
 class HierarchicalCluster;
 
 class MetaLearner

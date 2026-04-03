@@ -15,13 +15,11 @@
 
 #include "Potential.H"
 #include "SlimFactor.H"
-#include "LatticeStructure.H"
 #include "PotentialManager.H"
 
 #include "FactorGraph.H"
 #include "MetaMove.H"
 #include "HierarchicalClusterNode.H"
-#include "Heap.H"
 #include "HierarchicalCluster.H"
 #include "HyperGeomPval.H"
 #include "Distance.H"
