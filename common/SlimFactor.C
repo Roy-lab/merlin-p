@@ -5,8 +5,6 @@
 
 SlimFactor::SlimFactor()
 {
-	mbScore=-1;
-	mutualInfo=0;
 	refCnt=0;
 }
 
@@ -15,11 +13,8 @@ SlimFactor::SlimFactor(int fSize)
 	vIds=new int[fSize];
 	vCnt=fSize;
 	//secondPId=-1;
-	mutualInfo=0;
-	jointEntropy=0;
 	//confidence=0;
 	fId=-1;
-	mbScore=-1;
 	refCnt=0;
 }
 

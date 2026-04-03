@@ -27,11 +27,6 @@ class SlimFactor
 		int* vIds;
 		int vCnt;
 		//int secondPId;
-		double mutualInfo;
-		double jointEntropy;
-		double marginalEntropy;
-		double mbScore;
-		double moveScore;
 	//	double confidence;
 		//Number of subsets that might be referring to this factor
 		int refCnt;

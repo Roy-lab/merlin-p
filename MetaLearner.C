@@ -19,7 +19,6 @@
 #include "PotentialManager.H"
 
 #include "FactorGraph.H"
-#include "FactorManager.H"
 #include "MetaMove.H"
 #include "HierarchicalClusterNode.H"
 #include "Heap.H"
@@ -469,23 +468,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 		potManager->setRandom(random);
 		potManager->init();
 
-		FactorManager* factorManager=new FactorManager;
-		factorManager->setPotentialManager(potManager);
-		factorManager->setEvidenceManager(evidenceManager);
-		factorManager->setVariableManager(varManager);
-		factorManager->setOutputDir(outputDirName);
-		factorManager->setMaxFactorSize_Approx(maxFactorSizeApprox);
-		factorManager->setPenalty(penalty);
-		if(strlen(restrictedFName)>0)
-		{
-			factorManager->readRestrictedVarlist(restrictedFName);
-		}
-		factorManager->allocateFactorSpace();
-		factorManager->learnStructure();
-
-		factorGraph = factorManager->createInitialFactorGraph();
-
-		delete factorManager;
+		factorGraph = new FactorGraph(varManager);
 
 		char outputDir[1024];
 		sprintf(outputDir,"%s/fold%d",outputDirName,f);
@@ -1341,11 +1324,10 @@ MetaLearner::attemptMove(MetaMove* move, INTINTMAP* affectedVars)
 		cout <<"Stop !! Trying to add the same edge " <<edgeKey << "   "<< v->getName() << endl;
 	}
 	dFactor->mergedMB[move->getSrcVertex()]=0;
-	dFactor->mbScore=move->getTargetMBScore();
 	delete dFactor->potFunc;
 	dFactor->potFunc=move->getDestPot();
 	dFactor->updatePartialMeans(dFactor->potFunc->getAllPartialMeans());
-	(*currPLL)[dFactor->fId]=dFactor->mbScore;
+	(*currPLL)[dFactor->fId]=move->getTargetMBScore();
 
 	//Get the module and update it's indegree
 	int mID=geneModuleID[v->getName()];

@@ -32,8 +32,6 @@ class PotentialManager
 		int setLambda(double);
 		int init();
 		int reset();
-		
-		Error::ErrorCode populatePotentialsSlimFactors(map<int,SlimFactor*>&,VSET&);
 
 		int populatePotential(Potential*);
 

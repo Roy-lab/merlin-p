@@ -194,63 +194,6 @@ PotentialManager::estimateCovariance(int uId, int vId)
 	return 0;
 }
 
-Error::ErrorCode
-PotentialManager::populatePotentialsSlimFactors(map<int,SlimFactor*>& factorSet,VSET& varSet)
-{
-	//The set of flags to keep status of the potentials that have been calculated
-	map<int,bool> doneFlag;
-	for(map<int,SlimFactor*>::iterator fIter=factorSet.begin();fIter!=factorSet.end();fIter++)
-	{
-		doneFlag[fIter->first]=false;
-	}
-	int popFId=0;
-	for(map<int,SlimFactor*>::reverse_iterator rIter=factorSet.rbegin();rIter!=factorSet.rend();rIter++)
-	{
-		//If we have computed the potential for this flag move one
-		if(doneFlag[rIter->first])
-		{
-			popFId++;
-			continue;
-		}
-		SlimFactor* sFactor=rIter->second;
-		if(sFactor->fId==176)
-		{
-			cout <<"Stop here " << endl;
-		}
-		//Otherwise create the potential
-		Potential* aPotFunc=new Potential;
-		for(int j=0;j<sFactor->vCnt;j++)
-		{
-			Variable* aVar=varSet[sFactor->vIds[j]];
-			if(j==sFactor->vCnt-1)
-			{
-				aPotFunc->setAssocVariable(aVar,Potential::FACTOR);
-			}
-			else
-			{
-				aPotFunc->setAssocVariable(aVar,Potential::MARKOV_BNKT);
-			}
-		}
-		aPotFunc->potZeroInit();
-		populatePotential(aPotFunc);
-		aPotFunc->calculateJointEntropy();
-		sFactor->jointEntropy=aPotFunc->getJointEntropy();
-		if(sFactor->jointEntropy<0)
-		{
-		//	sFactor->jointEntropy=0;
-		//	cout <<"Negative entropy for " << sFactor->fId << endl;
-		}
-		doneFlag[rIter->first]=true;
-		delete aPotFunc;
-		if(popFId%100000==0)
-		{
-			cout <<"Done with " << factorSet.size()-popFId << " factors " << endl;
-		}
-		popFId++;
-	}
-	return Error::SUCCESS;
-}
-
 int
 PotentialManager::populatePotential(Potential* aPot)
 {

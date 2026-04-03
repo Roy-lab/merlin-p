@@ -19,7 +19,6 @@ using namespace std;
 #include "Graph.H"
 
 #include "FactorGraph.H"
-#include "FactorManager.H"
 #include "PotentialManager.H"
 #include "MetaMove.H"
 #include "MotifManager.H"
