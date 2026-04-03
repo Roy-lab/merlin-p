@@ -437,7 +437,6 @@ MetaLearner::doCrossValidation(int foldCnt)
 	gsl_rng* r=gsl_rng_alloc(gsl_rng_default);
 	rnd=gsl_rng_alloc(gsl_rng_default);
 
-	evidenceManager->setVariableManager(varManager);
 	evidenceManager->setFoldCnt(foldCnt);
 	evidenceManager->splitData(0);
 
@@ -459,7 +458,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 		evidenceManager->splitData(f);
 		if(random)
 		{	
-			evidenceManager->randomizeEvidence(r);
+			evidenceManager->randomizeEvidence(r, varManager);
 		}
 
 		potManager->reset();

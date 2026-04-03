@@ -100,9 +100,7 @@ Framework::init(int argc, char** argv)
 					return eCode;
 				}
 
-				evManager.setVariableManager(&varManager);
-
-				eCode = evManager.loadEvidenceFromFile_Continuous(optarg);
+				eCode = evManager.loadEvidenceFromFile(optarg);
 				if(eCode != Error::SUCCESS)
 				{
 					cerr << Error::getErrorString(eCode) << endl;
