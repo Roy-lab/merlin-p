@@ -18,8 +18,6 @@ PotentialManager::PotentialManager()
 	covMat=NULL;
 	ludecomp=NULL;
 	perm=NULL;
-	lambda=0;
-	randomData=false;
 }
 
 PotentialManager::~PotentialManager()
@@ -46,93 +44,21 @@ PotentialManager::~PotentialManager()
 	}
 }
 
-int 
-PotentialManager::setEvidenceManager(EvidenceManager* aPtr)
-{
-	evMgr=aPtr;
-	return 0;
-}
-
-int 
-PotentialManager::setRestrictedNeighborSet(map<int,Variable*>& rSet)
-{
-	for(map<int,Variable*>::iterator vIter=rSet.begin();vIter!=rSet.end();vIter++)
-	{
-		restrictedNeighborSet[vIter->first]=vIter->second;
-	}
-	return 0;
-}
-
 int
-PotentialManager::setLambda(double lVal)
+PotentialManager::init(EvidenceManager* evMgr, bool randomData)
 {
-	lambda=lVal;
-	return 0;
-}
+	reset();
 
-int
-PotentialManager::setRandom(bool flag)
-{
-	randomData=flag;
-	return 0;
-}
-
-int
-PotentialManager::init()
-{
-	initData();
-	ludecomp=gsl_matrix_alloc(MAXFACTORSIZE_ALLOC,MAXFACTORSIZE_ALLOC);
-	perm=gsl_permutation_alloc(MAXFACTORSIZE_ALLOC);
-	return 0;
-}
-
-int
-PotentialManager::reset()
-{
-	if(ludecomp!=NULL)
-	{
-		gsl_matrix_free(ludecomp);
-		ludecomp=NULL;
-	}
-	if(perm!=NULL)
-	{
-		gsl_permutation_free(perm);
-		perm=NULL;
-	}
-	if(data!=NULL)
-	{
-		delete data;
-		data=NULL;
-	}
-	if(meanMat!=NULL)
-	{
-		delete meanMat;
-		meanMat=NULL;
-	}
-	if(covMat!=NULL)
-	{
-		delete covMat;
-		covMat=NULL;
-	}
-	return 0;
-}
-
-int
-PotentialManager::initData()
-{
 	INTINTMAP& trainEvidSet=evMgr->getTrainingSet();
 	EMAP* evidMap=evMgr->getEvidenceAt(trainEvidSet.begin()->first);
 	int varCnt=evidMap->size();
 
 	// data is the data matrix which will have the variable by sample information
-	if(data==NULL)
-	{
-		data=new Matrix(varCnt,trainEvidSet.size());
-		meanMat=new Matrix(varCnt,1);
-		meanMat->setAllValues(0);
-		covMat=new Matrix(varCnt,varCnt);
-		covMat->setAllValues(-1);
-	}
+	data=new Matrix(varCnt,trainEvidSet.size());
+	meanMat=new Matrix(varCnt,1);
+	meanMat->setAllValues(0);
+	covMat=new Matrix(varCnt,varCnt);
+	covMat->setAllValues(-1);
 
 	// Copy all the samples into the data matrix
 	int sampleIndex = 0;
@@ -169,6 +95,39 @@ PotentialManager::initData()
 		meanMat->setValue(sampleSum/sampleSize,i,0);
 	}
 
+	ludecomp=gsl_matrix_alloc(MAXFACTORSIZE_ALLOC,MAXFACTORSIZE_ALLOC);
+	perm=gsl_permutation_alloc(MAXFACTORSIZE_ALLOC);
+	return 0;
+}
+
+int
+PotentialManager::reset()
+{
+	if(ludecomp!=NULL)
+	{
+		gsl_matrix_free(ludecomp);
+		ludecomp=NULL;
+	}
+	if(perm!=NULL)
+	{
+		gsl_permutation_free(perm);
+		perm=NULL;
+	}
+	if(data!=NULL)
+	{
+		delete data;
+		data=NULL;
+	}
+	if(meanMat!=NULL)
+	{
+		delete meanMat;
+		meanMat=NULL;
+	}
+	if(covMat!=NULL)
+	{
+		delete covMat;
+		covMat=NULL;
+	}
 	return 0;
 }
 
@@ -216,111 +175,5 @@ PotentialManager::populatePotential(Potential* aPot)
 		}
 	}
 	aPot->makeValidJPD(ludecomp,perm);
-	return 0;
-}
-
-double
-PotentialManager::getLikelihood(SlimFactor* sFactor,VSET& varSet)
-{
-	cout <<"Not implemented" << endl;
-	return 0;
-}
-
-double
-PotentialManager::getLikelihood(SlimFactor* sFactor,VSET& varSet,map<int,int>& visitedVertices )
-{
-	double dll=0;
-	cout <<"Not implemented" << endl;
-	return dll;
-}
-
-int
-PotentialManager::estimateConditionalPotential(SlimFactor* sFactor,VSET& varSet,Potential** pot, STRDBLMAP& counts)
-{
-	cout <<"Not implemented" << endl;
-	return 0;
-}
-
-int 
-PotentialManager::estimateCanonicalPotential(SlimFactor* sFactor, VSET& variableSet,INTINTMAP& defInst,INTINTMAP& factorSubsets,map<int,SlimFactor*>& canonicalFactorSet)
-{
-	cout <<"Not implemented" << endl;
-	return 0;
-}
-
-int 
-PotentialManager::estimateCanonicalPotential_Abbeel(SlimFactor* sFactor, VSET& variableSet,INTINTMAP& defInst,INTINTMAP& factorSubsets,map<int,SlimFactor*>& canonicalFactorSet)
-{
-	cout <<"Not implemented" << endl;
-	return 0;
-}
-
-int 
-PotentialManager::estimateCanonicalPotential_Approximate(SlimFactor* sFactor, VSET& variableSet,INTINTMAP& defInst,INTINTMAP& factorSubsets,map<int,SlimFactor*>& canonicalFactorSet)
-{
-	cout <<"Not implemented" << endl;
-	return 0;
-}
-
-int
-PotentialManager::resetPotFuncs()
-{
-	for(map<int,Potential*>::iterator pIter=potFuncs.begin();pIter!=potFuncs.end();pIter++)
-	{
-		delete pIter->second;
-	}
-	potFuncs.clear();
-	return 0;
-}
-
-int 
-PotentialManager::estimateCanonicalPotential_Joint(SlimFactor* sFactor, VSET& variableSet,INTINTMAP& defInst,INTINTMAP& factorSubsets,map<int,SlimFactor*>& canonicalFactorSet)
-{
-	cout <<"Not implemented" << endl;
-	return 0;
-}
-
-Potential*
-PotentialManager::getPotential(int fId)
-{
-	if(potFuncs.find(fId)==potFuncs.end())
-	{
-		return NULL;
-	}
-	return potFuncs[fId];
-}
-
-double 
-PotentialManager::getSampleLikelihood(map<int,SlimFactor*>& factorSet, VSET& varSet, INTINTMAP* sample)
-{
-	double sampleLL=0;
-	cout <<"Not implemented " <<endl;
-	return sampleLL;
-}
-
-int 
-PotentialManager::getVariableSample(INTINTMAP& jointConf,VSET& varSet,int vId,SlimFactor* sFactor, gsl_rng* r)
-{
-	Potential* pot=NULL;
-	if(potFuncs.find(vId)==potFuncs.end())
-	{
-		pot=new Potential;
-		STRDBLMAP counts;
-		estimateConditionalPotential(sFactor,varSet,&pot,counts);
-		potFuncs[vId]=pot;
-	}
-	else
-	{
-		pot=potFuncs[vId];
-	}
-	//int sample=pot->generateSample(jointConf,vId,r);
-	int sample=-1;
-	return sample;
-}
-
-int
-PotentialManager::clearJointEntropies()
-{
-	jointEntropies.clear();
 	return 0;
 }

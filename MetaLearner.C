@@ -441,7 +441,6 @@ MetaLearner::doCrossValidation(int foldCnt)
 	evidenceManager->splitData(0);
 
 	potManager = new PotentialManager;
-	potManager->setEvidenceManager(evidenceManager);
 
 	//The first key is for the fold number
 	//For each fold we have a trained model. For each trained model we have the likelihood on 
@@ -461,9 +460,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 			evidenceManager->randomizeEvidence(r, varManager);
 		}
 
-		potManager->reset();
-		potManager->setRandom(random);
-		potManager->init();
+		potManager->init(evidenceManager, random);
 
 		factorGraph = new FactorGraph(varManager);
 
