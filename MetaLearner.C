@@ -483,8 +483,6 @@ MetaLearner::doCrossValidation(int foldCnt)
 int
 MetaLearner::start(int f)
 {
-	//Repeat until convergence
-	//int currK=1;
 	currFold=f;
 	sprintf(foldoutDirName,"%s/fold%d",outputDirName,f);
 	int maxMBSizeApprox=maxFactorSizeApprox-1;
@@ -496,6 +494,7 @@ MetaLearner::start(int f)
 	initEdgePriorMeta_All();
 	initEdgeSet();
 	initPhysicalDegree();
+
 	int i=0;
 	VSET& varSet=varManager->getVariableSet();
 	for(VSET_ITER vIter=varSet.begin();vIter!=varSet.end();vIter++)
@@ -503,106 +502,85 @@ MetaLearner::start(int f)
 		idVidMap[i]=vIter->first;
 		i++;
 	}
-	if(strlen(trueGraphFName)==0)
+
+	if(strlen(trueGraphFName)!=0)
 	{
-		double currGlobalScore=getInitPLLScore();
-		double initScore=getInitPrior();
-		//currGlobalScore=currGlobalScore+initScore;
-		int showid=0;
-		int moduleiter=0;
-		bool notConvergedTop=true;
-		vector<int> randOrder;
-		while(moduleiter<1 && notConvergedTop)
-		{
-			int iter=0;
-			bool notConverged=true;
-			while(notConverged && iter<50)
-			{
-				int attemptedMoves=0;
-				int subiter=0;
-				double scorePremodule=currGlobalScore;
-				randOrder.clear();
-				evidenceManager->populateRandIntegers(rnd,randOrder,varSet.size(),varSet.size());				
-				struct timeval begintime;
-				struct timeval endtime;
-				struct timezone begintimezone;
-				struct timezone endtimezone;
-				gettimeofday(&begintime,&begintimezone);
-				while(subiter<varSet.size())
-				//while(notConverged && subiter<6000)
-				{
-					int rID=randOrder[subiter];
-					if(idVidMap.find(rID)==idVidMap.end())
-					{
-						cout <<"Variable at  " << rID << " just not found " << endl;
-						exit(0);
-					}
-					//int vID=idVidMap[rID];
-					int vID=idVidMap[subiter];
-					VSET_ITER vIter=varSet.find(vID);
-					if(vIter==varSet.end())
-					{
-						subiter++;
-						continue;
-					}
-					Variable* v=varSet[vID];
-					int lastiter=0;
-					if(variableStatus.find(v->getName())!=variableStatus.end())
-					{
-						lastiter=variableStatus[v->getName()];
-						if((iter-lastiter)>=5)
-						{
-							cout <<"Skipping " << v->getName() << endl;
-							subiter++;
-							continue;	
-						}
-					}		
-					struct timeval begintime_v;
-					struct timeval endtime_v;
-					struct timezone begintimezone_v;
-					struct timezone endtimezone_v;
-					collectMoves(currK,vID);
-					if(moveSet.size()==0)
-					{
-						subiter++;
-						continue;
-					}
-					sortMoves();
-					makeMoves();
-					double newScore=getPLLScore();
-					double diff=newScore-currGlobalScore;
-					if(diff<=convThreshold)
-					{
-					//	notConverged=false;
-					}
-					//dumpAllGraphs(currK,f,iter);
-					currGlobalScore=newScore;
-					//cout <<"Current iter " << iter << " Score after beta-theta " << newScore << endl;
-					subiter++;
-					showid++;
-					attemptedMoves++;
-					gettimeofday(&endtime_v,&endtimezone_v);
-					//printf("Time elapsed for one var %uj secs %d microsec\n",(unsigned int)(endtime_v.tv_sec-begintime_v.tv_sec),(unsigned int)(endtime_v.tv_usec-begintime_v.tv_usec));
-				}
-				gettimeofday(&endtime,&endtimezone);
-				//printf("Time elapsed for all vars %d mins %d secs %d microsec\n", (unsigned int)(endtimezone.tz_minuteswest-begintimezone.tz_minuteswest), (unsigned int)(endtime.tv_sec-begintime.tv_sec,endtime.tv_usec-begintime.tv_usec));
-				if((currGlobalScore-scorePremodule)<=convThreshold)
-				{
-					notConverged=false;
-				}
-				else
-				{
-					redefineModules();
-				}
-				iter++;
-				scorePremodule=currGlobalScore;
-				dumpAllGraphs(currK,f,iter);
-			}
-			moduleiter++;
-		}
-		cout <<"Final Score " << currGlobalScore << endl;
-		finalScores[f]=currGlobalScore;
+		return 0;
 	}
+
+	double currGlobalScore=getInitPLLScore();
+	double initScore=getInitPrior();
+	int showid=0;
+	int moduleiter=0;
+	bool notConvergedTop=true;
+	vector<int> randOrder;
+	while(moduleiter<1 && notConvergedTop)
+	{
+		int iter=0;
+		bool notConverged=true;
+		while(notConverged && iter<50)
+		{
+			int attemptedMoves=0;
+			int subiter=0;
+			double scorePremodule=currGlobalScore;
+			randOrder.clear();
+			evidenceManager->populateRandIntegers(rnd,randOrder,varSet.size(),varSet.size());
+			while(subiter<varSet.size())
+			{
+				int rID=randOrder[subiter];
+				if(idVidMap.find(rID)==idVidMap.end())
+				{
+					cout <<"Variable at  " << rID << " just not found " << endl;
+					exit(0);
+				}
+				int vID=idVidMap[subiter];
+				VSET_ITER vIter=varSet.find(vID);
+				if(vIter==varSet.end())
+				{
+					subiter++;
+					continue;
+				}
+				Variable* v=varSet[vID];
+				int lastiter=0;
+				if(variableStatus.find(v->getName())!=variableStatus.end())
+				{
+					lastiter=variableStatus[v->getName()];
+					if((iter-lastiter)>=5)
+					{
+						cout <<"Skipping " << v->getName() << endl;
+						subiter++;
+						continue;
+					}
+				}
+				collectMoves(currK,vID);
+				if(moveSet.size()==0)
+				{
+					subiter++;
+					continue;
+				}
+				sortMoves();
+				makeMoves();
+				currGlobalScore=getPLLScore();
+				subiter++;
+				showid++;
+				attemptedMoves++;
+			}
+			if((currGlobalScore-scorePremodule)<=convThreshold)
+			{
+				notConverged=false;
+			}
+			else
+			{
+				redefineModules();
+			}
+			iter++;
+			scorePremodule=currGlobalScore;
+			dumpAllGraphs(currK,f,iter);
+		}
+		moduleiter++;
+	}
+	cout <<"Final Score " << currGlobalScore << endl;
+	finalScores[f]=currGlobalScore;
 	return 0;
 }
 
