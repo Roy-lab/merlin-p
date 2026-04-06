@@ -62,8 +62,7 @@ class MetaLearner
 	int sortMoves();
 	int makeMoves();
 	int attemptMove(MetaMove*, INTINTMAP*);
-	int getNewPLLScore(Variable* u, Variable* v, string& edgeKey, double& mbScore, double& scoreImprovement,Potential**);
-	double getNewPLLScore_Tracetrick(int vId, int uID, Potential* newPot);
+	void getNewPLLScore(Variable* u, Variable* v, string& edgeKey, double& mbScore, double& scoreImprovement, Potential**);
 
 	int dumpAllGraphs(int,int,int);
 	bool checkMBSize(int,int,int);
@@ -73,7 +72,6 @@ class MetaLearner
 	double getModuleContribLogistic(string& tgtName, string& tfName);
 	int initPhysicalDegree();
 	int getEnrichedTFs(map<string,int>& tfSet,map<string,int>* genes,map<string,map<string,double>*>& edgeSet);
-	double getModuleWideScoreImprovement(Variable* u, Variable* v,map<string,int>* moduleMembers);
 
 	FactorGraph* factorGraph;
 	PotentialManager* potManager;

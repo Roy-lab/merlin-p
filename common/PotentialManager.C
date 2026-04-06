@@ -4,11 +4,9 @@
 
 #include "CommonTypes.H"
 #include "Error.H"
-#include "Variable.H"
 #include "Potential.H"
 #include "Evidence.H"
 #include "EvidenceManager.H"
-#include "SlimFactor.H"
 #include "PotentialManager.H"
 
 PotentialManager::PotentialManager()
@@ -131,7 +129,19 @@ PotentialManager::reset()
 	return 0;
 }
 
-int
+double
+PotentialManager::getCovariance(int uId, int vId)
+{
+	double cov = covMat->getValue(uId, vId);
+	if(cov == -1)
+	{
+		estimateCovariance(uId, vId);
+		cov = covMat->getValue(uId, vId);
+	}
+	return cov;
+}
+
+void
 PotentialManager::estimateCovariance(int uId, int vId)
 {
 	double ssd=0;
@@ -150,30 +160,134 @@ PotentialManager::estimateCovariance(int uId, int vId)
 	double var = ssd/((double)(data->getColCnt()-1));
 	covMat->setValue(var,uId,vId);
 	covMat->setValue(var,vId,uId);
-	return 0;
 }
 
-int
-PotentialManager::populatePotential(Potential* aPot)
+Potential*
+PotentialManager::createPotential(int factorID)
 {
-	VSET& potVars=aPot->getAssocVariables();
-	for(VSET_ITER vIter=potVars.begin();vIter!=potVars.end(); vIter++)
-	{
-		double mean=meanMat->getValue(vIter->first,0);
-		aPot->updateMean(vIter->first,mean);
+	double variance = getCovariance(factorID, factorID);
+	double bias = meanMat->getValue(factorID, 0);
+	INTDBLMAP weights;
+	return new Potential(factorID, variance, bias, weights);
+}
 
-		for(VSET_ITER uIter=vIter;uIter!=potVars.end();uIter++)
+double
+PotentialManager::computeLL(int factorID, vector<int>& parentIDs, int sampleSize, Potential** newPot)
+{
+	double variance = getCovariance(factorID, factorID);
+	double bias = meanMat->getValue(factorID, 0);
+	INTDBLMAP weights;
+
+	int parentCount = parentIDs.size();
+	int varCount = parentCount + 1;
+
+	// Start by collecting a matrix of the covariances of all the variables in the
+	// joint gaussian, a matrix of all the covariances of the conditioning variables,
+	// and the marginal variances of the conditioning variables.
+
+	Matrix *covariances = new Matrix(varCount, varCount);
+	Matrix *parentCovariances = new Matrix(parentCount, parentCount);
+	Matrix *parentMarginalVariances = new Matrix(1, parentCount);
+
+	covariances->setValue(variance, 0, 0);
+
+	for (int i = 0; i < parentCount; i++)
+	{
+		int varAID = parentIDs[i];
+		double factorCovariance = getCovariance(factorID, varAID);
+		parentMarginalVariances->setValue(factorCovariance, 0, i);
+		covariances->setValue(factorCovariance, 0, i+1);
+		covariances->setValue(factorCovariance, i+1, 0);
+
+		for (int j = 0; j < parentCount; j++)
 		{
-			double cval=covMat->getValue(vIter->first,uIter->first);
-			if(cval==-1)
-			{
-				estimateCovariance(uIter->first,vIter->first);
-				cval=covMat->getValue(vIter->first,uIter->first);
-			}
-			aPot->updateCovariance(vIter->first,uIter->first,cval);
-			aPot->updateCovariance(uIter->first,vIter->first,cval);
+			int varBID = parentIDs[j];
+			double covariance = getCovariance(varAID, varBID);
+			parentCovariances->setValue(covariance, i, j);
+			covariances->setValue(covariance, i+1, j+1);
 		}
 	}
-	aPot->makeValidJPD(ludecomp,perm);
-	return 0;
+
+	// Compute the final values for the variance of the conditional gaussian,
+	// plus the regression parameters for the mean of the conditional guassian.
+
+	Matrix* parentCovInverse = parentCovariances->invMatrix(ludecomp, perm);
+	Matrix* prod = parentMarginalVariances->multiplyMatrix(parentCovInverse);
+
+	for (int i = 0; i < parentCount; i++)
+	{
+		int vID = parentIDs[i];
+		double aVal = prod->getValue(0, i);
+		double bVal = parentMarginalVariances->getValue(0, i);
+		double cVal = meanMat->getValue(vID, 0);
+		weights[vID] = aVal;
+		variance -= aVal * bVal;
+		bias -= cVal * aVal;
+	}
+
+	delete prod;
+	delete parentMarginalVariances;
+
+	if(variance < 1e-5)
+	{
+		variance = 1e-5;
+	}
+
+	// If the variance is invalid, then we don't want to attempt adding this edge,
+	// so we should just bail out before computing the LL
+	if(isnan(variance) || isinf(variance))
+	{
+		delete covariances;
+		delete parentCovariances;
+		delete parentCovInverse;
+		return -1;
+	}
+
+	// Now that the conditional Gaussian params are computed, we can create the potential.
+	*newPot = new Potential(factorID, variance, bias, weights);
+
+	// Finally, compute the log likelihood of the conditional Gaussian, by subtracting the
+	// LL of the joint Gaussian of the conditioning variables from that of all variables.
+
+	Matrix *covInverse = covariances->invMatrix(ludecomp, perm);
+	double determinant = covariances->detMatrix(ludecomp, perm);
+	double parentDeterminant = parentCovariances->detMatrix(ludecomp, perm);
+
+	double jointLL = computeJointLL(covariances, covInverse, determinant, sampleSize);
+	double jointLLParents = computeJointLL(parentCovariances, parentCovInverse, parentDeterminant, sampleSize);
+
+	delete covariances;
+	delete covInverse;
+	delete parentCovariances;
+	delete parentCovInverse;
+
+	return jointLL - jointLLParents;
+}
+
+double
+PotentialManager::computeJointLL(Matrix* covariances, Matrix* inverse, double determinant, int sampleSize)
+{
+	int dim=covariances->getRowCnt();
+
+	// The sum of squared deviations is the covariance matrix * (num samples - 1)
+	Matrix sos = Matrix(dim, dim);
+	for(int i = 0; i < dim; i++)
+	{
+		for(int j = 0; j < dim; j++)
+		{
+			sos.setValue(covariances->getValue(i, j) * (sampleSize - 1), i, j);
+		}
+	}
+
+	// Take trace(inverse covariance * sos)
+	Matrix* m = inverse->multiplyMatrix(&sos);
+	double trace = 0;
+	for(int i = 0; i < dim; i++)
+	{
+		trace += m->getValue(i, i);
+	}
+	delete m;
+
+	double constant = sampleSize * log(determinant) + sampleSize * dim * log(2 * PI);
+	return -0.5 * (trace + constant);
 }

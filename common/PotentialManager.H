@@ -1,8 +1,3 @@
-/* The goal of this class is to take all the MarkovBlankets and the factors and
- *  the data and create all potentials involving valid pairings MarkovBlankets 
- *  and factors. We create all putative potentials upfront because we want to
- *  iterate over the data once and update counts of configurations in one go*/
-
 #ifndef _POTENTIAL_MANAGER
 #define _POTENTIAL_MANAGER
 
@@ -17,12 +12,24 @@ class PotentialManager
 	public:
 		PotentialManager();
 		~PotentialManager();
-		int init(EvidenceManager*, bool);
-		int populatePotential(Potential*);
+
+		// When init is called PotentialManager clears its internal data and loads
+		// new means and covariances from the provided EvidenceManager.
+		int init(EvidenceManager* evMgr, bool random);
+
+		// Creates a Potential of a single variable.
+		Potential* createPotential(int factorID);
+
+		// Computes the conditional Gaussian log likelihood of the factor's assignments
+		// conditioned upon its parents. It also creates a Potential representing this conditional
+		// Gaussian PDF.
+		double computeLL(int factorID, vector<int>& parentIDs, int sampleSize, Potential** newPot);
 
 	private:
 		int reset();
-		int estimateCovariance(int,int);
+		double getCovariance(int,int);
+		void estimateCovariance(int,int);
+		double computeJointLL(Matrix*, Matrix*, double, int);
 
 		gsl_matrix* ludecomp;
 		gsl_permutation* perm;

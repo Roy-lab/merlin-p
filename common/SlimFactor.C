@@ -27,7 +27,6 @@ SlimFactor::~SlimFactor()
 	candidateNeighbours.clear();
 	candidateNeighbours_vect.clear();
 	//mbSubsetStartInd.clear();
-	cachePartialMean.clear();
 }
 
 //This returns the maximal subsets of this factor. That is
@@ -184,16 +183,6 @@ SlimFactor::showFactor(ostream& oFile, VSET& variableSet, bool newLine)
 	if(newLine)
 	{
 		oFile << endl;
-	}
-	return 0;
-}
-
-int
-SlimFactor::updatePartialMeans(INTDBLMAP& partMean)
-{
-	for(INTDBLMAP_ITER mIter=partMean.begin();mIter!=partMean.end();mIter++)
-	{
-		cachePartialMean[mIter->first]=mIter->second;
 	}
 	return 0;
 }

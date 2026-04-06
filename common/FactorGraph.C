@@ -51,7 +51,7 @@ FactorGraph::getFactorAt(int fid)
 }
 
 int 
-FactorGraph::dumpVarMB_PairwiseFormat(ofstream& oFile,VSET& variableSet)
+FactorGraph::dumpVarMB(ofstream& oFile,VSET& variableSet)
 {
 	for(map<int,SlimFactor*>::iterator aIter=factorSet.begin();aIter!=factorSet.end();aIter++)
 	{
@@ -60,18 +60,10 @@ FactorGraph::dumpVarMB_PairwiseFormat(ofstream& oFile,VSET& variableSet)
 		{
 			break;
 		}
-		INTDBLMAP& regWts=sFactor->potFunc->getCondWeight();
+		INTDBLMAP& regWts=sFactor->potFunc->getWeights();
 		for(INTDBLMAP_ITER mIter=regWts.begin();mIter!=regWts.end();mIter++)
-		//for(INTINTMAP_ITER mIter=sFactor->mergedMB.begin();mIter!=sFactor->mergedMB.end();mIter++)
 		{
-			if(fabs(mIter->second)<1e-2)
-			{
-			//	continue;
-			}
-			//oFile << variableSet[sFactor->vIds[0]]->getName()<< "\t" 
-			//<< variableSet[mIter->first]->getName() << "\t"<<  mIter->second << endl;
-			oFile << variableSet[mIter->first]->getName()<< "\t" 
-			<< variableSet[sFactor->vIds[0]]->getName() <<"\t" << mIter->second << endl;
+			oFile << variableSet[mIter->first]->getName() << "\t" << variableSet[sFactor->vIds[0]]->getName() << "\t" << mIter->second << endl;
 		}
 	}
 	return 0;

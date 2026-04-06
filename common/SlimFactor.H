@@ -22,7 +22,6 @@ class SlimFactor
 		int thresholdToOne(double);
 		bool allEntriesInsignificant();
 		int showFactor(ostream&, VSET& variableSet, bool newLine=true);
-		int updatePartialMeans(INTDBLMAP&);
 		int fId;
 		int* vIds;
 		int vCnt;
@@ -36,7 +35,6 @@ class SlimFactor
 		INTINTMAP mergedMB;
 		INTINTMAP tabulist;
 		INTDBLMAP candidateNeighbours;
-		INTDBLMAP cachePartialMean;
 		vector<int> candidateNeighbours_vect;
 		//vector<INTINTMAP*> mbSubsets;
 		//Store the start indices for Markov blanket subsets of different sizes
