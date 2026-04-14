@@ -16,6 +16,7 @@ class EvidenceManager;
 class PotentialManager;
 class MetaMove;
 class HierarchicalCluster;
+class Matrix;
 
 class MetaLearner
 {
@@ -58,20 +59,18 @@ class MetaLearner
 	int clearFoldSpecData();
 	int initEdgeSet();
 
-	int collectMoves(int,int);
-	int sortMoves();
-	int makeMoves();
-	int attemptMove(MetaMove*, INTINTMAP*);
-	void getNewPLLScore(Variable* u, Variable* v, string& edgeKey, double& mbScore, double& scoreImprovement, Potential**);
+	int getNextMove(int,int);
+	int makeNextMove();
+	void getNewPLLScore(Variable* u, Variable* v, vector<int>& parentIDs, string& edgeKey, double& mbScore, double& scoreImprovement, Potential**);
 
 	int dumpAllGraphs(int,int,int);
-	bool checkMBSize(int,int,int);
 
 	int setPriorGraph(const char* aFName, map<string,map<string,double>*>& priorGraph);
 	int redefineModules();
 	double getModuleContribLogistic(string& tgtName, string& tfName);
 	int initPhysicalDegree();
 	int getEnrichedTFs(map<string,int>& tfSet,map<string,int>* genes,map<string,map<string,double>*>& edgeSet);
+	void initCorrelationDistances();
 
 	FactorGraph* factorGraph;
 	PotentialManager* potManager;
@@ -83,7 +82,7 @@ class MetaLearner
 	double convThreshold;
 	char restrictedFName[1024];
 	map<string,int> edgeMap;
-	vector<MetaMove*> moveSet;
+	MetaMove* nextMove;
 	map<string,int> restrictedVarList;
 	INTDBLMAP* currPLL;
 	char trueGraphFName[1024];
@@ -102,12 +101,12 @@ class MetaLearner
 	map<string,int> geneModuleID;
 	map<int,map<string,int>*> moduleIndegree;
 	map<string,int> regulatorModuleOutdegree;
-	map<int,int> idVidMap;
 	double clusterThreshold;
 	map<string,int> variableStatus;
 	int currFold;
 	char foldoutDirName[1024];
 	int specificFold;
 	HierarchicalCluster hc;
+	Matrix* correlationDistances;
 };
 #endif

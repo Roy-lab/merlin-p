@@ -18,6 +18,7 @@ class HierarchicalClusterNode
 		HierarchicalClusterNode* right;
 		HierarchicalClusterNode* parent;
 		int id;
+		int varID;
 		string nodeName;
 		int size;
 };
