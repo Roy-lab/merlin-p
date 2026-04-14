@@ -37,7 +37,6 @@ MetaLearner::MetaLearner()
 	factorGraph=nullptr;
 	currPLL=nullptr;
 	correlationDistances=nullptr;
-	nextMove=nullptr;
 }
 
 MetaLearner::~MetaLearner()
@@ -527,15 +526,16 @@ MetaLearner::start(int f)
 					continue;
 				}
 
-				getNextMove(currK,vID);
-
+				MetaMove* nextMove = getNextMove(currK, vID);
 				if (nextMove == nullptr)
 				{
 					subiter++;
 					continue;
 				}
 
-				makeNextMove();
+				makeMove(nextMove, iter);
+				delete nextMove;
+
 				currGlobalScore=getPLLScore();
 
 				subiter++;
@@ -814,28 +814,22 @@ MetaLearner::getPredictionError_CrossValid(int foldid)
 	return 0;
 }
 
-int
+MetaMove*
 MetaLearner::getNextMove(int currK, int vID)
 {
-	if (nextMove != nullptr)
-	{
-		delete nextMove;
-		nextMove = nullptr;
-	}
-
 	VSET& varSet=varManager->getVariableSet();
 	Variable* v = varSet[vID];
 
-	if(geneModuleID.find(v->getName())==geneModuleID.end())
+	if(geneModuleID.find(v->getName()) == geneModuleID.end())
 	{
-		return 0;
+		return nullptr;
 	}
 
 	// If v already has the max number of parents, dont test adding another.
 	SlimFactor* dFactor = factorGraph->getFactorAt(vID);
 	if(dFactor->mergedMB.size() >= currK)
 	{
-		return 0;
+		return nullptr;
 	}
 
 	// Collect the new set of parents for v
@@ -911,19 +905,18 @@ MetaLearner::getNextMove(int currK, int vID)
 	}
 
 	// We could not find a parent to add to v that would improve the score.
-	if((bestu==NULL) || (bestScoreImprovement<=0))
+	if((bestu == NULL) || (bestScoreImprovement <= 0))
 	{
-		return 0;
+		return nullptr;
 	}
 
-	nextMove = new MetaMove;
+	MetaMove* nextMove = new MetaMove;
 	nextMove->setSrcVertex(bestu->getID());
 	nextMove->setTargetVertex(v->getID());
 	nextMove->setTargetMBScore(bestTargetScore);
 	nextMove->setScoreImprovement(bestScoreImprovement);
 	nextMove->setDestPot(bestPot);
-
-	return 0;
+	return nextMove;
 }
 
 void
@@ -1024,8 +1017,8 @@ MetaLearner::getEdgePrior(int tfID, int targetID)
 	return prior;
 }
 
-int
-MetaLearner::makeNextMove()
+void
+MetaLearner::makeMove(MetaMove* nextMove, int currIteration)
 {
 	VSET& varSet = varManager->getVariableSet();
 	Variable* u = varSet[nextMove->getSrcVertex()];
@@ -1084,9 +1077,7 @@ MetaLearner::makeNextMove()
 
 	edgeMap[edgeKey] = 1;
 
-	variableStatus[v->getName()] += 1;
-
-	return 0;
+	variableStatus[v->getName()] = currIteration;
 }
 
 int
