@@ -13,18 +13,10 @@ using namespace std;
 
 #include "Potential.H"
 #include "SlimFactor.H"
-#include "LatticeStructure.H"
-
-#include "Vertex.H"
-#include "Graph.H"
 
 #include "FactorGraph.H"
-#include "FactorManager.H"
 #include "PotentialManager.H"
 #include "MetaMove.H"
-#include "MotifManager.H"
-#include "BFGSWrapperData.H"
-#include "BFGSWrapper.H"
 #include "MetaLearner.H"
 
 #include "Framework.H"
@@ -52,7 +44,6 @@ Error::ErrorCode
 Framework::init(int argc, char** argv)
 {
 	int c;
-	int condCnt = 1;
 	//char outFilePrefix[256];
 	bool cvDefault = true;
 	bool hDefault = true;
@@ -109,9 +100,7 @@ Framework::init(int argc, char** argv)
 					return eCode;
 				}
 
-				evManager.setVariableManager(&varManager);
-
-				eCode = evManager.loadEvidenceFromFile_Continuous(optarg);
+				eCode = evManager.loadEvidenceFromFile(optarg);
 				if(eCode != Error::SUCCESS)
 				{
 					cerr << Error::getErrorString(eCode) << endl;
@@ -256,16 +245,14 @@ Framework::init(int argc, char** argv)
 		metaLearner.setBeta_Motif(4);
 	}
 
-	metaLearner.initPartitions(condCnt);
 	return Error::SUCCESS;
 }
 
 int 
 Framework::start()
 {
-	//metaLearner.start();
 	metaLearner.doCrossValidation(cvCnt);
-        return 0;
+	return 0;
 }
 
 

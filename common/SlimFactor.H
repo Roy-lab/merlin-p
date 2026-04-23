@@ -22,16 +22,10 @@ class SlimFactor
 		int thresholdToOne(double);
 		bool allEntriesInsignificant();
 		int showFactor(ostream&, VSET& variableSet, bool newLine=true);
-		int updatePartialMeans(INTDBLMAP&);
 		int fId;
 		int* vIds;
 		int vCnt;
 		//int secondPId;
-		double mutualInfo;
-		double jointEntropy;
-		double marginalEntropy;
-		double mbScore;
-		double moveScore;
 	//	double confidence;
 		//Number of subsets that might be referring to this factor
 		int refCnt;
@@ -41,7 +35,6 @@ class SlimFactor
 		INTINTMAP mergedMB;
 		INTINTMAP tabulist;
 		INTDBLMAP candidateNeighbours;
-		INTDBLMAP cachePartialMean;
 		vector<int> candidateNeighbours_vect;
 		//vector<INTINTMAP*> mbSubsets;
 		//Store the start indices for Markov blanket subsets of different sizes

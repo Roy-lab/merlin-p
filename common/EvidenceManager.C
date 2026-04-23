@@ -8,7 +8,6 @@
 #include "Evidence.H"
 #include "EvidenceManager.H"
 
-
 EvidenceManager::EvidenceManager()
 {
 	foldCnt=1;
@@ -16,60 +15,8 @@ EvidenceManager::EvidenceManager()
 	randseed=0;
 }
 
-EvidenceManager::~EvidenceManager()
-{
-}
-
-int
-EvidenceManager::setVariableManager(VariableManager* aPtr)
-{
-	vMgr=aPtr;
-	return 0;
-}
-
 Error::ErrorCode
 EvidenceManager::loadEvidenceFromFile(const char* inFName)
-{
-	ifstream inFile(inFName);
-	char buffer[80000];
-	while(inFile.good())
-	{
-		inFile.getline(buffer,80000);
-		if(strlen(buffer)<=0)
-		{
-			continue;
-		}
-		else if(strchr(buffer,'#')!=NULL)
-		{
-			continue;
-		}
-		//All the evidences for each variable are stored in a map, indexed by the varId
-		EMAP* evidMap=new EMAP;
-		char* tok=strtok(buffer,"\t");
-		//The toks take the form of varid and value
-		while(tok!=NULL)
-		{
-			Evidence* evid;
-			if(populateEvidence(&evid,tok)==-1)
-			{
-				cout <<"Error while populating evidence " << endl;
-				return Error::DATAFILE_ERR;
-			}
-			(*evidMap)[evid->getAssocVariable()]=evid;
-			tok=strtok(NULL,"\t");
-		}
-		//if(evidenceSet.size()<=20)
-		//{
-			evidenceSet.push_back(evidMap);
-		//}
-	}
-	inFile.close();
-	cout <<"Read " << evidenceSet.size() << " different datapoints " << endl;
-	return Error::SUCCESS;
-}
-
-Error::ErrorCode
-EvidenceManager::loadEvidenceFromFile_Continuous(const char* inFName)
 {
 	ifstream inFile(inFName);
 	char* buffer=NULL;
@@ -144,7 +91,7 @@ EvidenceManager::loadEvidenceFromFile_Continuous(const char* inFName)
 //by the permuted indices
 
 int
-EvidenceManager::randomizeEvidence(gsl_rng* r)
+EvidenceManager::randomizeEvidence(gsl_rng* r, VariableManager* vMgr)
 {
 	//First create all the evidence sets
 	for(int i=0;i<evidenceSet.size();i++)
@@ -176,45 +123,8 @@ EvidenceManager::randomizeEvidence(gsl_rng* r)
 			Evidence* evid=(*evidMap)[vIter->first];
 			(*randEvidMap)[vIter->first]=evid;
 		}
-		string& geneName=(string&)vIter->second->getName();
-		if((strcmp(geneName.c_str(),"FBgn0002631")==0) 
-		|| (strcmp(geneName.c_str(),"FBgn0000411")==0) 
-		|| (strcmp(geneName.c_str(),"FBgn0004915")==0) 
-		|| (strcmp(geneName.c_str(), "FBgn0002573")==0)
-		|| (strcmp(geneName.c_str(),"FBgn0005596")==0)  
-		|| (strcmp(geneName.c_str(),"FBgn0035769")==0) 
-		|| (strcmp(geneName.c_str(),"FBgn0011655")==0)
-		|| (strcmp(geneName.c_str(),"FBgn0000576")==0))
-		{
-			cout <<geneName<<"IDs";
-			for(int i=0;i<trainIndex.size();i++)
-			{
-				cout <<"\t" <<randInds[i];
-			}
-			cout << endl;
-			cout <<geneName;
-			for(INTINTMAP_ITER tIter=trainIndex.begin();tIter!=trainIndex.end();tIter++)
-			{
-				EMAP* emap=randEvidenceSet[tIter->first];
-				cout <<"\t" << (*emap)[vIter->first]->getEvidVal();
-			}
-			cout << endl;
-			cout <<geneName;
-			for(INTINTMAP_ITER tIter=trainIndex.begin();tIter!=trainIndex.end();tIter++)
-			{
-				EMAP* emap=evidenceSet[tIter->first];
-				cout <<"\t" << (*emap)[vIter->first]->getEvidVal();
-			}
-			cout << endl;
-		}
 	}
 	return 0;
-}
-
-int 
-EvidenceManager::getNumberOfEvidences()
-{
-	return evidenceSet.size();
 }
 
 EMAP* 
@@ -237,118 +147,12 @@ EvidenceManager::getRandomEvidenceAt(int evId)
 	return randEvidenceSet[evId];
 }
 
-
-int
-EvidenceManager::addEvidence(EMAP* evidSet)
-{
-	evidenceSet.push_back(evidSet);
-	return 0;
-}
-
-
-int
-EvidenceManager::addToEvidence(int eSetID, int vId, INTDBLMAP& evidData)
-{
-	EMAP* emap=evidenceSet[eSetID];
-	Evidence* evid=new Evidence;
-	evid->setData(evidData);
-	(*emap)[vId]=evid;
-	return 0;
-}
-
-int
-EvidenceManager::dumpEvidenceSet(ostream& oFile)
-{
-	for(int i=0;i<evidenceSet.size();i++)
-	{
-		EMAP* evidMap=evidenceSet[i];
-		for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
-		{
-			Evidence* evid=eIter->second;
-			if(eIter!=evidMap->begin())
-			{
-				oFile<<"\t";
-			}
-			evid->dumpEvidence(oFile);
-		}
-		oFile << endl;
-	}
-	return 0;
-}
-
-int
-EvidenceManager::getMLSettings(ostream& oFile)
-{
-	for(int i=0;i<evidenceSet.size();i++)
-	{
-		EMAP* evidMap=evidenceSet[i];
-		if(i==0)
-		{
-			for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
-			{
-				if(eIter!=evidMap->begin())
-				{
-					oFile<<"\t";
-				}
-				oFile<< eIter->first;
-			}
-			oFile << endl;
-		}
-
-		for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
-		{
-			if(eIter!=evidMap->begin())
-			{
-				oFile<<"\t";
-			}
-			Evidence* evid=eIter->second;
-			oFile << evid->getMLVal();
-		}
-		oFile << endl;
-	}
-	return 0;
-}
-
-
 int 
 EvidenceManager::setFoldCnt(int f)
 {
 	foldCnt=f;
 	return 0;
 }
-
-int
-EvidenceManager::generateValidationSet(const char* vFName, int vSetSize,gsl_rng* r)
-{
-	ifstream inFile(vFName);
-	if(inFile.good())
-	{
-		char buffer[256];
-		while(inFile.good())
-		{
-			inFile.getline(buffer,255);
-			if(strlen(buffer)<=0)
-			{
-				continue;
-			}
-			int dId=atoi(buffer);
-			validationIndex[dId]=0;
-		}
-		inFile.close();
-	}
-	else
-	{
-		populateRandIntegers(r,validationIndex,evidenceSet.size(),vSetSize);
-		ofstream oFile(vFName);
-		for(INTINTMAP_ITER vIter=validationIndex.begin();vIter!=validationIndex.end();vIter++)
-		{
-			oFile << vIter->first << endl;
-		}
-		oFile.close();
-	}
-	return 0;
-}
-
 
 int 
 EvidenceManager::setPreRandomizeSplit()
@@ -360,12 +164,12 @@ EvidenceManager::setPreRandomizeSplit()
 int 
 EvidenceManager::splitData(int s)
 {
-	int testSetSize=(evidenceSet.size()-validationIndex.size())/foldCnt;
+	int testSetSize=evidenceSet.size()/foldCnt;
 	int testStartIndex=s*testSetSize;
 	int testEndIndex=(s+1)*testSetSize;
 	if(s==foldCnt-1)
 	{
-		testEndIndex=evidenceSet.size()-validationIndex.size();
+		testEndIndex=evidenceSet.size();
 	}
 	if(foldCnt==1)
 	{
@@ -393,10 +197,6 @@ EvidenceManager::splitData(int s)
 		if(randInds!=NULL)
 		{
 			eInd=randInds[i];
-		}
-		if(validationIndex.find(eInd)!=validationIndex.end())
-		{
-			continue;
 		}
 		if((m>=testStartIndex) && (m<testEndIndex))
 		{
@@ -427,232 +227,6 @@ EvidenceManager::getTestSet()
 	return testIndex;
 }
 
-INTINTMAP&
-EvidenceManager::getValidationSet()
-{	
-	return validationIndex;
-}
-
-
-int 
-EvidenceManager::standardizeData()
-{
-	VSET& varSet=vMgr->getVariableSet();
-	for(VSET_ITER vIter=varSet.begin();vIter!=varSet.end();vIter++)
-	{
-		double mean=0;
-		for(int i=0;i<evidenceSet.size();i++)
-		{
-			EMAP* evidMap=evidenceSet[i];
-			mean=mean+(*evidMap)[vIter->first]->getEvidVal();
-		}
-		mean=mean/evidenceSet.size();
-		double std=0;
-		for(int i=0;i<evidenceSet.size();i++)
-		{
-			EMAP* evidMap=evidenceSet[i];
-			double diff=mean-(*evidMap)[vIter->first]->getEvidVal();
-			std=std+(diff*diff);
-		}
-		std=sqrt(std/(evidenceSet.size()-1));
-		//Standardize
-		for(int i=0;i<evidenceSet.size();i++)
-		{
-			EMAP* evidMap=evidenceSet[i];
-			Evidence* evid=(*evidMap)[vIter->first];
-			double tval=evid->getEvidVal();
-			double sval=(tval-mean)/std;
-			evid->setEvidVal(sval);
-		}
-	}
-	return 0;
-}
-
-int
-EvidenceManager::partitionData(int numberOfComponents,map<int,EvidenceManager*>& evMgrSet,int& rseed,map<int,INTINTMAP*>& datasetInd)
-{
-	int datasubsetSize=evidenceSet.size()/numberOfComponents;
-	int* randInds=new int[evidenceSet.size()];
-	//generate a random vector of indices ranging from 0 to evidenceSet.size()-1
-	gsl_rng* r=gsl_rng_alloc(gsl_rng_default);
-	//randseed=getpid();
-	randseed=18721;
-	rseed=randseed;
-	gsl_rng_set(r,randseed);
-	populateRandIntegers(r,randInds,evidenceSet.size());	
-	for(int i=0;i<evidenceSet.size();i++)
-	{
-		cout << randInds[i] << endl;
-	}
-	gsl_rng_free(r);
-	int ind=0;
-	for(int n=1;n<=numberOfComponents;n++)
-	{
-		int startIndex=(n-1)*(datasubsetSize);
-		int endIndex=n*datasubsetSize;
-		if(n==numberOfComponents)
-		{
-			endIndex=evidenceSet.size();
-		}
-		EvidenceManager* localManager=new EvidenceManager;
-		INTINTMAP* origIDs=new INTINTMAP;
-		int currind=(int)pow(2.0,ind);
-		datasetInd[currind]=origIDs;
-		evMgrSet[currind]=localManager;
-		int dId=0;
-		for(int e=startIndex;e<endIndex;e++)
-		{
-			//int rId=randInds[e];
-			int rId=e;
-			EMAP* evidSet=evidenceSet[rId];
-			localManager->addEvidence(evidSet);
-			(*origIDs)[dId]=rId;
-			dId++;
-		}
-		ind++;
-	}
-	delete[] randInds;
-	return 0;
-}
-
-int 
-EvidenceManager::populateEvidence(Evidence** evid,const char* evidStr)
-{
-	//first check for validity of evidStr
-	if(strchr(evidStr,'=')==NULL)
-	{
-		return -1;
-	}
-	*evid=new Evidence;
-	
-	INTDBLMAP evidData;
-	int currInd=0;
-	int ttInd=0;
-	int tokId=0;
-	char tempTok[256];
-	while(evidStr[currInd]!='\0')
-	{
-		if((evidStr[currInd]=='=') || 
-		   (evidStr[currInd]==']') ||
-		   (evidStr[currInd]==',')
-		  )
-		{
-			tempTok[ttInd]='\0';
-			ttInd=0;
-			if(tokId==0)
-			{
-				//This is the variable
-				int vId=atoi(tempTok);
-				Variable* var=vMgr->getVariableAt(vId);
-				var->initEvidence(evidData);
-				(*evid)->assocVariable(vId);
-			}
-			else
-			{
-				char* pos=strchr(tempTok,'|');
-				//Hard evidence
-				if(pos==NULL)
-				{
-					int varVal=atoi(tempTok);
-					if(evidData.find(varVal)==evidData.end())
-					{
-						cout <<"No value "<< varVal << " in the domain of  a variable" << endl;
-						return -1;
-					}
-					evidData[varVal]=1.0;
-					(*evid)->setType(Evidence::HARD);
-				}
-				else
-				{
-					*pos='\0';
-					int varVal=atoi(tempTok);
-					double varValProb=atof(pos+1);
-					if(evidData.find(varVal)==evidData.end())
-					{
-						cout <<"No value "<< varVal << " in the domain of  a variable" << endl;
-						return -1;
-					}
-					evidData[varVal]=varValProb;
-					//Will be setting it multiple times but its ok for now.
-					(*evid)->setType(Evidence::SOFT);
-				}
-			}
-			tokId++;
-		}
-		else if(evidStr[currInd]!='[')
-		{
-			tempTok[ttInd]=evidStr[currInd];
-			ttInd++;
-		}
-		currInd++;
-	}
-	(*evid)->setData(evidData);
-	return 0;
-}
-
-int
-EvidenceManager::dumpSummaryStat(ostream& oFile)
-{
-	//Need an evidence like object but to store the frequency over all evidences
-	//rather than a single evidence
-	map<int,INTDBLMAP*> summary;
-	map<int,double> normFactors;
-	for(int i=0;i<evidenceSet.size();i++)
-	{
-		EMAP* evidMap=evidenceSet[i];
-		for(EMAP_ITER eIter=evidMap->begin();eIter!=evidMap->end();eIter++)
-		{
-			INTDBLMAP* evCnt=NULL;
-			if(summary.find(eIter->first)==summary.end())
-			{
-				evCnt=new INTDBLMAP;
-				summary[eIter->first]=evCnt;
-			}
-			else
-			{
-				evCnt=summary[eIter->first];
-			}
-			//Get data and add to evCnt
-			INTDBLMAP& data=eIter->second->getData();
-			for(INTDBLMAP_ITER idIter=data.begin();idIter!=data.end();idIter++)
-			{
-				if(evCnt->find(idIter->first)==evCnt->end())
-				{
-					(*evCnt)[idIter->first]=idIter->second;
-				}
-				else
-				{
-					(*evCnt)[idIter->first]=(*evCnt)[idIter->first]+idIter->second;
-				}
-				//Add the normalization factor for all the freq or exp. freq cnts
-				if(normFactors.find(eIter->first)==normFactors.end())
-				{
-					normFactors[eIter->first]=idIter->second;
-				}
-				else
-				{
-					normFactors[eIter->first]=normFactors[eIter->first]+idIter->second;
-				}
-			}
-		}
-	}
-
-	//Now iterate over the evidence summary, normalize and display values
-	for(map<int,INTDBLMAP*>::iterator aIter=summary.begin();aIter!=summary.end();aIter++)
-	{
-		double normConst=normFactors[aIter->first];
-		INTDBLMAP* evCnt=aIter->second;
-		oFile <<"Distribution of "<< aIter->first;
-		for(INTDBLMAP_ITER idIter=evCnt->begin();idIter!=evCnt->end();idIter++)
-		{
-			oFile << " " << idIter->first<<"=" << idIter->second/normConst;
-		}
-		oFile << endl;
-	}
-	return 0;
-}
-
-
 int 
 EvidenceManager::populateRandIntegers(gsl_rng* r, int* randInds,int size)
 {
@@ -673,7 +247,6 @@ EvidenceManager::populateRandIntegers(gsl_rng* r, int* randInds,int size)
 	usedInit.clear();
 	return 0;
 }
-
 
 int 
 EvidenceManager::populateRandIntegers(gsl_rng* r, int* randInds, INTINTMAP& populateFrom, int size)
@@ -701,25 +274,6 @@ EvidenceManager::populateRandIntegers(gsl_rng* r, int* randInds, INTINTMAP& popu
 		randInds[i]=temp[rind];
 	}
 	usedInit.clear();
-	return 0;
-}
-
-
-int 
-EvidenceManager::populateRandIntegers(gsl_rng* r, INTINTMAP& randInds,int size, int subsetsize)
-{
-	double step=1.0/(double)size;
-	for(int i=0;i<subsetsize;i++)
-	{
-		double rVal=gsl_ran_flat(r,0,1);
-		int rind=(int)(rVal/step);
-		while(randInds.find(rind)!=randInds.end())
-		{
-			rVal=gsl_ran_flat(r,0,1);
-			rind=(int)(rVal/step);
-		}
-		randInds[rind]=0;
-	}
 	return 0;
 }
 

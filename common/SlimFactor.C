@@ -5,8 +5,6 @@
 
 SlimFactor::SlimFactor()
 {
-	mbScore=-1;
-	mutualInfo=0;
 	refCnt=0;
 }
 
@@ -15,11 +13,8 @@ SlimFactor::SlimFactor(int fSize)
 	vIds=new int[fSize];
 	vCnt=fSize;
 	//secondPId=-1;
-	mutualInfo=0;
-	jointEntropy=0;
 	//confidence=0;
 	fId=-1;
-	mbScore=-1;
 	refCnt=0;
 }
 
@@ -32,7 +27,6 @@ SlimFactor::~SlimFactor()
 	candidateNeighbours.clear();
 	candidateNeighbours_vect.clear();
 	//mbSubsetStartInd.clear();
-	cachePartialMean.clear();
 }
 
 //This returns the maximal subsets of this factor. That is
@@ -189,16 +183,6 @@ SlimFactor::showFactor(ostream& oFile, VSET& variableSet, bool newLine)
 	if(newLine)
 	{
 		oFile << endl;
-	}
-	return 0;
-}
-
-int
-SlimFactor::updatePartialMeans(INTDBLMAP& partMean)
-{
-	for(INTDBLMAP_ITER mIter=partMean.begin();mIter!=partMean.end();mIter++)
-	{
-		cachePartialMean[mIter->first]=mIter->second;
 	}
 	return 0;
 }
