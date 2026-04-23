@@ -3,18 +3,8 @@
 
 HierarchicalClusterNode::HierarchicalClusterNode()
 {
-	left=NULL;
-	right=NULL;
-	parent=NULL;
-	status=0;
+	left=nullptr;
+	right=nullptr;
+	parent=nullptr;
 	size=1;
-}
-
-HierarchicalClusterNode::~HierarchicalClusterNode()
-{
-	//cout <<"Called the destructor of " << nodeName << endl;
-	distToNeighbors.clear();
-	distToNeighbors_CC.clear();
-	expr.clear();
-	attrib.clear();
 }

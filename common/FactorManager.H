@@ -27,10 +27,7 @@ class FactorManager
 		int setPotentialManager(PotentialManager*);
 		int setBaseInstantiation();
 		int setBaseInstantiation_Variable();
-		int setMaxFactorSize(int);
 		int setMaxFactorSize_Approx(int);
-		int setRandMISdCnt(double);
-		int getMaxFactorSize();
 		int getMaxFactorSize_Approx();
 
 		int setModelName(const char*);
@@ -44,87 +41,33 @@ class FactorManager
 
 		FactorGraph* createInitialFactorGraph();
 
-		int paramEstimation(const char*);
-
 		int generateSingletonFactors();
 		int generateCanonicalFactors();
-		int generateCanonicalFactors(FactorGraph*, map<int,SlimFactor*>& canonicalFactors);
 		int estimateCanonicalParameters(const char*);
 
 		int learnStructure();
-		int showStructure();
-		int showStructure_allK();
-		int showStructure_allK(int);
-		int showValidationStructure_allK(int);
-		
-		int readStructure();
-		int readStructure(int);
-		int readValidationStructure(int);
-		int readClusterProperties(const char*);
-		
-		int estimateRandomInfo();
-		int estimateRandomInfo_Approximate(int);
-		int readRandomInfo();
-
-		
-		//This function is called to remove all factors that have less than the reqd. number of sds
-		//random mutual information
-		int filterClustersWithMI(double eps);
-		
-		int applyDPICorrection(double mithreshold, double dpiPercent);
-
-		//This is used to check if the information between k+1 variables
-		//is significantly greater than the mutual information between
-		//any set of k variables. If so there is a higher order dependency
-		//If not then there is no higher order dependency.
-		int findTrueHO(double eps);
 
 		int getFactorIndex(int*, int);
 		int getFactorKey(int*, int,string&);
-		int getMBFactorIndex(SlimFactor*);
 
-		int addNewMBFactor(SlimFactor*);
-
-		SlimFactor* getFactorFromVars(int*, int);
-		double getMIFromVars(int*,int);
-
-		int generateClusters(double epsilon, bool latticeCheck, double confidence,int);
 		int getMaximalClusters();
 		//Here we populate the factSignMap
 		int removeDupFactors();
 
-		int generateClusters_Apriori(double,double,int,bool);
-		int learnMBStructure(double,double);
-		double getPseudoLikelihood();
-		double getPseudoLikelihood(FactorGraph*,bool);
-		double getMVGaussianLikelihood(FactorGraph*,bool);
 		double getLikelihood_ChainRule();
 		double getLikelihood_ChainRule(FactorGraph*);
 		double getLikelihood();
-		double getLikelihood(FactorGraph*);
 
 		double getLikelihood_MCMC(FactorGraph*);
 		double estimatePartitionFunction(FactorGraph*);
 		int randInitSample(INTINTMAP* sample,gsl_rng* r);
 		int getNextSample(FactorGraph* fg,INTINTMAP* currSample,INTINTMAP* nextSample,gsl_rng* r);
 
-		int evaluateMarkovBlanket(double);
-		
-		int showAllFactors(double);
-
 		bool checkMonotonicity();
 
 		INTINTMAP* getSupersets(int);
 		int getSupersets(int,int,INTINTMAP&);
-		double getMBScore(SlimFactor*,int supFid);
-		double getMBScore(SlimFactor*);
-		bool isBelowRandom(int);
 		SlimFactor* getFactorAt(int);
-		int generateNextLevelClusters(SlimFactor*,double,INTDBLMAP&);
-		int generateNextLevelClusters(SlimFactor*);
-		int generateNextLevelClusters(SlimFactor*,SlimFactor*);
-		int generateNextLevelClusters_Tabulist(SlimFactor*,SlimFactor*);
-		int showConditionalPotentials(FactorGraph*);
 		int deleteMySupersets(int factorID);
 		int deleteFactor(SlimFactor*);
 		int getActiveSubsetCnt(SlimFactor*,map<int,int>&);
@@ -134,36 +77,23 @@ class FactorManager
 		int readRestrictedVarlist(const char*);
 		map<int,Variable*>& getRestrictedVarlist();
 	private:
-		int generateApproximateClusters(double,double);
-		int generateNextLevelClusters(SlimFactor*,double,double,INTINTMAP&);
-		int getBestMarkovBlanket(SlimFactor*,double,double);
-		int makeMBMutuallyConsistent();
 		int makeMarkovBlanketConsistent(SlimFactor*);
 		int produceClusters(double,int);
 		int produceClusters_NoDup(double,int);
 
-		int getGoodCandidateMarkovBlankets(SlimFactor*,INTINTMAP*, int,double&,double,INTDBLMAP&);
-			
 		int getClusterCnt(int,int,int);
 		int initFactorSet();
 		int populateFactorSet();
 		int checkFactorIds();
-		int combCnt(int,int);
-		int combCnt(int,int,int);
 		int qsort(int*,int,int);
-		//Create all subsets of the random variables
-		//without taking into account the information
-		//of what associations make sense
-		Error::ErrorCode createAllFactors();
 		Error::ErrorCode estimateClusterProperties();
 
 		int addToLattice(SlimFactor*,int**);
 		int deleteFromLattice(int);
-		
+
 		double getOverlap(SlimFactor*,SlimFactor*,int&);
-		
+
 		int globalFactorID;	
-		int maxFactorSize;
 		int maxFactorSize_Approx;
 		VariableManager* vMgr;
 		PotentialManager* potMgr;
@@ -187,9 +117,7 @@ class FactorManager
 		INTINTMAP defaultInstantiation;
 		LatticeStructure lattice;
 		map<int,SlimFactor*> goodSlimFactors;
-		
-		map<int,double> randMI_mean;
-		map<int,double> randMI_std;
+
 		char outputDir[1024];
 		char modelName[1024];
 
@@ -217,7 +145,6 @@ class FactorManager
 		INTINTMAP defInstMap;
 		int beamSize;
 		double mbPenalty;
-		double misdCnt;
 		map<int,Variable*> restrictedNeighborList;
 };
 #endif

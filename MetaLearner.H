@@ -3,8 +3,9 @@
 
 #include <map>
 #include "CommonTypes.H"
-using namespace std;
+#include "HierarchicalCluster.H"
 
+using namespace std;
 
 //This is gamma map for each variable within each datapoint
 typedef map<int,INTDBLMAP*> DATA_GAMMA_MAP;
@@ -16,13 +17,14 @@ class EvidenceManager;
 class PotentialManager;
 class MetaMove;
 class Graph;
+class HierarchicalCluster;
+
 class MetaLearner
 {
 	public:
 	MetaLearner();
 	~MetaLearner();
 	int setInputFName(const char*);
-	int setMaxFactorSize(int);
 	int setMaxFactorSize_Approx(int);
 	int setPenalty(double);
 	int setBeta1(double aval);
@@ -33,23 +35,15 @@ class MetaLearner
 	int setPreRandomizeSplit();
 	int setTargetList(const char*);
 	int setNoPrune(bool);
-	int init();
 	int initPartitions(int);
-	int initEdgePriorMeta();
 	int initEdgePriorMeta(map<string,map<string,double>*>& graph, map<int,INTDBLMAP*>& edgePrior);
 	int doCrossValidation(int);
 	int start(int);
-	int start_gradualMBIncrease(int);
-	int start_gradualMBIncrease_RankRegulators(int);
-	int getTopRegs(map<int,int>&);
 	int setGlobalEvidenceManager(EvidenceManager*);
-	int setHoldOutEvManager(EvidenceManager*);
 	int setVariableManager(VariableManager*);
 	int setOutputDirName(const char*);
 	int setClusteringThreshold(double);
 	int setSpecificFold(int);
-	int showModelParameters(int);
-	int getPredictionError_Holdout(int);
 	int getPredictionError_CrossValid(int);
 	int setRandom(bool);
 	int readModuleMembership(const char*);
@@ -81,7 +75,6 @@ class MetaLearner
 	double getPLLScore_Datapoint(int datapoint);
 	int clearFoldSpecData();
 	int initEdgeSet(bool);
-	int initVariableComponents();
 	int initCondsetMap_Nopool();
 	INTINTMAP* getConditionSet(int cind);
 
@@ -100,7 +93,6 @@ class MetaLearner
 
 	int genCondSetKey(INTINTMAP& condSet, string& aKey);
 
-	int cleanUp();
 	int dumpAllGraphs(int,int,int);
 	int getEdgeVars(string&, char*, char*);
 	bool checkMBSize(INTINTMAP*,int,int,int);
@@ -113,7 +105,6 @@ class MetaLearner
 
 	int setPriorGraph(const char* aFName, map<string,map<string,double>*>& priorGraph);
 	int redefineModules();
-	int redefineModules_Global();
 	double getModuleContrib(string& tgtName, string& tfName);
 	double getModuleContribLogistic(string& tgtName, string& tfName);
 	int initPhysicalDegree();
@@ -126,12 +117,10 @@ class MetaLearner
 	map<int,FactorGraph*> fgGraphSet;
 
 	EvidenceManager* globalEvMgr;
-	EvidenceManager* holdoutEvMgr;
 
 	map<int,string> outLocMap;
 
 	VariableManager* varManager;
-	int maxFactorSize;
 	int maxFactorSizeApprox;
 	int maxMBCntGreedy;
 	char inputFName[1024];
@@ -176,5 +165,6 @@ class MetaLearner
 	int currFold;
 	char foldoutDirName[1024];
 	int specificFold;
+	HierarchicalCluster hc;
 };
 #endif
