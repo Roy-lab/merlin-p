@@ -31,7 +31,7 @@ HierarchicalCluster::addNode(HierarchicalClusterNode* node)
 	nodeSet[node->nodeName] = node;
 }
 
-int 
+int
 HierarchicalCluster::cluster(map<int,map<string,int>*>& modules, double threshold, Matrix* correlationDistances)
 {
 	// currNodeSet holds the subset of nodes in the dendrogram that currently have no parent.
@@ -48,7 +48,7 @@ HierarchicalCluster::cluster(map<int,map<string,int>*>& modules, double threshol
 	//The total number of nodes that can be there in a hierarchical cluster is 2n-1
 	int treenodecnt = (nodeSet.size()*2) - 1;
 
-	// Intantiate default distances
+	// Instantiate default distances
 	distvalues = new double*[treenodecnt];
 	for (int i = 0; i < treenodecnt; i++)
 	{
@@ -268,9 +268,10 @@ HierarchicalCluster::generateModules(map<int,HierarchicalClusterNode*>& currNode
 		map<string,int>* moduleMembers=new map<string,int>;
 		modules[moduleCnt]=moduleMembers;
 		populateMembers(moduleMembers,node);
-		cout <<"Module: " << moduleCnt << "\tSize="<< moduleMembers->size() << endl;
+		// cout <<"Module " << moduleCnt << " size: "<< moduleMembers->size() << endl;
 		moduleCnt=moduleCnt+1;
 	}
+	cout <<"   Number of non-singleton modules: " << moduleCnt << endl;
 	return 0;
 }
 

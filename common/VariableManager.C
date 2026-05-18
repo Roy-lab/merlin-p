@@ -22,7 +22,6 @@ VariableManager::readVariables(const char* aFName)
 {
 	ifstream inFile(aFName);
 	char buffer[400000];
-	int nodeCnt=0;
 
 	if(inFile.good())
 	{
@@ -30,7 +29,7 @@ VariableManager::readVariables(const char* aFName)
 
 		if(strlen(buffer)<=0)
 		{
-			cout <<"Bad format" << endl;
+			cout <<"Error: gene expression header is empty" << endl;
 			return Error::VARSCHEMA_ERR;
 		}
 
@@ -43,7 +42,7 @@ VariableManager::readVariables(const char* aFName)
 			var->setID(tokCnt);
 			var->setName(tok);
 			variableSet[tokCnt]=var;
-			
+
 			string varKey(tok);
 			varNameIDMap[varKey]=tokCnt;
 			tokCnt++;
@@ -53,7 +52,7 @@ VariableManager::readVariables(const char* aFName)
 
 	inFile.close();
 
-	cout <<"Read information about " << variableSet.size() << " variables " << endl;
+	cout <<"Number of genes read: " << variableSet.size() << endl;
 
 	return Error::SUCCESS;
 }
@@ -70,21 +69,21 @@ VariableManager::getVarID(const char* varName)
 	return vId;
 }
 
-bool 
+bool
 VariableManager::isValid(int varID,int varVal)
 {
 	Variable* rVar=variableSet[varID];
 	return rVar->isValidValue(varVal);
 }
 
-map<int,Variable*>& 
+map<int,Variable*>&
 VariableManager::getVariableSet()
 {
 	return variableSet;
 }
 
 
-Variable* 
+Variable*
 VariableManager::getVariableAt(int vId)
 {
 	if(variableSet.find(vId)==variableSet.end())

@@ -24,7 +24,7 @@ EvidenceManager::loadEvidenceFromFile(const char* inFName)
 	int bufflen=0;
 	int lineNo=0;
 
-	// skip the first line.
+	// skip the first line (gene headers)
 	if(inFile.good())
 	{
 		getline(inFile,buffstr);
@@ -64,8 +64,8 @@ EvidenceManager::loadEvidenceFromFile(const char* inFName)
 			if(isinf(varVal) || isnan(varVal))
 			{
 				//cout <<"Found nan! " << tok << endl;
-				cerr << "Please remove zero's (" << tok << ") from the expression data. " << endl;
-				exit(-1);	
+				cerr << "Please remove NaNs from the expression data or check the data format. Not a valid number: " << tok << endl;
+				exit(-1);
 			}
 			evid->setEvidVal(varVal);
 			(*evidMap)[vId]=evid;
@@ -78,7 +78,7 @@ EvidenceManager::loadEvidenceFromFile(const char* inFName)
 
 	inFile.close();
 
-	cout <<"Read " << evidenceSet.size() << " different datapoints " << endl;
+	cout <<"Number of samples read: " << evidenceSet.size() << endl;
 
 	return Error::SUCCESS;
 }
@@ -105,13 +105,13 @@ EvidenceManager::randomizeEvidence(gsl_rng* r, VariableManager* vMgr)
 	for(VSET_ITER vIter=variableSet.begin();vIter!=variableSet.end();vIter++)
 	{
 		//generate a random vector of indices ranging from 0 to evidenceSet.size()-1
-		populateRandIntegers(r,randInds,trainIndex,trainIndex.size());	
+		populateRandIntegers(r,randInds,trainIndex,trainIndex.size());
 		int j=0;
 		for(int i=0;i<evidenceSet.size();i++)
 		{
 			EMAP* evidMap=NULL;
 			if(trainIndex.find(i)!=trainIndex.end())
-			{	
+			{
 				evidMap=evidenceSet[randInds[j]];
 				j++;
 			}
@@ -127,7 +127,7 @@ EvidenceManager::randomizeEvidence(gsl_rng* r, VariableManager* vMgr)
 	return 0;
 }
 
-EMAP* 
+EMAP*
 EvidenceManager::getEvidenceAt(int evId)
 {
 	if((evId>=evidenceSet.size()) && (evId<0))
@@ -137,7 +137,7 @@ EvidenceManager::getEvidenceAt(int evId)
 	return evidenceSet[evId];
 }
 
-EMAP* 
+EMAP*
 EvidenceManager::getRandomEvidenceAt(int evId)
 {
 	if((evId>=randEvidenceSet.size()) && (evId<0))
@@ -147,21 +147,21 @@ EvidenceManager::getRandomEvidenceAt(int evId)
 	return randEvidenceSet[evId];
 }
 
-int 
+int
 EvidenceManager::setFoldCnt(int f)
 {
 	foldCnt=f;
 	return 0;
 }
 
-int 
+int
 EvidenceManager::setPreRandomizeSplit()
 {
 	preRandomizeSplit=true;
 	return 0;
 }
 
-int 
+int
 EvidenceManager::splitData(int s)
 {
 	int testSetSize=evidenceSet.size()/foldCnt;
@@ -187,7 +187,7 @@ EvidenceManager::splitData(int s)
 		gsl_rng* r=gsl_rng_alloc(gsl_rng_default);
 		randseed=getpid();
 		gsl_rng_set(r,randseed);
-		populateRandIntegers(r,randInds,evidenceSet.size());	
+		populateRandIntegers(r,randInds,evidenceSet.size());
 		gsl_rng_free(r);
 		cout <<"Random seed " << randseed << endl;
 	}
@@ -215,19 +215,19 @@ EvidenceManager::splitData(int s)
 	return 0;
 }
 
-INTINTMAP& 
+INTINTMAP&
 EvidenceManager::getTrainingSet()
 {
 	return trainIndex;
 }
 
-INTINTMAP& 
+INTINTMAP&
 EvidenceManager::getTestSet()
 {
 	return testIndex;
 }
 
-int 
+int
 EvidenceManager::populateRandIntegers(gsl_rng* r, int* randInds,int size)
 {
 	double step=1.0/(double)size;
@@ -248,7 +248,7 @@ EvidenceManager::populateRandIntegers(gsl_rng* r, int* randInds,int size)
 	return 0;
 }
 
-int 
+int
 EvidenceManager::populateRandIntegers(gsl_rng* r, int* randInds, INTINTMAP& populateFrom, int size)
 {
 	double step=1.0/(double)size;
@@ -277,7 +277,7 @@ EvidenceManager::populateRandIntegers(gsl_rng* r, int* randInds, INTINTMAP& popu
 	return 0;
 }
 
-int 
+int
 EvidenceManager::populateRandIntegers(gsl_rng* r, vector<int>& randInds,int size, int subsetsize)
 {
 	double step=1.0/(double)size;

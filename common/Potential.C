@@ -37,7 +37,7 @@ Potential::getExpectation(map<int,Evidence*>* evidenceSet)
 	return mean + bias;
 }
 
-double 
+double
 Potential::evaluateProbabilityDensity(map<int,Evidence*>* evidMap)
 {
 	if(evidMap->find(factorID)==evidMap->end())

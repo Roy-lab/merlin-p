@@ -19,9 +19,6 @@ class Framework
 		VariableManager varManager;
 		EvidenceManager evManager;
 		EvidenceManager holdoutEvManager;
-		double epsThreshold;
-		char actionStr[256];
 		int cvCnt;
-		map<int,int> idVidMap;
 };
 #endif

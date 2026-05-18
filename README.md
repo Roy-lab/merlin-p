@@ -1,6 +1,6 @@
 What is MERLIN?
 ---------------
-Modular regulatory network learning with per gene information (MERLIN) is a network inference method that tries to infer a more accurate regulatory network by incorporating a modularity constraint. 
+Modular regulatory network learning with per gene information (MERLIN) is a network inference method that tries to infer a more accurate regulatory network by incorporating a modularity constraint.
 
 For more information on the method, please refer to the original publication:
 > **Integrated Module and Gene-Specific Regulatory Inference Implicates Upstream Signaling Networks**
@@ -25,11 +25,11 @@ Required inputs
 ---------------
 The required inputs of MERLIN are a tab delimited expression file, a list of regulators and an output directory.
 
-**Expression file:** This is a tab delimited file containing the expression values of genes of interest in different samples/conditions/time points. Each column correspond to one gene, first row contain the gene name and the rest of rows are the expression values.
-For an example, see example/net1_expression.txt
+**Expression file:** This is a tab delimited file containing the expression values of genes of interest in different cells/samples/conditions/time points. Each column correspond to one gene, first row contain the gene name and the rest of rows are the expression values.
+For an example, see example/expr.tsv
 
 **Regulator list:** This file contains a list of potential regulators (transcription factors, signaling proteins, etc.). The file should contain one regulator per row. The program will infer a network between these regulators and all the genes in the expression file.
-For an example, see example/net1_transcription_factors.tsv
+For an example, see example/regulators.txt
 
 **Output directory:** When running MERLIN in a cross validation scheme, this directory will contain one sub-directory per fold, otherwise, there would be only one sub-directory named fold0. Each sub-directory will contain two files:
 
@@ -42,16 +42,16 @@ For an example, see example/net1_transcription_factors.tsv
 Optional inputs
 ---------------
 
-**Initial cluster assignment:** The file contains the initial cluster assignment for each gene, one gene per row. The first column contains the gene's name and the second column contains the cluster assignment for that gene. For example, see example/net1_net.txt
+**Initial module assignment:** The file contains the initial module assignment for each gene, one gene per row. The first column contains the gene's name and the second column contains the module assignment for that gene. For example, see example/initial_modules.tsv
 
-**Prior networks:** The config file should contains one row per prior network. The first column contains the network's name, the second column contains the path to the prior network, and the third column contains the confidence in that network (the higher the confidence, the more effect that prior will have). The prior file in the second column, should have one edge per row, the first column contains the regulator's name, the second column contains the target gene's name, and the third column contains the confidence in that edge (the higher the confidence, the more we trust in that edge). For an example, see example/net1_config.txt and example/net1_net.txt
+**Prior networks:** The config file should contains one row per prior network. The first column contains the network's name, the second column contains the path to the prior network, and the third column contains the confidence in that network (the higher the confidence, the more effect that prior will have). The prior file in the second column should have one edge per row, the first column contains the regulator's name, the second column contains the target gene's name, and the third column contains the confidence in that edge (the higher the confidence, the more we trust in that edge). For an example, see example/prior_config.tsv and example/prior.tsv
 
 How to run
 ----------
 To run, change to MERLIN directory and run:
 
 ```
-./merlin -d example/net1_expression.txt -l example/net1_transcription_factors.tsv -o out_dir/ -c example/clusterassign.txt -q example/net1_config.txt
+./merlin -d example/expr.tsv -l example/regulators.txt -o out_dir/ -c example/initial_modules.tsv -q example/prior_config.tsv
 ```
 
 To get the full list of options, run: ./merlin

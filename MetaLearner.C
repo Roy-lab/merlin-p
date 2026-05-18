@@ -27,10 +27,8 @@
 MetaLearner::MetaLearner()
 {
 	restrictedFName[0]='\0';
-	trueGraphFName[0]='\0';
 	preRandomizeSplit=false;
 	random=false;
-	lambda=0;
 	clusterThreshold=0.5;
 	specificFold=-1;
 	convThreshold=1e-3;
@@ -50,13 +48,6 @@ MetaLearner::setMaxFactorSize_Approx(int aVal)
 	return 0;
 }
 
-int 
-MetaLearner::setPenalty(double aVal)
-{
-	penalty=aVal;
-	return 0;
-}
-
 int
 MetaLearner::setBeta1(double aval)
 {
@@ -72,7 +63,7 @@ MetaLearner::initEdgePriorMeta_All()
 		map<string,map<string,double>*>* priorgraph = gIter->second;
 		map<int,INTDBLMAP*>* edgeprior = new map<int,INTDBLMAP*>();
 		edgepriormap[gIter->first] = edgeprior;
-		initEdgePriorMeta(*priorgraph,*edgeprior);
+		initEdgePriorMeta(gIter->first,*priorgraph,*edgeprior);
 	}
 	return 0;
 }
@@ -81,6 +72,11 @@ int
 MetaLearner::setPriorGraph_All(const char* aFName)
 {
 	ifstream inFile(aFName);
+    if (!inFile.is_open())
+    {
+        std::cerr << "Error: Prior config file path incorrect or file cannot be opened: " << aFName << std::endl;
+    }
+
 	char buffer[1024];
 	while(inFile.good())
 	{
@@ -128,13 +124,6 @@ MetaLearner::setBeta_Motif(double aval)
 }
 
 int
-MetaLearner::setLambda(double l)
-{
-	lambda=l;
-	return 0;
-}
-
-int 
 MetaLearner::setConvergenceThreshold(double aVal)
 {
 	convThreshold=aVal;
@@ -147,6 +136,9 @@ MetaLearner::setRestrictedList(const char* aFName)
 	strcpy(restrictedFName,aFName);
 	ifstream inFile(restrictedFName);
 	string buffer;
+
+	int count = 0; // counter for number of restricted regulators
+
 	while(inFile.good())
 	{
 		getline(inFile,buffer);
@@ -155,13 +147,15 @@ MetaLearner::setRestrictedList(const char* aFName)
 			continue;
 		}
 		restrictedVarList[buffer]=0;
+		count++;
 	}
 	inFile.close();
+	std::cout << "Number of regulators read: " << count << std::endl;
 	return 0;
 }
 
 
-int 
+int
 MetaLearner::setPreRandomizeSplit()
 {
 	preRandomizeSplit=true;
@@ -175,7 +169,7 @@ MetaLearner::setGlobalEvidenceManager(EvidenceManager* anEvMgr)
 	return 0;
 }
 
-int 
+int
 MetaLearner::setVariableManager(VariableManager* aPtr)
 {
 	varManager=aPtr;
@@ -189,13 +183,13 @@ MetaLearner::setOutputDirName(const char* dirPath)
 	return 0;
 }
 
-int 
+int
 MetaLearner::setClusteringThreshold(double aVal)
 {
 	clusterThreshold=aVal;
 	return 0;
 }
- 
+
 
 int
 MetaLearner::setSpecificFold(int fid)
@@ -204,10 +198,15 @@ MetaLearner::setSpecificFold(int fid)
 	return 0;
 }
 
-int 
+int
 MetaLearner::setPriorGraph(const char* aFName, map<string,map<string,double>*>& priorGraph)
 {
 	ifstream inFile(aFName);
+    if (!inFile.is_open())
+    {
+        std::cerr << "Error: Prior file path incorrect or file cannot be opened: " << aFName << std::endl;
+    }
+
 	char buffer[1024];
 	while(inFile.good())
 	{
@@ -361,9 +360,10 @@ MetaLearner::setDefaultModuleMembership()
 }
 
 int
-MetaLearner::initEdgePriorMeta(map<string,map<string,double>*>& graph, map<int,INTDBLMAP*>& edgePriors)
+MetaLearner::initEdgePriorMeta(const string& priorName, map<string,map<string,double>*>& graph, map<int,INTDBLMAP*>& edgePriors)
 {
 	VSET& varSet=varManager->getVariableSet();
+	cout << "Initializing prior: \"" << priorName << "\" " << endl;
 	for(map<string,int>::iterator rIter=restrictedVarList.begin();rIter!=restrictedVarList.end();rIter++)
 	{
 		int regId=varManager->getVarID(rIter->first.c_str());
@@ -407,7 +407,7 @@ MetaLearner::initEdgePriorMeta(map<string,map<string,double>*>& graph, map<int,I
 			}
 			tfhit++;
 		}
-		cout <<"TF: "<< rIter->first << " TFhits= " << tfhit << endl;
+		// cout << " Regulator "<< rIter->first << " has " << tfhit << " targets" << endl;
 	}
 
 	return 0;
@@ -425,7 +425,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 	potManager = new PotentialManager;
 
 	//The first key is for the fold number
-	//For each fold we have a trained model. For each trained model we have the likelihood on 
+	//For each fold we have a trained model. For each trained model we have the likelihood on
 	//all the test sets, including the self test.
 	int foldBegin=0;
 	int foldEnd=foldCnt;
@@ -435,10 +435,10 @@ MetaLearner::doCrossValidation(int foldCnt)
 		foldEnd=specificFold+1;
 	}
 	for(int f=foldBegin;f<foldEnd;f++)
-	{	
+	{
 		evidenceManager->splitData(f);
 		if(random)
-		{	
+		{
 			evidenceManager->randomizeEvidence(r, varManager);
 		}
 
@@ -456,9 +456,10 @@ MetaLearner::doCrossValidation(int foldCnt)
 		char outputDir[1024];
 		sprintf(outputDir,"%s/fold%d",outputDirName,f);
 		char foldOutputDirCmd[1024];
-		sprintf(foldOutputDirCmd,"mkdir %s",outputDir);
+		sprintf(foldOutputDirCmd,"mkdir -p %s",outputDir);
 		system(foldOutputDirCmd);
 
+		// Begin identifying regulators/inferring modules for this fold
 		start(f);
 
 		getPredictionError_CrossValid(f);
@@ -475,20 +476,14 @@ MetaLearner::start(int f)
 {
 	currFold=f;
 	sprintf(foldoutDirName,"%s/fold%d",outputDirName,f);
-	int maxMBSizeApprox=maxFactorSizeApprox-1;
-	int currK=maxMBSizeApprox;
+	int maxNumRegs = maxFactorSizeApprox-1; // max num of regulators a gene can have
 	rnd=gsl_rng_alloc(gsl_rng_default);
 	int rseed=getpid();
 	gsl_rng_set(rnd,rseed);
-	cout <<rseed << endl;
+	cout << "Random seed: " << rseed << endl;
 	initEdgePriorMeta_All();
 	initEdgeSet();
 	initPhysicalDegree();
-
-	if(strlen(trueGraphFName)!=0)
-	{
-		return 0;
-	}
 
 	VSET& varSet=varManager->getVariableSet();
 
@@ -499,63 +494,57 @@ MetaLearner::start(int f)
 	}
 
 	double currGlobalScore=getInitPLLScore();
-	double initScore=getInitPrior();
-	int showid=0;
-	int moduleiter=0;
-	bool notConvergedTop=true;
-	while(moduleiter<1 && notConvergedTop)
+
+	int iter=0;
+	bool notConverged=true;
+	while(notConverged && iter<50)
 	{
-		int iter=0;
-		bool notConverged=true;
-		while(notConverged && iter<50)
+		cout << "Beginning regulator identification of iter " << iter << endl;
+		int subiter=0;
+		double scorePremodule=currGlobalScore;
+		while(subiter<varSet.size())
 		{
-			int attemptedMoves=0;
-			int subiter=0;
-			double scorePremodule=currGlobalScore;
-			while(subiter<varSet.size())
+			int vID=subiter;
+			Variable* v=varSet[vID];
+
+			// If 5 iterations have passed without finding a score improving parent, then skip.
+			int lastiter = variableStatus[v->getName()];
+			if((iter - lastiter) >= 5)
 			{
-				int vID=subiter;
-				Variable* v=varSet[vID];
-
-				// If 5 iterations have passed without finding a score improving parent, then skip.
-				int lastiter = variableStatus[v->getName()];
-				if((iter - lastiter) >= 5)
-				{
-					cout <<"Skipping " << v->getName() << endl;
-					subiter++;
-					continue;
-				}
-
-				MetaMove* nextMove = getNextMove(currK, vID);
-				if (nextMove == nullptr)
-				{
-					subiter++;
-					continue;
-				}
-
-				makeMove(nextMove, iter);
-				delete nextMove;
-
-				currGlobalScore=getPLLScore();
-
+				// cout <<"   Skipping gene " << v->getName() << "; no parents added in last 5 iters." << endl;
 				subiter++;
-				showid++;
-				attemptedMoves++;
+				continue;
 			}
-			if((currGlobalScore-scorePremodule)<=convThreshold)
+
+			MetaMove* nextMove = getNextMove(maxNumRegs, vID);
+			if (nextMove == nullptr)
 			{
-				notConverged=false;
+				subiter++;
+				continue;
 			}
-			else
-			{
-				redefineModules();
-			}
-			iter++;
-			scorePremodule=currGlobalScore;
-			dumpAllGraphs(currK,f,iter);
+
+			makeMove(nextMove, iter);
+			delete nextMove;
+
+			currGlobalScore=getPLLScore();
+
+			subiter++;
 		}
-		moduleiter++;
+		cout << "   Finished identifying regulators with score " << currGlobalScore << endl;
+		if((currGlobalScore-scorePremodule)<=convThreshold)
+		{
+			notConverged=false;
+		}
+		else
+		{
+			cout << "   Network not converged; score improvement of " << (currGlobalScore-scorePremodule) << ". Redefining modules." << endl;
+			redefineModules();
+		}
+		iter++;
+		scorePremodule=currGlobalScore;
+		dumpAllGraphs(maxNumRegs,f,iter);
 	}
+
 	cout <<"Final Score " << currGlobalScore << endl;
 	finalScores[f]=currGlobalScore;
 	return 0;
@@ -598,23 +587,6 @@ MetaLearner::getPLLScore()
 	return gScore;
 }
 
-double 
-MetaLearner::getInitPrior()
-{
-	double graphPrior=0;
-	double edgePresence=1/(1+exp(-1*beta1));
-	for(map<string,double>::iterator aIter=edgePresenceProb.begin();aIter!=edgePresenceProb.end();aIter++)
-	{
-		//graphPrior=graphPrior+log(1-edgePresence);
-		graphPrior=graphPrior+log(1-aIter->second);
-		if(isinf(graphPrior)|| isnan(graphPrior))
-		{
-			cout <<"Graph prior is "<< graphPrior << " after " << aIter->first << " for " << aIter->second << endl;
-		}
-	}
-	return graphPrior;
-}
-
 int
 MetaLearner::clearFoldSpecData()
 {
@@ -652,19 +624,19 @@ MetaLearner::initEdgeSet()
 			}
 			Variable* v=varSet[vIter->first];
 			if(geneModuleID.find(v->getName())==geneModuleID.end())
-			{	
+			{
 				continue;
 			}
 			string edgeKey;
-			//This is going to be a directed graph
+			//This is going to be a directed graph. edgeKey looks like "reg_name\tgene_name"
 			edgeKey.append(u->getName().c_str());
 			edgeKey.append("\t");
 			edgeKey.append(v->getName().c_str());
 
-			edgeMap[edgeKey]=0;
+			edgeMap[edgeKey]=0; //initialize this edge to absent for the future LEARNED graph
 
 			double initPrior=getEdgePrior(uIter->first,vIter->first);
-			initPrior=1/(1+exp(-1*initPrior));
+			initPrior = 1/(1+exp(-1*initPrior));
 			if(initPrior<1e-6)
 			{
 				initPrior=1e-6;
@@ -684,11 +656,11 @@ MetaLearner::initEdgeSet()
 			}
 		}
 	}
-	cout <<"Restricted varlist size: " << restrictedVarList.size() << endl;
+	// cout <<"Restricted varlist size: " << restrictedVarList.size() << endl;
 	int n=varSet.size();
 	int r=restrictedVarList.size();
-	int expEdgeCnt=((r*(r-1))/2) + (r*(n-r)) ;
-	cout <<"Inited " << edgeMap.size() << " edges. Expected " << expEdgeCnt << endl;
+	int expEdgeCnt=r*(n-1);
+	// cout <<"Initialized " << edgeMap.size() << " edges. Expected " << expEdgeCnt << endl;
 
 	// Init the potentials
 	for(int f=0;f<factorGraph->getFactorCnt();f++)
@@ -815,7 +787,7 @@ MetaLearner::getPredictionError_CrossValid(int foldid)
 }
 
 MetaMove*
-MetaLearner::getNextMove(int currK, int vID)
+MetaLearner::getNextMove(int maxNumRegs, int vID)
 {
 	VSET& varSet=varManager->getVariableSet();
 	Variable* v = varSet[vID];
@@ -827,7 +799,7 @@ MetaLearner::getNextMove(int currK, int vID)
 
 	// If v already has the max number of parents, dont test adding another.
 	SlimFactor* dFactor = factorGraph->getFactorAt(vID);
-	if(dFactor->mergedMB.size() >= currK)
+	if(dFactor->mergedMB.size() >= maxNumRegs)
 	{
 		return nullptr;
 	}
@@ -904,7 +876,7 @@ MetaLearner::getNextMove(int currK, int vID)
 		bestPot = aPot;
 	}
 
-	// We could not find a parent to add to v that would improve the score.
+	// If we could not find a parent to add to v that would improve the score:
 	if((bestu == NULL) || (bestScoreImprovement <= 0))
 	{
 		return nullptr;
@@ -943,12 +915,7 @@ MetaLearner::getNewPLLScore(Variable* u, Variable* v, vector<int>& parentIDs, st
 
 	double currPrior = varNeighborhoodPrior[factorID] + plus - minus;
 	double condLL = potManager->computeLL(factorID, parentIDs, datasize, newdPot);
-
-	double varCnt = (double)parentIDs.size() + 1;
-	double paramCnt = 2 * varCnt + varCnt * (varCnt - 1) / 2;
-	double complexityPrior = -lambda * paramCnt * log(datasize);
-
-	mbScore = condLL + complexityPrior + currPrior;
+	mbScore = condLL + currPrior;
 	scoreImprovement = mbScore - (*currPLL)[factorID];
 }
 
@@ -958,7 +925,7 @@ MetaLearner::getInitPLLScore(int vId)
 	SlimFactor* sFactor=factorGraph->getFactorAt(vId);
 	Potential* sPot=sFactor->potFunc;
 
-	double pll=0; 
+	double pll=0;
 
 	INTINTMAP* tSet=&evidenceManager->getTrainingSet();
 	for(INTINTMAP_ITER eIter=tSet->begin();eIter!=tSet->end();eIter++)
@@ -976,14 +943,12 @@ MetaLearner::getInitPLLScore(int vId)
 		pll += log(pval);
 	}
 
-	// The initial graph has no edges, meaning is variable is univariate
+	// The initial graph has no edges, meaning this variable is univariate
 	// gaussian, with just 2 params (mean, variance).
-	double complexityPrior = lambda * 2 * log(tSet->size());
-	pll -= complexityPrior;
 	return pll;
 }
 
-double 
+double
 MetaLearner::getEdgePrior(int tfID, int targetID)
 {
 	INTDBLMAP* regPriors=NULL;
@@ -1061,7 +1026,7 @@ MetaLearner::makeMove(MetaMove* nextMove, int currIteration)
 		(*currIndegree)[u->getName()] = 1;
 	}
 	else
-	{	
+	{
 		(*currIndegree)[u->getName()] += 1;
 	}
 
@@ -1081,11 +1046,11 @@ MetaLearner::makeMove(MetaMove* nextMove, int currIteration)
 }
 
 int
-MetaLearner::dumpAllGraphs(int currK,int foldid,int iter)
+MetaLearner::dumpAllGraphs(int maxNumRegs,int foldid,int iter)
 {
 	VSET& varSet=varManager->getVariableSet();
 	char aFName[1024];
-	sprintf(aFName,"%s/prediction_k%d.txt",foldoutDirName,currK+1);
+	sprintf(aFName,"%s/prediction_k%d.txt",foldoutDirName,maxNumRegs+1);
 	ofstream oFile(aFName);
 	factorGraph->dumpVarMB(oFile,varSet);
 	oFile.close();
@@ -1142,14 +1107,14 @@ MetaLearner::initPhysicalDegree()
 			}
 			(*indegree)[tf] = ttgts->size();
 		}
-		
+
 		if(indegree!=NULL)
 		{
 			moduleIndegree[mIter->first]=indegree;
-			cout <<"Physical_indegree for module " << mIter->first << endl;
+			cout << "Module " << mIter->first << ": " << geneSet->size() << " genes, " << indegree->size() << " enriched TFs" << endl;
 			for(map<string,int>::iterator dIter=indegree->begin();dIter!=indegree->end();dIter++)
 			{
-				cout << dIter->first <<"\t" << dIter->second << endl;
+				cout << " Enriched TF " << dIter->first << ": " << dIter->second << " target genes in this module across prior networks" <<endl;
 				if(regulatorModuleOutdegree.find(dIter->first)==regulatorModuleOutdegree.end())
 				{
 					regulatorModuleOutdegree[dIter->first]=dIter->second;
@@ -1173,8 +1138,8 @@ MetaLearner::getEnrichedTFs(map<string,int>& tfSet,map<string,int>* genes,map<st
 	HyperGeomPval hgp;
 	for(map<string,map<string,double>*>::iterator fIter=edgeSet.begin();fIter!=edgeSet.end();fIter++)
 	{
-		int vID=varManager->getVarID(fIter->first.c_str());
-		if(vID<0)
+		int uID=varManager->getVarID(fIter->first.c_str());
+		if(uID<0)
 		{
 			continue;
 		}
@@ -1185,15 +1150,15 @@ MetaLearner::getEnrichedTFs(map<string,int>& tfSet,map<string,int>* genes,map<st
 		for(map<string,double>::iterator gIter=tgtSet->begin();gIter!=tgtSet->end();gIter++)
 		//for(map<string,int>::iterator gIter=genes->begin();gIter!=genes->end();gIter++)
 		{
-			
+
 			int vID=varManager->getVarID(gIter->first.c_str());
-                        if(vID<0)
-                        {
-                                continue;
-                        }
-                        n++;
+            if(vID<0)
+            {
+                continue;
+            }
+            n++;
 			//if(tgtSet->find(gIter->first)==tgtSet->end())
-                	if(genes->find(gIter->first)==genes->end())
+            if(genes->find(gIter->first)==genes->end())
 			{
 				continue;
 			}
@@ -1241,7 +1206,7 @@ MetaLearner::getModuleContribLogistic(string& tgtName, string& tfName)
 	return beta_motif*contrib;
 }
 
-//To redefine the modules we will start with the original set of modules 
+//To redefine the modules we will start with the original set of modules
 //For each original module, find for every gene its pairwise similarity to every other
 //gene. merge two nodes that have the greatest pairwise similarity. replace by the merged
 //regulatory program. recompute similarity of all nodes to this merged node. repeat with
@@ -1359,7 +1324,7 @@ MetaLearner::redefineModules()
 				if(regulatorModuleOutdegree.find(var->getName())==regulatorModuleOutdegree.end())
 				{
 					regulatorModuleOutdegree[var->getName()]=1;
-				}	
+				}
 				else
 				{
 					regulatorModuleOutdegree[var->getName()]=regulatorModuleOutdegree[var->getName()]+1;
@@ -1372,6 +1337,7 @@ MetaLearner::redefineModules()
 	modFile.close();
 
 	// For any genes with no neighbors, create single gene modules
+	cout << "   Number of singleton modules: " << genesWithNoNeighbors.size() << endl;
 	for(map<string,int>::iterator gIter=genesWithNoNeighbors.begin();gIter!=genesWithNoNeighbors.end();gIter++)
 	{
 		largestModuleID++;
@@ -1381,6 +1347,7 @@ MetaLearner::redefineModules()
 		geneModuleID[gIter->first]=largestModuleID;
 	}
 	genesWithNoNeighbors.clear();
+	cout << "   Finished redefining modules; " << moduleGeneSet.size() << " total modules" << endl;
 
 	return 0;
 }

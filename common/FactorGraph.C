@@ -11,7 +11,7 @@ FactorGraph::FactorGraph(VariableManager* vMgr)
 {
 	map<int,Variable*>& variableSet=vMgr->getVariableSet();
 	int vCnt=variableSet.size();
-	cout << " Number of factors " << vCnt << endl;
+	// cout << " Number of factors " << vCnt << endl;
 
 	int factorIndex=0;
 	for(map<int,Variable*>::iterator vIter=variableSet.begin();vIter!=variableSet.end();vIter++)
@@ -34,13 +34,13 @@ FactorGraph::~FactorGraph()
 	}
 }
 
-int 
+int
 FactorGraph::getFactorCnt()
 {
 	return factorSet.size();
 }
 
-SlimFactor* 
+SlimFactor*
 FactorGraph::getFactorAt(int fid)
 {
 	if(factorSet.find(fid)==factorSet.end())
@@ -50,7 +50,7 @@ FactorGraph::getFactorAt(int fid)
 	return factorSet[fid];
 }
 
-int 
+int
 FactorGraph::dumpVarMB(ofstream& oFile,VSET& variableSet)
 {
 	for(map<int,SlimFactor*>::iterator aIter=factorSet.begin();aIter!=factorSet.end();aIter++)

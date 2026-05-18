@@ -24,14 +24,13 @@ class MetaLearner
 	MetaLearner();
 	~MetaLearner();
 	int setMaxFactorSize_Approx(int);
-	int setPenalty(double);
 	int setBeta1(double aval);
 	int setBeta_Motif(double bval);
 	int setLambda(double bval);
 	int setConvergenceThreshold(double);
 	int setRestrictedList(const char*);
 	int setPreRandomizeSplit();
-	int initEdgePriorMeta(map<string,map<string,double>*>& graph, map<int,INTDBLMAP*>& edgePrior);
+	int initEdgePriorMeta(const string& priorName, map<string,map<string,double>*>& graph, map<int,INTDBLMAP*>& edgePrior);
 	int doCrossValidation(int);
 	int setGlobalEvidenceManager(EvidenceManager*);
 	int setVariableManager(VariableManager*);
@@ -50,11 +49,10 @@ class MetaLearner
 	map <string,double> betamap;
 	map <string,map<int,INTDBLMAP*>*> edgepriormap;
 	map <string,map<string,map<string,double>*>*> priorgraphmap;
-		
+
 	double getInitPLLScore();
 	double getInitPLLScore(int vId);
 	double getPLLScore();
-	double getInitPrior();
 	double getEdgePrior(int tfID, int targetID);
 	int clearFoldSpecData();
 	int initEdgeSet();
@@ -78,13 +76,11 @@ class MetaLearner
 	VariableManager* varManager;
 
 	int maxFactorSizeApprox;
-	double penalty;
 	double convThreshold;
 	char restrictedFName[1024];
 	map<string,int> edgeMap;
 	map<string,int> restrictedVarList;
 	INTDBLMAP* currPLL;
-	char trueGraphFName[1024];
 	map<int,double> finalScores;
 	bool preRandomizeSplit;
 	gsl_rng* rnd;
