@@ -5,6 +5,11 @@
 
 SlimFactor::SlimFactor()
 {
+	vIds=NULL;
+	vCnt=0;
+	fId=-1;
+	canonicalParams=NULL;
+	potFunc=NULL;
 	refCnt=0;
 }
 
@@ -15,6 +20,8 @@ SlimFactor::SlimFactor(int fSize)
 	//secondPId=-1;
 	//confidence=0;
 	fId=-1;
+	canonicalParams=NULL;
+	potFunc=NULL;
 	refCnt=0;
 }
 

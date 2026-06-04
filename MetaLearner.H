@@ -23,6 +23,7 @@ class MetaLearner
 	public:
 	MetaLearner();
 	~MetaLearner();
+	int setShouldLoad(bool shouldLoadVal); //********
 	int setMaxFactorSize_Approx(int);
 	int setBeta1(double aval);
 	int setBeta_Motif(double bval);
@@ -44,6 +45,19 @@ class MetaLearner
 	int setPriorGraph_All(const char*);
 
 	private:
+
+	// ******** checkpointing additions
+	bool shouldLoad; //********
+	int writeCheckpointMetadata(int iter, int randseed, bool notConvergedVal); //********
+	int readCheckpointMetadata(int& iter, int& randseed, bool& notConvergedVal); //********
+	int writePLLScore(); //********
+	double loadInitPLLScore(); //********
+	int writeLastUpdate(); //********
+	int loadLastUpdate(); //********
+	int doTar(); //********
+	int readCheckpointModuleMembership(); //********
+	int populateGraphsFromFile(int maxFactorSizeApprox); //********
+
 	int start(int);
 	int initEdgePriorMeta_All();
 	map <string,double> betamap;
@@ -61,7 +75,7 @@ class MetaLearner
 	void makeMove(MetaMove* move, int currIteration);
 	void getNewPLLScore(Variable* u, Variable* v, vector<int>& parentIDs, string& edgeKey, double& mbScore, double& scoreImprovement, Potential**);
 
-	int dumpAllGraphs(int,int,int);
+	int dumpAllGraphs(int,int); // remove iter argument
 
 	int setPriorGraph(const char* aFName, map<string,map<string,double>*>& priorGraph);
 	int redefineModules();

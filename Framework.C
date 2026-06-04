@@ -40,7 +40,7 @@ Framework::init(int argc, char** argv)
 	int optret;
 	opterr=1;
 
-	while((optret=getopt(argc,argv,"o:k:d:v:l:p:r:c:h:f:q:"))!=-1)
+	while((optret=getopt(argc,argv,"o:k:d:v:l:p:r:c:h:f:q:a"))!=-1)
 	{
 		switch(optret)
 		{
@@ -130,6 +130,11 @@ Framework::init(int argc, char** argv)
 				metaLearner.setSpecificFold(atoi(optarg));
 				break;
 			}
+			case 'a':
+			{
+				metaLearner.setShouldLoad(true);
+				break;
+			}
 			case '?':
 			{
 				cerr << "Option error " << optopt << endl;
@@ -215,7 +220,8 @@ main(int argc, char* argv[])
 			<< "-o outputdirectory" << endl
 			<< "-c moduleassignment (default random_partitioning) "<< endl
 			<< "-h hierarchical_clustering_threshold (default 0.6)"<< endl
-			<< "-f specificfold_torun (default is -1)" << endl ;
+			<< "-f specificfold_torun (default is -1)" << endl 
+			<< "-a load_checkpoint (default is false)" << endl ;
 		return 0;
 	}
 	Framework fw;

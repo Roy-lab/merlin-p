@@ -5,6 +5,8 @@
 #include <sys/timeb.h>
 #include <sys/time.h>
 #include <time.h>
+#include <iomanip> // new
+#include <limits> // new
 
 #include "Error.H"
 #include "Variable.H"
@@ -26,6 +28,7 @@
 
 MetaLearner::MetaLearner()
 {
+	shouldLoad = false; //********
 	restrictedFName[0]='\0';
 	preRandomizeSplit=false;
 	random=false;
@@ -39,6 +42,13 @@ MetaLearner::MetaLearner()
 
 MetaLearner::~MetaLearner()
 {
+}
+
+int
+MetaLearner::setShouldLoad(bool shouldLoadVal) //********
+{
+	shouldLoad = shouldLoadVal;
+	return 0;
 }
 
 int
@@ -303,6 +313,7 @@ MetaLearner::readModuleMembership(const char* aFName)
 		geneModuleID[geneName]=moduleID;
 	}
 	inFile.close();
+	
 	return 0;
 }
 
@@ -477,26 +488,46 @@ MetaLearner::start(int f)
 	currFold=f;
 	sprintf(foldoutDirName,"%s/fold%d",outputDirName,f);
 	int maxNumRegs = maxFactorSizeApprox-1; // max num of regulators a gene can have
-	rnd=gsl_rng_alloc(gsl_rng_default);
+
+	int iter = 0;
 	int rseed=getpid();
+	bool notConverged=true;
+	if(shouldLoad)
+	{
+		readCheckpointMetadata(iter, rseed, notConverged);
+		iter++;
+	}
+	rnd=gsl_rng_alloc(gsl_rng_default);
 	gsl_rng_set(rnd,rseed);
 	cout << "Random seed: " << rseed << endl;
-	initEdgePriorMeta_All();
-	initEdgeSet();
-	initPhysicalDegree();
+
+	initEdgePriorMeta_All(); // populates edgepriormap
+	initEdgeSet(); // populates edgeMap, edgePresenceProb (unused), varNeighborhoodPrior, potentials
 
 	VSET& varSet=varManager->getVariableSet();
-
-	for (VSET_ITER vIter=varSet.begin(); vIter != varSet.end(); vIter++)
+	double currGlobalScore=0;
+	if (shouldLoad) //********
 	{
-		Variable *var = vIter->second;
-		variableStatus[var->getName()] = 0;
+		cout << "Read modules..." << endl;
+		readCheckpointModuleMembership(); // overwrites moduleGeneSet, geneModuleID (set by readModuleMembership)
+
+		cout << "Read networks..." << endl;
+		populateGraphsFromFile(maxFactorSizeApprox); // populates moduleIndegree, regulatorModuleOutdegree; updates edgeMap; overwrites potentials
+
+		currGlobalScore = loadInitPLLScore(); 
+		loadLastUpdate(); // populates variableStatus
+	}
+	else
+	{
+		initPhysicalDegree(); // populates moduleIndegree and regulatorModuleOutdegree
+
+		for (VSET_ITER vIter=varSet.begin(); vIter != varSet.end(); vIter++)
+		{
+			variableStatus[vIter->second->getName()] = 0;
+		}
+		currGlobalScore = getInitPLLScore();
 	}
 
-	double currGlobalScore=getInitPLLScore();
-
-	int iter=0;
-	bool notConverged=true;
 	while(notConverged && iter<50)
 	{
 		cout << "Beginning regulator identification of iter " << iter << endl;
@@ -540,9 +571,16 @@ MetaLearner::start(int f)
 			cout << "   Network not converged; score improvement of " << (currGlobalScore-scorePremodule) << ". Redefining modules." << endl;
 			redefineModules();
 		}
-		iter++;
+
 		scorePremodule=currGlobalScore;
-		dumpAllGraphs(maxNumRegs,f,iter);
+		dumpAllGraphs(maxFactorSizeApprox,f);
+
+		writeCheckpointMetadata(iter, rseed, notConverged); //********
+		writePLLScore(); //********
+		writeLastUpdate(); //********
+		doTar(); //********
+
+		iter++;
 	}
 
 	cout <<"Final Score " << currGlobalScore << endl;
@@ -645,7 +683,7 @@ MetaLearner::initEdgeSet()
 			{
 				initPrior=1-1e-6;
 			}
-			edgePresenceProb[edgeKey]=initPrior;
+			edgePresenceProb[edgeKey]=initPrior; // this is never used...
 			if(varNeighborhoodPrior.find(vIter->first)==varNeighborhoodPrior.end())
 			{
 				varNeighborhoodPrior[vIter->first]=log(1-initPrior);
@@ -1046,11 +1084,11 @@ MetaLearner::makeMove(MetaMove* nextMove, int currIteration)
 }
 
 int
-MetaLearner::dumpAllGraphs(int maxNumRegs,int foldid,int iter)
+MetaLearner::dumpAllGraphs(int maxFactorSizeApprox,int foldid) // remove iter argument
 {
 	VSET& varSet=varManager->getVariableSet();
 	char aFName[1024];
-	sprintf(aFName,"%s/prediction_k%d.txt",foldoutDirName,maxNumRegs+1);
+	sprintf(aFName,"%s/prediction_k%d.txt",foldoutDirName,maxFactorSizeApprox);
 	ofstream oFile(aFName);
 	factorGraph->dumpVarMB(oFile,varSet);
 	oFile.close();
@@ -1336,8 +1374,8 @@ MetaLearner::redefineModules()
 	}
 	modFile.close();
 
-	// For any genes with no neighbors, create single gene modules
-	cout << "   Number of singleton modules: " << genesWithNoNeighbors.size() << endl;
+	// For any genes with no neighbors, create single-gene modules
+	cout << "   Number of parentless genes: " << genesWithNoNeighbors.size() << endl;
 	for(map<string,int>::iterator gIter=genesWithNoNeighbors.begin();gIter!=genesWithNoNeighbors.end();gIter++)
 	{
 		largestModuleID++;
@@ -1431,4 +1469,416 @@ MetaLearner::initCorrelationDistances()
 			correlationDistances->setValue(cc, j, i);
 		}
 	}
+}
+
+
+// ******** checkpointing additions
+
+int
+MetaLearner::writeCheckpointMetadata(int iter, int randseed, bool notConvergedVal)
+{
+    char aFName[1024];
+    sprintf(aFName, "%s/checkpoint.txt", foldoutDirName);
+
+    ofstream outFile(aFName);
+    outFile << "iter " << iter << endl;
+    outFile << "randseed " << randseed << endl;
+    outFile << "notConverged " << notConvergedVal << endl;
+    outFile.close();
+
+    return 0;
+}
+
+int
+MetaLearner::readCheckpointMetadata(int& iter, int& randseed, bool& notConvergedVal)
+{
+    char aFName[1024];
+    sprintf(aFName, "%s/checkpoint.txt", foldoutDirName);
+
+    ifstream inFile(aFName);
+
+    string label;
+    inFile >> label >> iter;
+    inFile >> label >> randseed;
+    inFile >> label >> notConvergedVal;
+
+    inFile.close();
+
+    return 0;
+}
+
+int 
+MetaLearner::writePLLScore()
+{
+    char aFName[1024];
+    sprintf(aFName, "%s/pll.txt", foldoutDirName);
+    ofstream outFile(aFName);
+    VSET& varSet = varManager->getVariableSet();
+	if (currPLL == NULL)
+	{
+		return -1;
+	}
+	INTDBLMAP* plls = currPLL;
+
+	// Force maximum double precision to prevent truncation
+    outFile << std::setprecision(std::numeric_limits<double>::max_digits10); // new
+
+    for (VSET_ITER vIter = varSet.begin(); vIter != varSet.end(); vIter++)
+    {
+        Variable* var = varSet[vIter->first];
+        if (geneModuleID.find(var->getName()) == geneModuleID.end())
+            continue;
+        outFile << var->getName() << "\t" << (*plls)[vIter->first] << endl;
+    }
+    outFile.close();
+    return 0;
+}
+
+double 
+MetaLearner::loadInitPLLScore()
+{
+    char aFName[1024];
+    sprintf(aFName, "%s/pll.txt", foldoutDirName);
+    ifstream inFile(aFName);
+    char buffer[1024];
+
+    VSET& varSet = varManager->getVariableSet();
+    INTDBLMAP* plls = new INTDBLMAP;
+	if (currPLL != NULL)
+	{
+		delete currPLL;
+	}
+	currPLL = plls;
+
+    double initScore = 0;
+
+    while (inFile.good())
+    {
+        inFile.getline(buffer, 1023);
+        if (strlen(buffer) <= 0) 
+		{
+			continue;
+		}
+        char* tok = strtok(buffer, "\t");
+        int tokCnt = 0;
+        Variable* v = NULL;
+        double val = 0;
+        while (tok != NULL)
+        {
+            if (tokCnt == 0) 
+			{ 
+				int vid = varManager->getVarID(tok); 
+				v = varSet[vid]; 
+			}
+            else 
+			{ 
+				val = atof(tok); 
+			}
+            tok = strtok(NULL, "\t");
+            tokCnt++;
+        }
+        (*plls)[v->getID()] = val;
+        initScore += val;
+    }
+    return initScore;
+}
+
+int 
+MetaLearner::writeLastUpdate()
+{
+    char aFName[1024];
+    sprintf(aFName, "%s/lastUpdate.txt", foldoutDirName);
+    ofstream outFile(aFName);
+    VSET& varSet = varManager->getVariableSet();
+    for (VSET_ITER vIter = varSet.begin(); vIter != varSet.end(); vIter++)
+    {
+        Variable* var = varSet[vIter->first];
+        if (geneModuleID.find(var->getName()) == geneModuleID.end())
+		{
+            continue;
+		}
+        outFile << var->getName() << "\t" << variableStatus[var->getName()] << endl;
+    }
+    outFile.close();
+    return 0;
+}
+
+int 
+MetaLearner::loadLastUpdate()
+{
+    char aFName[1024];
+    sprintf(aFName, "%s/lastUpdate.txt", foldoutDirName);
+    ifstream inFile(aFName);
+    char buffer[1024];
+    VSET& varSet = varManager->getVariableSet();
+    while (inFile.good())
+    {
+        inFile.getline(buffer, 1023);
+        if (strlen(buffer) <= 0) 
+		{
+			continue;
+		}
+        char* tok = strtok(buffer, "\t");
+        int tokCnt = 0;
+        Variable* v = NULL;
+        int titer = 0;
+        while (tok != NULL)
+        {
+            if (tokCnt == 0) 
+			{ 
+				int vid = varManager->getVarID(tok); 
+				v = varSet[vid]; 
+			}
+            else 
+			{ 
+				titer = atoi(tok); 
+			}
+            tok = strtok(NULL, "\t");
+            tokCnt++;
+        }
+        variableStatus[v->getName()] = titer;
+    }
+    return 0;
+}
+
+int 
+MetaLearner::doTar()
+{
+    char tarCmd[1024];
+    sprintf(tarCmd, "tar czf %s.tar.gz %s", foldoutDirName, foldoutDirName);
+    system(tarCmd);
+    return 0;
+}
+
+int
+MetaLearner::readCheckpointModuleMembership()
+{
+	// Clear previous degree distributions
+	moduleGeneSet.clear(); 
+	geneModuleID.clear();
+
+	char aFName[1024];
+    sprintf(aFName, "%s/modules.txt", foldoutDirName);
+	ifstream inFile(aFName);
+	if (!inFile.is_open())
+	{
+		std::cerr << "Error: could not open checkpoint module file: " << aFName << std::endl;
+		return -1;
+	}
+	
+    char buffer[1024];
+    int largestModuleID = -1;
+
+    // Read clustered modules from modules.txt
+    while(inFile.good())
+    {
+        inFile.getline(buffer,1023);
+        if(strlen(buffer)<=0)
+        {
+            continue;
+        }
+
+        string geneName;
+        int moduleID = -1;
+
+        int tokCnt = 0;
+        char* tok = strtok(buffer,"\t");
+        while(tok != NULL)
+        {
+            if(tokCnt == 0)
+            {
+                geneName.append(tok);
+            }
+            else if(tokCnt == 1)
+            {
+                moduleID = atoi(tok);
+            }
+            tok = strtok(NULL,"\t");
+            tokCnt++;
+        }
+        if(moduleID > largestModuleID)
+        {
+            largestModuleID = moduleID;
+        }
+
+        map<string,int>* geneSet = NULL;
+        if(moduleGeneSet.find(moduleID) == moduleGeneSet.end())
+        {
+            geneSet = new map<string,int>;
+            moduleGeneSet[moduleID] = geneSet;
+        }
+        else
+        {
+            geneSet = moduleGeneSet[moduleID];
+        }
+        (*geneSet)[geneName] = 0;
+        geneModuleID[geneName] = moduleID;
+    }
+    inFile.close();
+
+    // Recreate singleton modules (for parentless genes) that were not written to modules.txt
+    VSET& varSet = varManager->getVariableSet();
+    int genesWithNoNeighborsCount = 0;
+    for(VSET_ITER vIter = varSet.begin(); vIter != varSet.end(); vIter++)
+    {
+        Variable* v = vIter->second;
+        string geneName = v->getName();
+        if(geneModuleID.find(geneName) != geneModuleID.end())
+        {
+            continue;
+        }
+        largestModuleID++;
+        map<string,int>* newModule = new map<string,int>;
+        (*newModule)[geneName] = 0;
+        moduleGeneSet[largestModuleID] = newModule;
+        geneModuleID[geneName] = largestModuleID;
+        genesWithNoNeighborsCount++;
+    }
+    cout << "Recovered " << genesWithNoNeighborsCount << " parentless genes not present in modules.txt" << endl;
+    cout << "Total modules after recovery: " << moduleGeneSet.size() << endl;
+    return 0;
+}
+
+
+int
+MetaLearner::populateGraphsFromFile(int maxFactorSizeApprox)
+{
+	// Clear previous degree distributions
+	moduleIndegree.clear();
+	regulatorModuleOutdegree.clear();
+	//edgeMap.clear(); we want to keep the initialized edges, and only set them to 1 if we see them.
+
+	char aFName[1024];
+    sprintf(aFName, "%s/prediction_k%d.txt", foldoutDirName, maxFactorSizeApprox);
+	ifstream inFile(aFName);
+	if (!inFile.is_open())
+	{
+		std::cerr << "Error: could not open checkpoint graph file: " << aFName << std::endl;
+		return -1;
+	}
+	
+	char buffer[1024];
+	VSET& varSet=varManager->getVariableSet();
+
+	// Parse edges and track degrees
+	while(inFile.good())
+	{	
+		inFile.getline(buffer,1023);
+		if(strlen(buffer)<=0)
+		{
+			continue;
+		}
+		char* tok=strtok(buffer,"\t");
+		int tokCnt=0;
+		Variable* u=NULL; // source variable
+		Variable* v=NULL; // target variable
+		while(tok!=NULL)
+		{
+			if(tokCnt==0) // source node
+			{
+				int vid=varManager->getVarID(tok);
+				if (vid < 0)
+				{
+					break;
+				}
+				u=varSet[vid];
+			}
+			else if(tokCnt==1) // target node
+			{
+				int vid=varManager->getVarID(tok);
+				if (vid < 0)
+				{
+					break;
+				}
+				v=varSet[vid];
+			}
+			tok=strtok(NULL,"\t");
+			tokCnt++;
+		}
+		if (u == NULL || v == NULL)
+		{
+			continue;
+		}
+
+		// Track in-degree counts for the module containing the destination variable 'v'
+		int mID=geneModuleID[v->getName()];
+		map<string,int>* currIndegree=NULL;
+		if(moduleIndegree.find(mID)==moduleIndegree.end())
+		{
+			currIndegree=new map<string,int>;
+			moduleIndegree[mID]=currIndegree;
+		}
+		else
+		{
+			currIndegree=moduleIndegree[mID];
+		}
+
+		// Increment in-degree for source 'u' pointing into module 'mID'
+		if(currIndegree->find(u->getName())==currIndegree->end())
+		{
+			(*currIndegree)[u->getName()]=1;
+		}
+		else
+		{	
+			(*currIndegree)[u->getName()]=(*currIndegree)[u->getName()]+1;
+		}
+
+		// Track overall out-degree count for the regulator variable 'u'
+		if(regulatorModuleOutdegree.find(u->getName())==regulatorModuleOutdegree.end())
+		{
+			regulatorModuleOutdegree[u->getName()]=1;
+		}
+		else
+		{
+			regulatorModuleOutdegree[u->getName()]=regulatorModuleOutdegree[u->getName()]+1;
+		}
+
+		// Update the Factor Graph: Add source to target gene's Markov Blanket
+		SlimFactor* sFactor=factorGraph->getFactorAt(u->getID());
+		SlimFactor* dFactor=factorGraph->getFactorAt(v->getID());
+		dFactor->mergedMB[sFactor->fId]=0;
+
+		// Record the unique edge path string in the global edge map
+		string edgeKey;
+		edgeKey.append(u->getName().c_str());
+		edgeKey.append("\t");
+		edgeKey.append(v->getName().c_str());
+		edgeMap[edgeKey]=1;
+	}
+
+	// Re-initialize potentials: iterate through all factors to rebuild potential distributions using the restored edges
+	for(int f=0;f<factorGraph->getFactorCnt();f++)
+	{
+		SlimFactor* sFactor=factorGraph->getFactorAt(f);
+
+		// Safely clear old potential objects to prevent memory leaks
+		if (sFactor->potFunc != NULL)
+		{
+			delete sFactor->potFunc;
+			sFactor->potFunc = NULL;
+		}
+		if (sFactor->mergedMB.size() == 0)
+		{
+			sFactor->potFunc = potManager->createPotential(sFactor->fId);
+			continue;
+		}
+
+		vector<int> parentIDs;
+		for(INTINTMAP_ITER mIter=sFactor->mergedMB.begin();mIter!=sFactor->mergedMB.end();mIter++)
+		{
+			parentIDs.push_back(mIter->first);
+		}
+
+		Potential* restoredPot = NULL;
+		potManager->computeLL(sFactor->fId, parentIDs, evidenceManager->getTrainingSet().size(), &restoredPot);
+		if (restoredPot == NULL)
+		{
+			sFactor->potFunc = potManager->createPotential(sFactor->fId);
+			continue;
+		}
+		sFactor->potFunc = restoredPot;
+	}
+
+	inFile.close();
+	return 0;
 }
