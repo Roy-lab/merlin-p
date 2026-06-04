@@ -49,7 +49,7 @@ class MetaLearner
 	// ******** checkpointing additions
 	bool shouldLoad; //********
 	int writeCheckpointMetadata(int iter, int randseed, bool notConvergedVal); //********
-	int readCheckpointMetadata(int& iter, int& randseed, bool& notConvergedVal); //********
+	bool readCheckpointMetadata(int& iter, int& randseed, bool& notConvergedVal); //********
 	int writePLLScore(); //********
 	double loadInitPLLScore(); //********
 	int writeLastUpdate(); //********

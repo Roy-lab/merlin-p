@@ -313,7 +313,7 @@ MetaLearner::readModuleMembership(const char* aFName)
 		geneModuleID[geneName]=moduleID;
 	}
 	inFile.close();
-	
+
 	return 0;
 }
 
@@ -475,6 +475,8 @@ MetaLearner::doCrossValidation(int foldCnt)
 
 		getPredictionError_CrossValid(f);
 		clearFoldSpecData();
+		// for multiple folds there is leakage: at the start of a new fold, moduleGeneSet is never reset and prev fold's modules are used in initPhysicalDegree
+		// for multiple folds there is leakage: at the start of a new fold, geneModuleID is never reset prev fold's modules are used in getNextMove, makeMove, getModuleContribLogistic
 	}
 	gsl_rng_free(r);
 
@@ -492,10 +494,14 @@ MetaLearner::start(int f)
 	int iter = 0;
 	int rseed=getpid();
 	bool notConverged=true;
+	bool loadedMetadata = false;
 	if(shouldLoad)
 	{
-		readCheckpointMetadata(iter, rseed, notConverged);
-		iter++;
+		loadedMetadata = readCheckpointMetadata(iter, rseed, notConverged);
+		if (loadedMetadata)
+		{
+			iter++;
+		}
 	}
 	rnd=gsl_rng_alloc(gsl_rng_default);
 	gsl_rng_set(rnd,rseed);
@@ -506,7 +512,7 @@ MetaLearner::start(int f)
 
 	VSET& varSet=varManager->getVariableSet();
 	double currGlobalScore=0;
-	if (shouldLoad) //********
+	if (shouldLoad && loadedMetadata) //********
 	{
 		cout << "Read modules..." << endl;
 		readCheckpointModuleMembership(); // overwrites moduleGeneSet, geneModuleID (set by readModuleMembership)
@@ -1489,7 +1495,7 @@ MetaLearner::writeCheckpointMetadata(int iter, int randseed, bool notConvergedVa
     return 0;
 }
 
-int
+bool
 MetaLearner::readCheckpointMetadata(int& iter, int& randseed, bool& notConvergedVal)
 {
     char aFName[1024];
@@ -1497,14 +1503,19 @@ MetaLearner::readCheckpointMetadata(int& iter, int& randseed, bool& notConverged
 
     ifstream inFile(aFName);
 
+    if (!inFile.is_open())
+    {
+        cerr << "Error: could not open checkpoint file: " << aFName << endl;
+        return false;
+    }
+
     string label;
     inFile >> label >> iter;
     inFile >> label >> randseed;
     inFile >> label >> notConvergedVal;
-
     inFile.close();
 
-    return 0;
+    return true;
 }
 
 int 
