@@ -85,6 +85,7 @@ MetaLearner::setPriorGraph_All(const char* aFName)
     if (!inFile.is_open())
     {
         std::cerr << "Error: Prior config file path incorrect or file cannot be opened: " << aFName << std::endl;
+		exit(-1);
     }
 
 	char buffer[1024];
@@ -215,6 +216,7 @@ MetaLearner::setPriorGraph(const char* aFName, map<string,map<string,double>*>& 
     if (!inFile.is_open())
     {
         std::cerr << "Error: Prior file path incorrect or file cannot be opened: " << aFName << std::endl;
+		exit(-1);
     }
 
 	char buffer[1024];
@@ -525,7 +527,7 @@ MetaLearner::start(int f)
 	}
 	else
 	{
-		initPhysicalDegree(); // populates moduleIndegree and regulatorModuleOutdegree
+		initPhysicalDegree(); // populates moduleIndegree and regulatorModuleOutdegree ONLY IF some initial modules contain >=5 genes. Otherwise they begin empty 
 
 		for (VSET_ITER vIter=varSet.begin(); vIter != varSet.end(); vIter++)
 		{
@@ -1104,6 +1106,24 @@ MetaLearner::dumpAllGraphs(int maxFactorSizeApprox,int foldid) // remove iter ar
 int
 MetaLearner::initPhysicalDegree()
 {
+	// Early exit: no module can pass hit>4, so entire function is a no-op
+    bool anyLargeModule = false;
+    for (auto& m : moduleGeneSet) {
+        if (m.second->size() > 4) {
+            anyLargeModule = true;
+            break;
+        }
+    }
+    if (!anyLargeModule) {
+        cout << "Skipping initPhysicalDegree: all modules have <=4 genes (hit>4 can never be satisfied)" << endl;
+        return 0;
+    }
+	// if (moduleGeneSet.size() == geneModuleID.size()) // Early exit only for all singleton modules
+	// {
+	// 	cout << "Skipping initPhysicalDegree: singleton modules" << endl;
+	// 	return 0;
+	// }
+
 	for(map<int,map<string,int>*>::iterator mIter=moduleGeneSet.begin();mIter!=moduleGeneSet.end();mIter++)
 	{
 		map<string,int>* indegree=NULL;
@@ -1170,6 +1190,7 @@ MetaLearner::initPhysicalDegree()
 			}
 		}
 	}
+
 	return 0;
 }
 

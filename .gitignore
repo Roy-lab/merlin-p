@@ -1,3 +1,4 @@
 merlin
 example/out_dir/
 example/out_dir*
+test/out_dir*
