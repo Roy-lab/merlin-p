@@ -2,6 +2,7 @@
 #define _META_LEARNER_
 
 #include <map>
+#include <unordered_map>
 #include "CommonTypes.H"
 #include "HierarchicalCluster.H"
 
@@ -18,15 +19,14 @@ class MetaLearner
 {
 	public:
 		MetaLearner();
-		~MetaLearner();
 		void setShouldLoadCheckpoint(bool shouldLoadCheckpointVal);
 		void setMaxFactorSize_Approx(int);
 		void setBeta1(double aval);
 		void setBeta_Motif(double bval);
 		void setConvergenceThreshold(double);
 		void setRestrictedList(const char*);
-		int initEdgePriorMeta(const string& priorName, map<string,map<string,double>*>& graph, map<int,INTDBLMAP*>& edgePrior);
-		int doCrossValidation(int);
+		int initEdgePriorMeta(const string& priorName, map<string, map<string, double>*>& graph, unordered_map<int, unordered_map<int, double>*>& edgePrior);
+		void doCrossValidation(int);
 		void setGlobalEvidenceManager(EvidenceManager*);
 		void setVariableManager(VariableManager*);
 		void setOutputDirName(const char*);
@@ -34,8 +34,8 @@ class MetaLearner
 		void setSpecificFold(int);
 		int getPredictionError_CrossValid(int);
 		void setRandom(bool);
-		int readModuleMembership(const char*);
-		int setDefaultModuleMembership();
+		void readModuleMembership(const char*);
+		void setDefaultModuleMembership();
 		int setPriorGraph_All(const char*);
 
 	private:
@@ -51,57 +51,63 @@ class MetaLearner
 		int readCheckpointModuleMembership(); 
 		int populateGraphsFromFile(int maxFactorSizeApprox); 
 
-		int start(int);
-		int initEdgePriorMeta_All();
+		void start(int);
+		void initEdgePriorMeta_All();
 		double getInitPLLScore();
 		double getInitPLLScore(int vId);
 		double getPLLScore();
 		double getEdgePrior(int tfID, int targetID);
-		int clearFoldSpecData();
+		void clearFoldSpecData();
 		int initEdgeSet();
-		MetaMove* getNextMove(int currK, int vID);
-		void makeMove(MetaMove* move, int currIteration);
-		void getNewPLLScore(Variable* u, Variable* v, vector<int>& parentIDs, string& edgeKey, double& mbScore, double& scoreImprovement, Potential**);
-		int dumpAllGraphs(int,int);
-		int setPriorGraph(const char* aFName, map<string,map<string,double>*>& priorGraph);
-		int redefineModules();
+		bool getNextMove(int currK, int vID, MetaMove& outMove);
+		void makeMove(MetaMove& move, int currIteration);
+		int dumpAllGraphs(int, int);
+		int setPriorGraph(const char* aFName, map<string, map<string, double>*>& priorGraph);
+		void redefineModules(int currFold);
 		double getModuleContribLogistic(string& tgtName, string& tfName);
-		int initPhysicalDegree();
-		int getEnrichedTFs(map<string,int>& tfSet,map<string,int>* genes,map<string,map<string,double>*>& edgeSet);
-		void initCorrelationDistances();
+		void initPhysicalDegree();
+		void getEnrichedTFs(map<string, int>& tfSet, map<string, int>* genes, map<string, map<string, double>*>& edgeSet);
+		void initDistances();
+		void updateSharedParentDistances();
 
 		FactorGraph* factorGraph;
 		PotentialManager* potManager;
 		EvidenceManager* evidenceManager;
 		VariableManager* varManager;
-
+		
 		bool shouldLoadCheckpoint;
-		map <string,double> betamap;
-		map <string,map<int,INTDBLMAP*>*> edgepriormap;
-		map <string,map<string,map<string,double>*>*> priorgraphmap;
+		map<string, double> betaMap;
+		map<string, unordered_map<int, unordered_map<int, double>*>*> edgePriorMap;
+		map<string, map<string, map<string, double>*>*> priorGraphMap;
 		int maxFactorSizeApprox;
 		double convThreshold;
 		char restrictedFName[1024];
-		map<string,int> edgeMap;
+		unordered_map<int, unordered_map<int, int>> edgeMap;
 		map<string,int> restrictedVarList;
-		INTDBLMAP* currPLL;
-		map<int,double> finalScores;
+		unordered_map<int, double>* currPLL;
+		map<int, double> finalScores;
 		char outputDirName[1024];
-		map<string,double> edgePresenceProb;
-		map<int,double> varNeighborhoodPrior;
+		map<string, double> edgePresenceProb;
+		map<int, double> varNeighborhoodPrior;
 		double beta1;
 		double beta_motif;
 		bool random;
-		map<int,map<string,int>*> moduleGeneSet;
-		map<string,int> geneModuleID;
-		map<int,map<string,int>*> moduleIndegree;
-		map<string,int> regulatorModuleOutdegree;
+		map<int, map<string, int>*> moduleGeneSet;
+		unordered_map<string, int> geneModuleID;
+		unordered_map<int, unordered_map<string, int>*> moduleIndegree;
+		unordered_map<string, int> regulatorModuleOutdegree;
 		double clusterThreshold;
-		map<string,int> variableStatus;
-		int currFold;
+		unordered_map<string, int> variableStatus;
 		char foldoutDirName[1024];
 		int specificFold;
 		HierarchicalCluster hc;
 		Matrix* correlationDistances;
+		Matrix* sharedParentDistances;
+
+		// Tracks whether two nodes share at least one parent.
+		unordered_map<int, unordered_map<int, int>> sharedParents;
+
+		// Var ids of any nodes with a parent added this iteration.
+		vector<int> updatedThisIteration;
 };
 #endif

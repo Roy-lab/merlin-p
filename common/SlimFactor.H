@@ -21,7 +21,6 @@ class SlimFactor
 		int genMBSubsets(int);
 		int thresholdToOne(double);
 		bool allEntriesInsignificant();
-		int showFactor(ostream&, VSET& variableSet, bool newLine=true);
 		int fId;
 		int* vIds;
 		int vCnt;

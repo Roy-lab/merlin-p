@@ -1,29 +1,42 @@
 #include <iostream>
 #include <math.h>
+#include <algorithm>
 #include "Evidence.H"
 #include "Potential.H"
 
 #include "gsl/gsl_randist.h"
 
-Potential::Potential(int factorID, double variance, double bias, INTDBLMAP& weights)
+Potential::Potential(int factorID, double variance, double bias, unordered_map<int, double>& weights)
 {
 	this->factorID = factorID;
 	this->variance = variance;
 	this->bias = bias;
-	this->weights = weights;
+
+	this->weights.reserve(weights.size());
+
+	// Copy over the weights
+	for (auto iter = weights.begin(); iter != weights.end(); iter++) {
+		this->weights.emplace_back(iter->first, iter->second);
+	}
+
+	// Sort the weights by var ID. Keeping these sorted makes it easier to find the intersection of parents between two potentials,
+	// which we do when defining modules.
+	sort(this->weights.begin(), this->weights.end(), [](const pair<int, double>& a, const pair<int, double>& b) {
+		return a.first < b.first;
+	});
 }
 
-INTDBLMAP&
+vector<pair<int, double>>&
 Potential::getWeights()
 {
 	return weights;
 }
 
 double
-Potential::getExpectation(map<int,Evidence*>* evidenceSet)
+Potential::getExpectation(unordered_map<int, Evidence*>* evidenceSet)
 {
 	double mean=0;
-	for(INTDBLMAP_ITER aIter=weights.begin();aIter!=weights.end();aIter++)
+	for(auto aIter = weights.begin(); aIter != weights.end(); aIter++)
 	{
 		if(evidenceSet->find(aIter->first)==evidenceSet->end())
 		{
@@ -38,10 +51,9 @@ Potential::getExpectation(map<int,Evidence*>* evidenceSet)
 }
 
 double
-Potential::evaluateProbabilityDensity(map<int,Evidence*>* evidMap)
+Potential::evaluateProbabilityDensity(unordered_map<int, Evidence*>* evidMap)
 {
-	if(evidMap->find(factorID)==evidMap->end())
-	{
+	if(evidMap->find(factorID)==evidMap->end()) {
 		cerr <<"Fatal error! No variable assignment for " << factorID << endl;
 		exit(-1);
 	}

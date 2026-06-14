@@ -7,6 +7,7 @@
 #include <time.h>
 #include <iomanip>
 #include <limits>
+#include <algorithm>
 
 #include "Error.H"
 #include "Variable.H"
@@ -37,10 +38,7 @@ MetaLearner::MetaLearner()
 	factorGraph=nullptr;
 	currPLL=nullptr;
 	correlationDistances=nullptr;
-}
-
-MetaLearner::~MetaLearner()
-{
+	sharedParentDistances=nullptr;
 }
 
 void
@@ -61,17 +59,15 @@ MetaLearner::setBeta1(double aval)
 	beta1=aval;
 }
 
-int
+void
 MetaLearner::initEdgePriorMeta_All()
 {
-	for(map<string,map<string,map<string,double>*>*>::iterator gIter=priorgraphmap.begin();gIter!=priorgraphmap.end();gIter++)
-	{
-		map<string,map<string,double>*>* priorgraph = gIter->second;
-		map<int,INTDBLMAP*>* edgeprior = new map<int,INTDBLMAP*>();
-		edgepriormap[gIter->first] = edgeprior;
+	for(map<string, map<string, map<string, double>*>*>::iterator gIter = priorGraphMap.begin(); gIter != priorGraphMap.end(); gIter++) {
+		map<string, map<string, double>*>* priorgraph = gIter->second;
+		unordered_map<int, unordered_map<int, double>*>* edgeprior = new unordered_map<int, unordered_map<int, double>*>();
+		edgePriorMap[gIter->first] = edgeprior;
 		initEdgePriorMeta(gIter->first,*priorgraph,*edgeprior);
 	}
-	return 0;
 }
 
 int
@@ -114,7 +110,7 @@ MetaLearner::setPriorGraph_All(const char* aFName)
 			tok=strtok(NULL,"\t");
 			tokCnt++;
 		}
-		betamap[gname] = gbeta;
+		betaMap[gname] = gbeta;
 		map<string,map<string,double>*>* priorGraph = new map<string,map<string,double>*>();
 		int status = setPriorGraph(fname.c_str(), *priorGraph);
 		if(status != Error::SUCCESS)
@@ -123,7 +119,7 @@ MetaLearner::setPriorGraph_All(const char* aFName)
 			delete priorGraph;
 			return status;
 		}
-		priorgraphmap[gname] = priorGraph;
+		priorGraphMap[gname] = priorGraph;
 	}
 	inFile.close();
 	return Error::SUCCESS;
@@ -187,7 +183,6 @@ MetaLearner::setClusteringThreshold(double aVal)
 {
 	clusterThreshold=aVal;
 }
-
 
 void
 MetaLearner::setSpecificFold(int fid)
@@ -257,7 +252,7 @@ MetaLearner::setRandom(bool flag)
 	random=flag;
 }
 
-int
+void
 MetaLearner::readModuleMembership(const char* aFName)
 {
 	ifstream inFile(aFName);
@@ -300,15 +295,13 @@ MetaLearner::readModuleMembership(const char* aFName)
 		geneModuleID[geneName]=moduleID;
 	}
 	inFile.close();
-
-	return 0;
 }
 
-int
+void
 MetaLearner::setDefaultModuleMembership()
 {
-	VSET& varSet=varManager->getVariableSet();
-	int vCnt=varSet.size();
+	unordered_map<int, Variable*>& varSet = varManager->getVariableSet();
+	int vCnt = varSet.size();
 	int moduleCnt=(int) sqrt(vCnt/2);
 	if(moduleCnt>30)
 	{
@@ -354,17 +347,15 @@ MetaLearner::setDefaultModuleMembership()
 	}
 	randIndex.clear();
 	usedInit.clear();
-	return 0;
 }
 
 int
-MetaLearner::initEdgePriorMeta(const string& priorName, map<string,map<string,double>*>& graph, map<int,INTDBLMAP*>& edgePriors)
+MetaLearner::initEdgePriorMeta(const string& priorName, map<string,map<string,double>*>& graph, unordered_map<int, unordered_map<int, double>*>& edgePriors)
 {
-	VSET& varSet=varManager->getVariableSet();
 	cout << "Initializing prior: \"" << priorName << "\" " << endl;
 	for(map<string,int>::iterator rIter=restrictedVarList.begin();rIter!=restrictedVarList.end();rIter++)
 	{
-		int regId=varManager->getVarID(rIter->first.c_str());
+		int regId=varManager->getVarID(rIter->first);
 		if(regId==-1)
 		{
 			continue;
@@ -377,44 +368,34 @@ MetaLearner::initEdgePriorMeta(const string& priorName, map<string,map<string,do
 		map<string,double>* tgtSet=graph[rIter->first];
 		for(map<string,double>::iterator vIter=tgtSet->begin();vIter!=tgtSet->end();vIter++)
 		{
-			INTDBLMAP* edgePriorGene=NULL;
-			int tgtId=varManager->getVarID(vIter->first.c_str());
-			if(tgtId==-1)
-			{
+			unordered_map<int, double>* edgePriorGene = NULL;
+			int tgtId = varManager->getVarID(vIter->first);
+			if (tgtId == -1) {
 				continue;
 			}
-			if(edgePriors.find(tgtId)==edgePriors.end())
-			{
-				edgePriorGene=new INTDBLMAP;
-				edgePriors[tgtId]=edgePriorGene;
-			}
-			else
-			{
-				edgePriorGene=edgePriors[tgtId];
+			if (edgePriors.find(tgtId) == edgePriors.end()) {
+				edgePriorGene = new unordered_map<int, double>;
+				edgePriors[tgtId] = edgePriorGene;
+			} else {
+				edgePriorGene = edgePriors[tgtId];
 			}
 			double ewt=fabs(vIter->second);
-			if(edgePriorGene->find(regId)==edgePriorGene->end())
-			{
-				//(*edgePriorGene)[regId]=vIter->second;
-				(*edgePriorGene)[regId]=ewt;
-			}
-			else
-			{
-				//(*edgePriorGene)[regId]=(*edgePriorGene)[regId]+vIter->second;
-				(*edgePriorGene)[regId]=(*edgePriorGene)[regId]+ewt;
+			if (edgePriorGene->find(regId) == edgePriorGene->end()) {
+				(*edgePriorGene)[regId] = ewt;
+			} else {
+				(*edgePriorGene)[regId] += ewt;
 			}
 			tfhit++;
 		}
-		// cout << " Regulator "<< rIter->first << " has " << tfhit << " targets" << endl;
 	}
 
 	return 0;
 }
 
-int
+void
 MetaLearner::doCrossValidation(int foldCnt)
 {
-	gsl_rng* r=gsl_rng_alloc(gsl_rng_default);
+	gsl_rng* r = gsl_rng_alloc(gsl_rng_default);
 
 	evidenceManager->setFoldCnt(foldCnt);
 	evidenceManager->splitData(0);
@@ -424,25 +405,23 @@ MetaLearner::doCrossValidation(int foldCnt)
 	//The first key is for the fold number
 	//For each fold we have a trained model. For each trained model we have the likelihood on
 	//all the test sets, including the self test.
-	int foldBegin=0;
-	int foldEnd=foldCnt;
-	if(specificFold>-1)
-	{
-		foldBegin=specificFold;
-		foldEnd=specificFold+1;
+	int foldBegin = 0;
+	int foldEnd = foldCnt;
+	if(specificFold > -1) {
+		foldBegin = specificFold;
+		foldEnd = specificFold + 1;
 	}
-	for(int f=foldBegin;f<foldEnd;f++)
-	{
+
+	for(int f = foldBegin; f < foldEnd; f++) {
 		evidenceManager->splitData(f);
-		if(random)
-		{
+		if(random) {
 			evidenceManager->randomizeEvidence(r, varManager);
 		}
 
 		vector<int> regIDs;
 		for (map<string,int>::iterator iter = restrictedVarList.begin(); iter != restrictedVarList.end(); iter++)
 		{
-			int regID = varManager->getVarID(iter->first.c_str());
+			int regID = varManager->getVarID(iter->first);
 			regIDs.push_back(regID);
 		}
 
@@ -451,7 +430,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 		factorGraph = new FactorGraph(varManager);
 
 		char outputDir[1024];
-		sprintf(outputDir,"%s/fold%d",outputDirName,f);
+		sprintf(outputDir,"%s/fold%d", outputDirName, f);
 		char foldOutputDirCmd[1024];
 		sprintf(foldOutputDirCmd,"mkdir -p %s",outputDir);
 		system(foldOutputDirCmd);
@@ -463,16 +442,13 @@ MetaLearner::doCrossValidation(int foldCnt)
 		clearFoldSpecData();
 	}
 	gsl_rng_free(r);
-
-	return 0;
 }
 
-int
-MetaLearner::start(int f)
+void
+MetaLearner::start(int currFold)
 {
-	currFold=f;
-	sprintf(foldoutDirName,"%s/fold%d",outputDirName,f);
-	int maxNumRegs = maxFactorSizeApprox-1; // max num of regulators a gene can have
+	sprintf(foldoutDirName, "%s/fold%d", outputDirName, currFold);
+	int maxNumRegs = maxFactorSizeApprox - 1;
 
 	int iter = 0;
 	bool notConverged=true;
@@ -486,103 +462,104 @@ MetaLearner::start(int f)
 		}
 	}
 
-	initEdgePriorMeta_All(); // populates edgepriormap
-	initEdgeSet(); // populates edgeMap, edgePresenceProb (unused), varNeighborhoodPrior, potentials
+	initEdgePriorMeta_All(); // populates edgePriorMap
+	initEdgeSet(); // populates edgeMap, edgePresenceProb, varNeighborhoodPrior, potentials
 
-	VSET& varSet=varManager->getVariableSet();
-	double currGlobalScore=0;
-	if (shouldLoadCheckpoint && loadedMetadata)
-	{
+	double currGlobalScore = 0;
+	unordered_map<int, Variable*>& varSet = varManager->getVariableSet();
+
+	if (shouldLoadCheckpoint && loadedMetadata) {
+
+		// overwrites moduleGeneSet, geneModuleID (set by readModuleMembership)
 		cout << "Read modules..." << endl;
-		readCheckpointModuleMembership(); // overwrites moduleGeneSet, geneModuleID (set by readModuleMembership)
+		readCheckpointModuleMembership();
 
+		// populates moduleIndegree, regulatorModuleOutdegree; updates edgeMap; overwrites potentials
 		cout << "Read networks..." << endl;
-		populateGraphsFromFile(maxFactorSizeApprox); // populates moduleIndegree, regulatorModuleOutdegree; updates edgeMap; overwrites potentials
+		populateGraphsFromFile(maxFactorSizeApprox);
 
 		currGlobalScore = loadInitPLLScore(); 
-		loadLastUpdate(); // populates variableStatus
-	}
-	else
-	{
-		initPhysicalDegree(); // populates moduleIndegree and regulatorModuleOutdegree ONLY IF some initial modules contain >=5 genes. Otherwise they begin empty 
 
-		for (VSET_ITER vIter=varSet.begin(); vIter != varSet.end(); vIter++)
-		{
-			variableStatus[vIter->second->getName()] = 0;
+		// populates variableStatus
+		loadLastUpdate(); 
+
+	} else {
+		// populates moduleIndegree and regulatorModuleOutdegree ONLY IF some initial modules contain >=5 genes. Otherwise they begin empty 
+		initPhysicalDegree();
+
+		for (auto vIter = varSet.begin(); vIter != varSet.end(); vIter++) {
+			Variable *var = vIter->second;
+			variableStatus[var->getName()] = 0;
 		}
+
 		currGlobalScore = getInitPLLScore();
 	}
 
-	while(notConverged && iter<50)
-	{
+	while(notConverged && iter<50) {
 		cout << "Beginning regulator identification of iter " << iter << endl;
-		int subiter=0;
-		double scorePremodule=currGlobalScore;
-		while(subiter<varSet.size())
-		{
-			int vID=subiter;
-			Variable* v=varSet[vID];
+
+		int varID = 0;
+		double scorePremodule = currGlobalScore;
+
+		while(varID < varSet.size()) {
+
+			Variable* v = varSet[varID];
 
 			// If 5 iterations have passed without finding a score improving parent, then skip.
 			int lastiter = variableStatus[v->getName()];
-			if((iter - lastiter) >= 5)
-			{
-				// cout <<"   Skipping gene " << v->getName() << "; no parents added in last 5 iters." << endl;
-				subiter++;
+			if((iter - lastiter) >= 5) {
+				cout <<"   Skipping gene " << v->getName() << "; no parents added in last 5 iters." << endl;
+				varID++;
 				continue;
 			}
 
-			MetaMove* nextMove = getNextMove(maxNumRegs, vID);
-			if (nextMove == nullptr)
-			{
-				subiter++;
+			MetaMove nextMove;
+			if (!getNextMove(maxNumRegs, varID, nextMove)) {
+				cout <<"   No move found " << v->getName() << endl;
+				varID++;
 				continue;
 			}
 
 			makeMove(nextMove, iter);
-			delete nextMove;
 
-			currGlobalScore=getPLLScore();
+			currGlobalScore = getPLLScore();
 
-			subiter++;
+			varID++;
 		}
 		cout << "   Finished identifying regulators with score " << currGlobalScore << endl;
-		if((currGlobalScore-scorePremodule)<=convThreshold)
-		{
-			notConverged=false;
-		}
-		else
-		{
-			cout << "   Network not converged; score improvement of " << (currGlobalScore-scorePremodule) << ". Redefining modules." << endl;
-			redefineModules();
+
+		notConverged = (currGlobalScore - scorePremodule) > convThreshold;
+
+		if(notConverged) {
+			cout << "   Network not converged; score improvement of " << (currGlobalScore - scorePremodule) << ". Redefining modules." << endl;
+			redefineModules(currFold);
 		}
 
-		scorePremodule=currGlobalScore;
-		dumpAllGraphs(maxFactorSizeApprox,f);
+		scorePremodule = currGlobalScore;
+		dumpAllGraphs(maxFactorSizeApprox, currFold);
 
-		// checkpointing:
+		// Checkpointing
 		writeCheckpointMetadata(iter, notConverged);
 		writePLLScore();
 		writeLastUpdate();
 		doTar();
 
 		iter++;
+		updatedThisIteration.clear();
 	}
 
-	cout <<"Final Score " << currGlobalScore << endl;
-	finalScores[f]=currGlobalScore;
-	return 0;
+	cout << "Final Score " << currGlobalScore << endl;
+	finalScores[currFold] = currGlobalScore;
 }
 
 double
 MetaLearner::getInitPLLScore()
 {
 	double initScore=0;
-	VSET& varSet=varManager->getVariableSet();
+	unordered_map<int, Variable*>& varSet = varManager->getVariableSet();
 	//Initially we just sum up the marginal likelihoods
-	currPLL=new INTDBLMAP;
-	for(VSET_ITER vIter=varSet.begin();vIter!=varSet.end();vIter++)
-	{
+	currPLL=new unordered_map<int, double>;
+	for(auto vIter = varSet.begin(); vIter != varSet.end(); vIter++) {
 		if(varNeighborhoodPrior.find(vIter->first)==varNeighborhoodPrior.end())
 		{
 			continue;
@@ -600,18 +577,16 @@ double
 MetaLearner::getPLLScore()
 {
 	double gScore=0;
-	for(INTDBLMAP_ITER dIter=currPLL->begin();dIter!=currPLL->end();dIter++)
-	{
-		if(isnan(gScore) || isinf(gScore))
-		{
+	for(auto dIter = currPLL->begin(); dIter != currPLL->end(); dIter++) {
+		if(isnan(gScore) || isinf(gScore)) {
 			cout << "Found nan/inf for variable " << dIter->first << endl;
 		}
-		gScore=gScore+dIter->second;
+		gScore += dIter->second;
 	}
 	return gScore;
 }
 
-int
+void
 MetaLearner::clearFoldSpecData()
 {
 	if (factorGraph != nullptr)
@@ -620,29 +595,27 @@ MetaLearner::clearFoldSpecData()
 		factorGraph = nullptr;
 	}
 	edgeMap.clear();
+	sharedParents.clear();
 	if (currPLL != nullptr)
 	{
 		delete currPLL;
 		currPLL = nullptr;
 	}
-	return 0;
 }
 
 int
 MetaLearner::initEdgeSet()
 {
-	VSET& varSet=varManager->getVariableSet();
-	for(VSET_ITER uIter=varSet.begin();uIter!=varSet.end();uIter++)
-	{
-		Variable* u=varSet[uIter->first];
+	unordered_map<int, Variable*>& varSet = varManager->getVariableSet();
+	for(auto uIter = varSet.begin(); uIter != varSet.end(); uIter++) {
+		Variable* u = varSet[uIter->first];
 		if((restrictedVarList.size()>0) && (restrictedVarList.find(u->getName())==restrictedVarList.end()))
 		{
 			continue;
 		}
 
-		for(VSET_ITER vIter=varSet.begin();vIter!=varSet.end();vIter++)
-		{
-			if(uIter->first==vIter->first)
+		for(auto vIter = varSet.begin(); vIter != varSet.end(); vIter++) {
+			if(uIter->first == vIter->first)
 			{
 				continue;
 			}
@@ -651,13 +624,12 @@ MetaLearner::initEdgeSet()
 			{
 				continue;
 			}
+
+			// This is going to be a directed graph. edgeKey looks like "reg_name\tgene_name"
 			string edgeKey;
-			//This is going to be a directed graph. edgeKey looks like "reg_name\tgene_name"
 			edgeKey.append(u->getName().c_str());
 			edgeKey.append("\t");
 			edgeKey.append(v->getName().c_str());
-
-			edgeMap[edgeKey]=0; //initialize this edge to absent for the future LEARNED graph
 
 			double initPrior=getEdgePrior(uIter->first,vIter->first);
 			initPrior = 1/(1+exp(-1*initPrior));
@@ -684,7 +656,6 @@ MetaLearner::initEdgeSet()
 	int n=varSet.size();
 	int r=restrictedVarList.size();
 	int expEdgeCnt=r*(n-1);
-	// cout <<"Initialized " << edgeMap.size() << " edges. Expected " << expEdgeCnt << endl;
 
 	// Init the potentials
 	for(int f=0;f<factorGraph->getFactorCnt();f++)
@@ -699,7 +670,7 @@ MetaLearner::initEdgeSet()
 int
 MetaLearner::getPredictionError_CrossValid(int foldid)
 {
-	VSET& varSet=varManager->getVariableSet();
+	unordered_map<int, Variable*>& varSet = varManager->getVariableSet();
 	char foldoutDirName[1024];
 	sprintf(foldoutDirName,"%s/fold%d",outputDirName,foldid);
 	INTINTMAP& testSet=evidenceManager->getTestSet();
@@ -709,9 +680,9 @@ MetaLearner::getPredictionError_CrossValid(int foldid)
 		//for each gc, get the expected value of this datapoint
 		EMAP* evidMap=evidenceManager->getEvidenceAt(dIter->first);
 
-		for(map<string,int>::iterator vIter=geneModuleID.begin();vIter!=geneModuleID.end();vIter++)
+		for(auto vIter=geneModuleID.begin();vIter!=geneModuleID.end();vIter++)
 		{
-			int vId=varManager->getVarID(vIter->first.c_str());
+			int vId=varManager->getVarID(vIter->first);
 			if(vId==-1)
 			{
 				continue;
@@ -753,9 +724,9 @@ MetaLearner::getPredictionError_CrossValid(int foldid)
 	*/
 	vector<double> truevect;
 	vector<double> predvect;
-	for(map<string,int>::iterator vIter=geneModuleID.begin();vIter!=geneModuleID.end();vIter++)
+	for(auto vIter=geneModuleID.begin();vIter!=geneModuleID.end();vIter++)
 	{
-		int vId=varManager->getVarID(vIter->first.c_str());
+		int vId=varManager->getVarID(vIter->first);
 		if(vId==-1)
 		{
 			continue;
@@ -810,137 +781,132 @@ MetaLearner::getPredictionError_CrossValid(int foldid)
 	return 0;
 }
 
-MetaMove*
-MetaLearner::getNextMove(int maxNumRegs, int vID)
+bool
+MetaLearner::getNextMove(int maxNumRegs, int vID, MetaMove& outMove)
 {
-	VSET& varSet=varManager->getVariableSet();
+	unordered_map<int, Variable*>& varSet = varManager->getVariableSet();
 	Variable* v = varSet[vID];
 
-	if(geneModuleID.find(v->getName()) == geneModuleID.end())
-	{
-		return nullptr;
+	if(geneModuleID.find(v->getName()) == geneModuleID.end()) {
+		return false;
 	}
 
 	// If v already has the max number of parents, dont test adding another.
 	SlimFactor* dFactor = factorGraph->getFactorAt(vID);
-	if(dFactor->mergedMB.size() >= maxNumRegs)
-	{
-		return nullptr;
+	if(dFactor->mergedMB.size() >= maxNumRegs) {
+		return false;
 	}
 
 	// Collect the new set of parents for v
 	vector<int> parentIDs;
-	for (INTINTMAP_ITER iter = dFactor->mergedMB.begin(); iter != dFactor->mergedMB.end(); iter++)
-	{
+	for (INTINTMAP_ITER iter = dFactor->mergedMB.begin(); iter != dFactor->mergedMB.end(); iter++) {
 		parentIDs.push_back(iter->first);
 	}
 
-	int moduleID=geneModuleID[v->getName()];
-	map<string,int>* moduleMembers=moduleGeneSet[moduleID];
-
-	double bestTargetScore=0;
-	double bestScoreImprovement=0;
-	Variable* bestu=NULL;
-	Potential* bestPot=NULL;
-
-	for(map<string,int>::iterator uIter=restrictedVarList.begin();uIter!=restrictedVarList.end();uIter++)
-	{
-		int regID=varManager->getVarID(uIter->first.c_str());
-
-		// Ensure we can find the regulator, and that it isnt the same node as the target.
-		if(regID==-1 || vID==regID)
-		{
-			continue;
-		}
-
-		Variable* u=varSet[regID];
-
-		string edgeKey;
-		edgeKey.append(u->getName().c_str());
-		edgeKey.append("\t");
-		edgeKey.append(v->getName().c_str());
-
-		// If the edge already exists, no need to test adding it.
-		int edgeValue=edgeMap[edgeKey];
-		if(edgeValue==1)
-		{
-			continue;
-		}
-
-		double improvement = 0;
-		double score = 0;
-		Potential* aPot = NULL;
-
-		parentIDs.push_back(u->getID());
-
-		getNewPLLScore(u, v, parentIDs, edgeKey, score, improvement, &aPot);
-
-		parentIDs.pop_back();
-
-		bool betterMoveExists = (bestu != NULL) && (bestScoreImprovement >= improvement);
-
-		// If there is no score improvement, cleanup aPot and continue.
-		if (improvement < 0 || betterMoveExists)
-		{
-			if (aPot != NULL)
-			{
-				delete aPot;
-			}
-			continue;
-		}
-
-		if(bestPot != NULL)
-		{
-			delete bestPot;
-		}
-
-		bestu = u;
-		bestTargetScore = score;
-		bestScoreImprovement = improvement;
-		bestPot = aPot;
-	}
-
-	// If we could not find a parent to add to v that would improve the score:
-	if((bestu == NULL) || (bestScoreImprovement <= 0))
-	{
-		return nullptr;
-	}
-
-	MetaMove* nextMove = new MetaMove;
-	nextMove->setSrcVertex(bestu->getID());
-	nextMove->setTargetVertex(v->getID());
-	nextMove->setTargetMBScore(bestTargetScore);
-	nextMove->setScoreImprovement(bestScoreImprovement);
-	nextMove->setDestPot(bestPot);
-	return nextMove;
-}
-
-void
-MetaLearner::getNewPLLScore(Variable* u, Variable* v, vector<int>& parentIDs, string& edgeKey, double& mbScore, double& scoreImprovement, Potential** newdPot)
-{
-	int factorID = v->getID();
-	VSET& varSet = varManager->getVariableSet();
-
-	double plus = 0;
-	double minus = 0;
-	for (vector<int>::iterator iter = parentIDs.begin(); iter != parentIDs.end(); iter++)
-	{
+	double existingParentPlus = 0;
+	double existingParentMinus = 0;
+	for (vector<int>::iterator iter = parentIDs.begin(); iter != parentIDs.end(); iter++) {
 		Variable* parentVar = varSet[*iter];
-		double eprior = getEdgePrior(*iter, factorID);
+		double eprior = getEdgePrior(*iter, vID);
 		double moduleContrib = getModuleContribLogistic((string&)v->getName(), (string&)parentVar->getName());
 		double edgeProb = 1 / (1 + exp(-1 * (eprior + moduleContrib)));
 		double edgeProbOld = 1 / (1 + exp(-1 * eprior));
-		minus += log(1 - edgeProbOld);
-		plus += log(edgeProb);
+		existingParentMinus += log(1 - edgeProbOld);
+		existingParentPlus += log(edgeProb);
 	}
+
+	double existingParentPrior = varNeighborhoodPrior[vID] + existingParentPlus - existingParentMinus;
 
 	INTINTMAP* tSet = &evidenceManager->getTrainingSet();
 	int datasize = tSet->size();
 
-	double currPrior = varNeighborhoodPrior[factorID] + plus - minus;
-	double condLL = potManager->computeLL(factorID, parentIDs, datasize, newdPot);
-	mbScore = condLL + currPrior;
-	scoreImprovement = mbScore - (*currPLL)[factorID];
+	int moduleID = geneModuleID[v->getName()];
+	map<string, int>* moduleMembers = moduleGeneSet[moduleID];
+
+	// Collect all the candidate parents, and the edge priors for each of them.
+	vector<int> candidateParents;
+	vector<double> candidatePriors;
+	for(map<string,int>::iterator uIter = restrictedVarList.begin(); uIter != restrictedVarList.end(); uIter++) {
+		int regID = varManager->getVarID(uIter->first);
+
+		// Ensure we can find the regulator, and that it isnt the same node as the target.
+		if(regID == -1 || vID == regID) {
+			continue;
+		}
+
+		Variable* u = varSet[regID];
+
+		// If the edge already exists, no need to test adding it.
+		auto regEdgeIter = edgeMap.find(regID);
+		if (regEdgeIter != edgeMap.end()) {
+			auto targetEdgeIter = regEdgeIter->second.find(vID);
+			if (targetEdgeIter != regEdgeIter->second.end() && targetEdgeIter->second == 1) {
+				continue;
+			}
+		}
+
+		double candidateEdgePrior = getEdgePrior(regID, vID);
+		double candidateModuleContrib = getModuleContribLogistic((string&)v->getName(), (string&)u->getName());
+		double candidateEdgeProb = 1 / (1 + exp(-1 * (candidateEdgePrior + candidateModuleContrib)));
+		double candidateEdgeProbOld = 1 / (1 + exp(-1 * candidateEdgePrior));
+		double candidatePlus = log(candidateEdgeProb);
+		double candidateMinus = log(1 - candidateEdgeProbOld);
+		double candidatePrior = existingParentPrior + candidatePlus - candidateMinus;
+
+		candidateParents.push_back(regID);
+		candidatePriors.push_back(candidatePrior);
+	}
+
+	// Collect the data likelihood for each candidate parent.
+	unordered_map<int, double> candidateScores;
+	potManager->computeLLs(vID, datasize, parentIDs, candidateParents, candidateScores);
+
+	double bestScore = 0;
+	double bestScoreImprovement = 0;
+	Variable* bestRegulator = NULL;
+
+	// Select the best scoring candidate parent.
+	for (int i = 0; i < candidateParents.size(); i++) {
+		int regID = candidateParents[i];
+		double candidatePrior = candidatePriors[i];
+
+		auto scoreIter = candidateScores.find(regID);
+		if (scoreIter == candidateScores.end()) {
+			continue;
+		}
+
+		double condLL = scoreIter->second;
+		double score = condLL + candidatePrior;
+		double improvement = score - (*currPLL)[vID];
+
+		bool betterMoveExists = (bestRegulator != NULL) && (bestScoreImprovement >= improvement);
+
+		// If there is no score improvement, cleanup aPot and continue.
+		if (improvement < 0 || betterMoveExists) {
+			continue;
+		}
+
+		bestRegulator = varSet[regID];
+		bestScore = score;
+		bestScoreImprovement = improvement;
+	}
+
+	// If we could not find a parent to add to v that would improve the score:
+	if(bestRegulator == NULL || bestScoreImprovement <= 0) {
+		return false;
+	}
+
+	parentIDs.push_back(bestRegulator->getID());
+
+	Potential* potential = potManager->createPotential(vID, parentIDs);
+
+	outMove.setSrcVertex(bestRegulator->getID());
+	outMove.setTargetVertex(v->getID());
+	outMove.setTargetMBScore(bestScore);
+	outMove.setScoreImprovement(bestScoreImprovement);
+	outMove.setDestPot(potential);
+
+	return true;
 }
 
 double
@@ -975,278 +941,245 @@ MetaLearner::getInitPLLScore(int vId)
 double
 MetaLearner::getEdgePrior(int tfID, int targetID)
 {
-	INTDBLMAP* regPriors=NULL;
-	double prior=beta1;
 	double fwt = 0;
-	for (map<string,map<int,INTDBLMAP*>*>::iterator pItr=edgepriormap.begin(); pItr!=edgepriormap.end(); pItr++)
-	{
-		double eweight=0;
-		double gbeta = 0;
-		map<int,INTDBLMAP*>* edgeprior = pItr->second;
-		if(edgeprior->find(targetID)!=edgeprior->end())
-		{
-			regPriors=(*edgeprior)[targetID];
-			if(regPriors->find(tfID)!=regPriors->end())
-			{
-				eweight=(*regPriors)[tfID];
-				gbeta = betamap[pItr->first];
-				fwt = fwt + gbeta*eweight;
-			}
+	for (map<string, unordered_map<int, unordered_map<int, double>*>*>::iterator pItr = edgePriorMap.begin(); pItr != edgePriorMap.end(); pItr++) {
+
+		unordered_map<int, unordered_map<int, double>*>* edgeprior = pItr->second;
+		unordered_map<int, unordered_map<int, double>*>::iterator targetIter = edgeprior->find(targetID);
+		if (targetIter == edgeprior->end()) {
+			continue;
 		}
+
+		unordered_map<int, double>* regPriors = targetIter->second;
+		unordered_map<int, double>::iterator regIter = regPriors->find(tfID);
+		if (regIter == regPriors->end()) {
+			continue;
+		}
+
+		double eWeight = regIter->second;
+		double gBeta = betaMap[pItr->first];
+		fwt += gBeta * eWeight;
 	}
-	prior=beta1+fwt;
-	//if(prior<1e-6)
-	//{
-	//	prior=1e-6;
-	//}
-	//if(prior==1)
-	//{
-	//	prior=1-1e-6;
-	//}
+	double prior = beta1 + fwt;
 	return prior;
 }
 
 void
-MetaLearner::makeMove(MetaMove* nextMove, int currIteration)
+MetaLearner::makeMove(MetaMove& nextMove, int currIteration)
 {
-	VSET& varSet = varManager->getVariableSet();
-	Variable* u = varSet[nextMove->getSrcVertex()];
-	Variable* v = varSet[nextMove->getTargetVertex()];
+	unordered_map<int, Variable*>& varSet = varManager->getVariableSet();
+	Variable* u = varSet[nextMove.getSrcVertex()];
+	Variable* v = varSet[nextMove.getTargetVertex()];
 
-	string edgeKey;
-	edgeKey.append(u->getName().c_str());
-	edgeKey.append("\t");
-	edgeKey.append(v->getName().c_str());
-
-	SlimFactor* dFactor = factorGraph->getFactorAt(nextMove->getTargetVertex());
+	SlimFactor* dFactor = factorGraph->getFactorAt(nextMove.getTargetVertex());
 
 	// Clean up the old potential
 	delete dFactor->potFunc;
 
 	// Add the new parent and update the potential
-	dFactor->mergedMB[nextMove->getSrcVertex()] = 0;
-	dFactor->potFunc = nextMove->getDestPot();
+	dFactor->mergedMB[nextMove.getSrcVertex()] = 0;
+	dFactor->potFunc = nextMove.getDestPot();
 
 	// Update the current score for this factor
-	(*currPLL)[dFactor->fId] = nextMove->getTargetMBScore();
+	(*currPLL)[dFactor->fId] = nextMove.getTargetMBScore();
 
 	int mID = geneModuleID[v->getName()];
 
 	// Get or create an indegree map for this module
-	map<string,int>* currIndegree=NULL;
-	if(moduleIndegree.find(mID) == moduleIndegree.end())
-	{
-		currIndegree = new map<string,int>;
+	unordered_map<string, int>* currIndegree = NULL;
+	if(moduleIndegree.find(mID) == moduleIndegree.end()) {
+		currIndegree = new unordered_map<string, int>;
 		moduleIndegree[mID] = currIndegree;
-	}
-	else
-	{
+	} else {
 		currIndegree = moduleIndegree[mID];
 	}
 
 	// Increment the count of edges from u to the module of v
-	if(currIndegree->find(u->getName()) == currIndegree->end())
-	{
+	if(currIndegree->find(u->getName()) == currIndegree->end()) {
 		(*currIndegree)[u->getName()] = 1;
-	}
-	else
-	{
+	} else {
 		(*currIndegree)[u->getName()] += 1;
 	}
 
 	// Increment the count of edges from u
-	if(regulatorModuleOutdegree.find(u->getName()) == regulatorModuleOutdegree.end())
-	{
+	if(regulatorModuleOutdegree.find(u->getName()) == regulatorModuleOutdegree.end()) {
 		regulatorModuleOutdegree[u->getName()] = 1;
-	}
-	else
-	{
+	} else {
 		regulatorModuleOutdegree[u->getName()] += 1;
 	}
 
-	edgeMap[edgeKey] = 1;
+	edgeMap[u->getID()][v->getID()] = 1;
 
 	variableStatus[v->getName()] = currIteration;
+
+	updatedThisIteration.push_back(v->getID());
+
+	// Mark all other targets of u as sharing a parent with v.
+	unordered_map<int, int> otherTargets = edgeMap[u->getID()];
+	for (auto iter = otherTargets.begin(); iter != otherTargets.end(); iter++) {
+		int targetID = iter->first;
+		sharedParents[v->getID()][targetID] = 1;
+		sharedParents[targetID][v->getID()] = 1;
+	}
 }
 
 int
 MetaLearner::dumpAllGraphs(int maxFactorSizeApprox,int foldid)
 {
-	VSET& varSet=varManager->getVariableSet();
+	unordered_map<int, Variable*>& varSet=varManager->getVariableSet();
 	char aFName[1024];
 	sprintf(aFName,"%s/prediction_k%d.txt",foldoutDirName,maxFactorSizeApprox);
 	ofstream oFile(aFName);
-	factorGraph->dumpVarMB(oFile,varSet);
+	factorGraph->dumpVarMB(oFile, varSet);
 	oFile.close();
 	return 0;
 }
 
-int
+void
 MetaLearner::initPhysicalDegree()
 {
-	// Early exit: no module can pass hit>4, so entire function is a no-op
-    bool anyLargeModule = false;
-    for (auto& m : moduleGeneSet) {
-        if (m.second->size() > 4) {
-            anyLargeModule = true;
-            break;
-        }
-    }
-    if (!anyLargeModule) {
-        cout << "Skipping initPhysicalDegree: all modules have <=4 genes (hit>4 can never be satisfied)" << endl;
-        return 0;
-    }
-	// if (moduleGeneSet.size() == geneModuleID.size()) // Early exit only for all singleton modules
-	// {
-	// 	cout << "Skipping initPhysicalDegree: singleton modules" << endl;
-	// 	return 0;
-	// }
+	for(map<int, map<string, int>*>::iterator mIter = moduleGeneSet.begin(); mIter != moduleGeneSet.end(); mIter++) {
 
-	for(map<int,map<string,int>*>::iterator mIter=moduleGeneSet.begin();mIter!=moduleGeneSet.end();mIter++)
-	{
-		map<string,int>* indegree=NULL;
-		map<string,map<string,int>*> innet;
-		map<string,int>* geneSet=mIter->second;
-		for(map<string,map<string,map<string,double>*>*>::iterator gpIter=priorgraphmap.begin();gpIter!=priorgraphmap.end();gpIter++)
-		{
-			map<string,int>enrichedTFs;
-			map<string,map<string,double>*>* priorgraph = gpIter->second;
-			getEnrichedTFs(enrichedTFs,geneSet,*priorgraph);
-			for(map<string,int>::iterator tfIter=enrichedTFs.begin();tfIter!=enrichedTFs.end();tfIter++)
-			{
-				map<string,double>* motiftgts=(*priorgraph)[tfIter->first];
-				map<string,int>* ttgts;
-				if (innet.find(tfIter->first) == innet.end())
-				{
-					ttgts = new map<string,int>();
-					innet[tfIter->first] = ttgts;
-				}
-				else
-				{
-					ttgts = innet[tfIter->first];
-				}
-				for(map<string,double>::iterator gIter=motiftgts->begin();gIter!=motiftgts->end();gIter++)
-				{
-					if(geneSet->find(gIter->first)==geneSet->end())
-					{
+		int moduleID = mIter->first;
+		map<string, int>* moduleGenes = mIter->second;
+
+		// Collect the prior edges from enriched TFs to genes in this module, from all prior graphs.
+		unordered_map<string, vector<string>> priorEdges;
+
+		for(map<string, map<string, map<string, double>*>*>::iterator gpIter = priorGraphMap.begin(); gpIter != priorGraphMap.end(); gpIter++) {
+
+			map<string, map<string, double>*>* priorgraph = gpIter->second;
+
+			map<string, int>enrichedTFs;
+			getEnrichedTFs(enrichedTFs, moduleGenes, *priorgraph);
+
+			for(map<string, int>::iterator tfIter = enrichedTFs.begin(); tfIter != enrichedTFs.end(); tfIter++) {
+
+				map<string, double>* motiftgts = (*priorgraph)[tfIter->first];
+				for(map<string, double>::iterator gIter = motiftgts->begin(); gIter != motiftgts->end(); gIter++) {
+					if(moduleGenes->find(gIter->first) == moduleGenes->end()) {
 						continue;
 					}
-					(*ttgts)[gIter->first] = 0;
+					priorEdges[tfIter->first].push_back(gIter->first);
 				}
 			}
 		}
-		for (map<string,map<string,int>*>::iterator tItr=innet.begin();tItr!=innet.end();tItr++)
-		{
-			string tf = tItr->first;
-			map<string,int>* ttgts = tItr->second;
-			if (ttgts->size() == 0)
-			{
+
+		// Save the count of incoming edges per TF.
+		unordered_map<string, int>* indegree = NULL;
+
+		for (auto tItr = priorEdges.begin(); tItr != priorEdges.end(); tItr++) {
+			string regID = tItr->first;
+			int targetCount = tItr->second.size();
+			if (targetCount == 0) {
 				continue;
 			}
-			if (indegree == NULL)
-			{
-				indegree=new map<string,int>;
+			if (indegree == NULL) {
+				indegree = new unordered_map<string, int>;
 			}
-			(*indegree)[tf] = ttgts->size();
+			(*indegree)[regID] = targetCount;
 		}
 
-		if(indegree!=NULL)
-		{
-			moduleIndegree[mIter->first]=indegree;
-			cout << "Module " << mIter->first << ": " << geneSet->size() << " genes, " << indegree->size() << " enriched TFs" << endl;
-			for(map<string,int>::iterator dIter=indegree->begin();dIter!=indegree->end();dIter++)
-			{
-				cout << " Enriched TF " << dIter->first << ": " << dIter->second << " target genes in this module across prior networks" <<endl;
-				if(regulatorModuleOutdegree.find(dIter->first)==regulatorModuleOutdegree.end())
-				{
-					regulatorModuleOutdegree[dIter->first]=dIter->second;
-				}
-				else
-				{
-					regulatorModuleOutdegree[dIter->first]=regulatorModuleOutdegree[dIter->first]+dIter->second;
-				}
-			}
-		}
-	}
-
-	return 0;
-}
-
-int
-MetaLearner::getEnrichedTFs(map<string,int>& tfSet,map<string,int>* genes,map<string,map<string,double>*>& edgeSet)
-{
-	VSET& varSet=varManager->getVariableSet();
-	int total=varSet.size();
-	int k=genes->size();
-	HyperGeomPval hgp;
-	for(map<string,map<string,double>*>::iterator fIter=edgeSet.begin();fIter!=edgeSet.end();fIter++)
-	{
-		int uID=varManager->getVarID(fIter->first.c_str());
-		if(uID<0)
-		{
+		if(indegree == NULL) {
 			continue;
 		}
-		map<string,double>* tgtSet=fIter->second;
-		//int n=tgtSet->size();
-		int n=0;
-		int hit=0;
-		for(map<string,double>::iterator gIter=tgtSet->begin();gIter!=tgtSet->end();gIter++)
-		//for(map<string,int>::iterator gIter=genes->begin();gIter!=genes->end();gIter++)
-		{
 
-			int vID=varManager->getVarID(gIter->first.c_str());
-            if(vID<0)
-            {
-                continue;
-            }
-            n++;
-			//if(tgtSet->find(gIter->first)==tgtSet->end())
-            if(genes->find(gIter->first)==genes->end())
-			{
-				continue;
+		moduleIndegree[mIter->first] = indegree;
+		cout << "Module " << moduleID << ": " << moduleGenes->size() << " genes, " << indegree->size() << " enriched TFs" << endl;
+
+		// Increment the total count of outgoing edges for each TF
+
+		for(auto dIter = indegree->begin(); dIter != indegree->end(); dIter++) {
+			cout << " Enriched TF " << dIter->first << ": " << dIter->second << " target genes in this module across prior networks" <<endl;
+			if(regulatorModuleOutdegree.find(dIter->first) == regulatorModuleOutdegree.end()) {
+				regulatorModuleOutdegree[dIter->first] = dIter->second;
+			} else {
+				regulatorModuleOutdegree[dIter->first] = regulatorModuleOutdegree[dIter->first] + dIter->second;
 			}
-			hit++;
-		}
-		double enpval=hgp.getOverRepPval(k,hit,n,total-n);
-		if(enpval<0.05 && hit>4)
-		//if(hit>0)
-		{
-			tfSet[fIter->first]=hit;
 		}
 	}
-	return 0;
+}
+
+void
+MetaLearner::getEnrichedTFs(map<string, int>& tfSet, map<string, int>* moduleGenes, map<string, map<string, double>*>& edgeSet)
+{
+	// A tf is enriched for a module, if it has at least 4 targets within that module, and
+	// more module members than expected are targets of the tf.
+
+	// We require 4 in-module targets in order for a tf to be enriched. If there aren't 4 total
+	// module genes, then no tf can be enriched.
+	if (moduleGenes->size() < 4) {
+		return;
+	}
+
+	unordered_map<int, Variable*>& varSet = varManager->getVariableSet();
+	int varCount = varSet.size();
+	int moduleVarCount = moduleGenes->size();
+
+	HyperGeomPval hgp;
+	for(map<string, map<string, double>*>::iterator fIter = edgeSet.begin(); fIter != edgeSet.end(); fIter++) {
+		int uID = varManager->getVarID(fIter->first);
+		if(uID < 0) {
+			continue;
+		}
+
+		map<string,double>* tgtSet = fIter->second;
+
+		int targetsCount = 0;
+		int targetsInModuleCount = 0;
+
+		for(map<string, double>::iterator gIter = tgtSet->begin(); gIter != tgtSet->end(); gIter++) {
+			int vID = varManager->getVarID(gIter->first);
+            if(vID < 0) {
+                continue;
+            }
+
+            targetsCount++;
+
+            if(moduleGenes->find(gIter->first) != moduleGenes->end()) {
+				targetsInModuleCount++;
+			}
+		}
+
+		double enpval = hgp.getOverRepPval(moduleVarCount, targetsInModuleCount, targetsCount, varCount - targetsCount);
+		if (enpval < 0.05 && targetsInModuleCount > 4) {
+			tfSet[fIter->first] = targetsInModuleCount;
+		}
+	}
 }
 
 double
 MetaLearner::getModuleContribLogistic(string& tgtName, string& tfName)
 {
-	if(geneModuleID.find(tgtName)==geneModuleID.end())
-	{
+	auto moduleIter = geneModuleID.find(tgtName);
+	if(moduleIter == geneModuleID.end()) {
 		return 0;
 	}
 
-	int moduleID=geneModuleID[tgtName];
-	if(moduleIndegree.find(moduleID)==moduleIndegree.end())
-	{
+	int moduleID = moduleIter->second;
+
+	auto degreeIter = moduleIndegree.find(moduleID);
+	if(degreeIter == moduleIndegree.end()) {
 		return 0;
 	}
 
-	map<string,int>* moddegree=moduleIndegree[moduleID];
-	if(moddegree->find(tfName)==moddegree->end())
-	{
+	unordered_map<string,int>* moddegree = degreeIter->second;
+
+	auto regIter = moddegree->find(tfName);
+	if(regIter == moddegree->end()) {
 		return 0;
 	}
 
-	int degree=(*moddegree)[tfName];
+	int degree = regIter->second;
+	int regDegree = 0;
 
-	int regDegree=0;
-	if(regulatorModuleOutdegree.find(tfName)!=regulatorModuleOutdegree.end())
-	{
-		regDegree=regulatorModuleOutdegree[tfName];
+	auto outDegreeIter = regulatorModuleOutdegree.find(tfName);
+	if(outDegreeIter != regulatorModuleOutdegree.end()) {
+		regDegree = outDegreeIter->second;
 	}
 
-	double contrib=((double) degree)/((double) regDegree);
-	return beta_motif*contrib;
+	double contrib= ((double) degree) / ((double) regDegree);
+	return beta_motif * contrib;
 }
 
 //To redefine the modules we will start with the original set of modules
@@ -1255,76 +1188,57 @@ MetaLearner::getModuleContribLogistic(string& tgtName, string& tfName)
 //regulatory program. recompute similarity of all nodes to this merged node. repeat with
 //finding the next most similar pair of nodes.
 
-int
-MetaLearner::redefineModules()
+void
+MetaLearner::redefineModules(int currFold)
 {
 	INTINTMAP& tSet=evidenceManager->getTrainingSet();
 
-	if (correlationDistances == nullptr)
-	{
-		initCorrelationDistances();
+	if (correlationDistances == nullptr) {
+		initDistances();
 	}
 
 	map<string,int> genesWithNoNeighbors;
 
 	// Create a node for each member of each module
-	for(map<int,map<string,int>*>::iterator gIter=moduleGeneSet.begin();gIter!=moduleGeneSet.end();gIter++)
-	{
-		map<string,int>* moduleMembers=gIter->second;
-		for(map<string,int>::iterator mIter=moduleMembers->begin();mIter!=moduleMembers->end();mIter++)
-		{
-			int mID=varManager->getVarID(mIter->first.c_str());
-			if(mID<0)
-			{
+	for(map<int, map<string, int>*>::iterator gIter = moduleGeneSet.begin(); gIter != moduleGeneSet.end(); gIter++) {
+		map<string, int>* moduleMembers=gIter->second;
+
+		for(map<string, int>::iterator mIter = moduleMembers->begin(); mIter != moduleMembers->end(); mIter++) {
+			int mID = varManager->getVarID(mIter->first);
+			if(mID < 0) {
 				continue;
 			}
 			SlimFactor* mFactor=factorGraph->getFactorAt(mID);
 
 			// If a gene has no neighbors, we dont include it in the clustering algorithm.
-			INTINTMAP& mbvars1=mFactor->mergedMB;
-			if(mbvars1.size()==0)
-			{
-				genesWithNoNeighbors[mIter->first]=0;
+			INTINTMAP& mbvars1 = mFactor->mergedMB;
+			if(mbvars1.size() == 0) {
+				genesWithNoNeighbors[mIter->first] = 0;
 				continue;
 			}
 
 			// Create a node for this gene
 			HierarchicalClusterNode* node = hc.getNode(mIter->first);
-			if (node == nullptr)
-			{
+			if (node == nullptr) {
 				node = new HierarchicalClusterNode;
 				node->nodeName.append(mIter->first);
 				node->varID = mID;
 				hc.addNode(node);
-
-				// Add expression data on the new node
-				for(INTINTMAP_ITER eIter=tSet.begin();eIter!=tSet.end();eIter++)
-				{
-					EMAP* evidMap=evidenceManager->getEvidenceAt(eIter->first);
-					Evidence* evid=(*evidMap)[mID];
-					double v=evid->getEvidVal();
-					node->expr.push_back(v);
-				}
-			}
-
-			// Add weights for incoming edges onto the node
-			INTDBLMAP& regWts=mFactor->potFunc->getWeights();
-			for(INTDBLMAP_ITER bIter=regWts.begin();bIter!=regWts.end();bIter++)
-			{
-				node->attrib[bIter->first]=bIter->second;
 			}
 		}
 	}
 
+	updateSharedParentDistances();
+
 	// Perform the new clustering
 	map<int,map<string,int>*> newModules;
-	hc.cluster(newModules, clusterThreshold, correlationDistances);
+	hc.cluster(newModules, clusterThreshold, correlationDistances, sharedParentDistances);
 
 	// Clear out any data representing the old module assignments
 	moduleGeneSet.clear();
 	geneModuleID.clear();
 	regulatorModuleOutdegree.clear();
-	for(map<int,map<string,int>*>::iterator mIter=moduleIndegree.begin();mIter!=moduleIndegree.end();mIter++)
+	for(auto mIter=moduleIndegree.begin(); mIter!=moduleIndegree.end(); mIter++)
 	{
 		mIter->second->clear();
 		delete mIter->second;
@@ -1337,17 +1251,17 @@ MetaLearner::redefineModules()
 
 	// Read in the new module assignments
 	int largestModuleID=0;
-	VSET& varSet=varManager->getVariableSet();
+	unordered_map<int, Variable*>& varSet = varManager->getVariableSet();
 	for(map<int,map<string,int>*>::iterator mIter=newModules.begin();mIter!=newModules.end();mIter++)
 	{
 		moduleGeneSet[mIter->first]=mIter->second;
 		map<string,int>* geneSet=mIter->second;
-		map<string,int>* indegree=new map<string,int>;
+		unordered_map<string, int>* indegree = new unordered_map<string,int>;
 		for(map<string,int>::iterator gIter=geneSet->begin();gIter!=geneSet->end();gIter++)
 		{
 			modFile << gIter->first <<"\t" << mIter->first << endl;
 			geneModuleID[gIter->first]=mIter->first;
-			int mID=varManager->getVarID(gIter->first.c_str());
+			int mID=varManager->getVarID(gIter->first);
 			SlimFactor* mFactor=factorGraph->getFactorAt(mID);
 			INTINTMAP& mbvars1=mFactor->mergedMB;
 
@@ -1391,26 +1305,22 @@ MetaLearner::redefineModules()
 	}
 	genesWithNoNeighbors.clear();
 	cout << "   Finished redefining modules; " << moduleGeneSet.size() << " total modules" << endl;
-
-	return 0;
 }
 
 void
-MetaLearner::initCorrelationDistances()
+MetaLearner::initDistances()
 {
 	INTINTMAP& samples = evidenceManager->getTrainingSet();
-	VSET& varSet = varManager->getVariableSet();
+	unordered_map<int, Variable*>& varSet = varManager->getVariableSet();
 
 	int varCount = varSet.size();
 	int sampleCount = samples.size();
 
 	vector<double> means(varCount, 0);
 
-	for (INTINTMAP_ITER iter = samples.begin(); iter != samples.end(); iter++)
-	{
+	for (INTINTMAP_ITER iter = samples.begin(); iter != samples.end(); iter++) {
 		EMAP* evidMap = evidenceManager->getEvidenceAt(iter->first);
-		for (int i = 0; i < varCount; i++)
-		{
+		for (int i = 0; i < varCount; i++) {
 			Evidence* evid=(*evidMap)[i];
 			means[i] += evid->getEvidVal();
 		}
@@ -1424,11 +1334,9 @@ MetaLearner::initCorrelationDistances()
 	vector<vector<double>> deviations(varCount, vector<double>(sampleCount, 0));
 
 	int sampleIndex = 0;
-	for (INTINTMAP_ITER iter = samples.begin(); iter != samples.end(); iter++)
-	{
+	for (INTINTMAP_ITER iter = samples.begin(); iter != samples.end(); iter++) {
 		EMAP* evidMap = evidenceManager->getEvidenceAt(iter->first);
-		for (int i = 0; i < varSet.size(); i++)
-		{
+		for (int i = 0; i < varCount; i++) {
 			double deviation = (*evidMap)[i]->getEvidVal() - means[i];
 			deviations[i][sampleIndex] = deviation;
 			ssd[i] += deviation * deviation;
@@ -1440,19 +1348,20 @@ MetaLearner::initCorrelationDistances()
 
 	double threshold = sampleCount / 2.0;
 
-	for (int i = 0; i < varCount; i++)
-	{
-		double xx = ssd[i];
+	vector<double> invStd(varCount, 0);
+	for (int i = 0; i < varCount; i++) {
+		invStd[i] = 1.0 / sqrt(ssd[i]);
+	}
+
+	for (int i = 0; i < varCount; i++) {
 		double* dev_i = deviations[i].data();
 
-		for (int j = i; j < varCount; j++)
-		{
+		for (int j = i; j < varCount; j++) {
 			double* dev_j = deviations[j].data();
 			double xy = 0;
 			int oppRel = 0;
 
-			for(int k = 0; k < sampleCount; k++)
-			{
+			for(int k = 0; k < sampleCount; k++) {
 				double diff1 = dev_i[k];
 				double diff2 = dev_j[k];
 				double val = diff1 * diff2;
@@ -1460,11 +1369,9 @@ MetaLearner::initCorrelationDistances()
 				oppRel += (val < 0);
 			}
 
-			double yy = ssd[j];
-			double cc = abs(xy) / sqrt(xx * yy);
+			double cc = abs(xy) * invStd[i] * invStd[j];
 
-			if(oppRel > threshold)
-			{
+			if(oppRel > threshold) {
 				cc *= -1;
 			}
 
@@ -1474,10 +1381,11 @@ MetaLearner::initCorrelationDistances()
 			correlationDistances->setValue(cc, j, i);
 		}
 	}
+
+	// Initially we have no edges, so no nodes share a parent, and all distances are 1.
+	sharedParentDistances = new Matrix(varCount, varCount);
+	sharedParentDistances->setAllValues(1);
 }
-
-
-// checkpointing additions
 
 int
 MetaLearner::writeCheckpointMetadata(int iter, bool notConvergedVal)
@@ -1518,25 +1426,25 @@ MetaLearner::readCheckpointMetadata(int& iter, bool& notConvergedVal)
 int 
 MetaLearner::writePLLScore()
 {
-    char aFName[1024];
-    sprintf(aFName, "%s/pll.txt", foldoutDirName);
-    ofstream outFile(aFName);
-    VSET& varSet = varManager->getVariableSet();
-	if (currPLL == NULL)
-	{
+	if (currPLL == NULL) {
 		return -1;
 	}
-	INTDBLMAP* plls = currPLL;
+
+    char aFName[1024];
+    sprintf(aFName, "%s/pll.txt", foldoutDirName);
+
+    ofstream outFile(aFName);
 
 	// Force maximum double precision to prevent truncation
     outFile << std::setprecision(std::numeric_limits<double>::max_digits10);
 
-    for (VSET_ITER vIter = varSet.begin(); vIter != varSet.end(); vIter++)
-    {
+	unordered_map<int, Variable*>& varSet = varManager->getVariableSet();
+    for (auto vIter = varSet.begin(); vIter != varSet.end(); vIter++) {
         Variable* var = varSet[vIter->first];
-        if (geneModuleID.find(var->getName()) == geneModuleID.end())
-            continue;
-        outFile << var->getName() << "\t" << (*plls)[vIter->first] << endl;
+        if (geneModuleID.find(var->getName()) == geneModuleID.end()) {
+			continue;
+		}
+        outFile << var->getName() << "\t" << (*currPLL)[vIter->first] << endl;
     }
     outFile.close();
     return 0;
@@ -1547,18 +1455,18 @@ MetaLearner::loadInitPLLScore()
 {
     char aFName[1024];
     sprintf(aFName, "%s/pll.txt", foldoutDirName);
-    ifstream inFile(aFName);
-    char buffer[1024];
 
-    VSET& varSet = varManager->getVariableSet();
-    INTDBLMAP* plls = new INTDBLMAP;
-	if (currPLL != NULL)
-	{
+    ifstream inFile(aFName);
+
+	unordered_map<int, Variable*>& varSet = varManager->getVariableSet();
+
+	if (currPLL != NULL) {
 		delete currPLL;
 	}
-	currPLL = plls;
+	currPLL = new unordered_map<int, double>;
 
     double initScore = 0;
+	char buffer[1024];
 
     while (inFile.good())
     {
@@ -1585,7 +1493,7 @@ MetaLearner::loadInitPLLScore()
             tok = strtok(NULL, "\t");
             tokCnt++;
         }
-        (*plls)[v->getID()] = val;
+        (*currPLL)[v->getID()] = val;
         initScore += val;
     }
     return initScore;
@@ -1596,9 +1504,11 @@ MetaLearner::writeLastUpdate()
 {
     char aFName[1024];
     sprintf(aFName, "%s/lastUpdate.txt", foldoutDirName);
+
     ofstream outFile(aFName);
-    VSET& varSet = varManager->getVariableSet();
-    for (VSET_ITER vIter = varSet.begin(); vIter != varSet.end(); vIter++)
+
+	unordered_map<int, Variable*>& varSet = varManager->getVariableSet();
+    for (auto vIter = varSet.begin(); vIter != varSet.end(); vIter++)
     {
         Variable* var = varSet[vIter->first];
         if (geneModuleID.find(var->getName()) == geneModuleID.end())
@@ -1616,10 +1526,13 @@ MetaLearner::loadLastUpdate()
 {
     char aFName[1024];
     sprintf(aFName, "%s/lastUpdate.txt", foldoutDirName);
+
     ifstream inFile(aFName);
-    char buffer[1024];
-    VSET& varSet = varManager->getVariableSet();
-    while (inFile.good())
+
+	char buffer[1024];
+    unordered_map<int, Variable*>& varSet = varManager->getVariableSet();
+
+	while (inFile.good())
     {
         inFile.getline(buffer, 1023);
         if (strlen(buffer) <= 0) 
@@ -1628,14 +1541,14 @@ MetaLearner::loadLastUpdate()
 		}
         char* tok = strtok(buffer, "\t");
         int tokCnt = 0;
-        Variable* v = NULL;
+        Variable* var = NULL;
         int titer = 0;
         while (tok != NULL)
         {
             if (tokCnt == 0) 
 			{ 
 				int vid = varManager->getVarID(tok); 
-				v = varSet[vid]; 
+				var = varSet[vid]; 
 			}
             else 
 			{ 
@@ -1644,7 +1557,7 @@ MetaLearner::loadLastUpdate()
             tok = strtok(NULL, "\t");
             tokCnt++;
         }
-        variableStatus[v->getName()] = titer;
+        variableStatus[var->getName()] = titer;
     }
     return 0;
 }
@@ -1725,9 +1638,9 @@ MetaLearner::readCheckpointModuleMembership()
     inFile.close();
 
     // Recreate singleton modules (for parentless genes) that were not written to modules.txt
-    VSET& varSet = varManager->getVariableSet();
+	unordered_map<int, Variable*>& varSet = varManager->getVariableSet();
     int genesWithNoNeighborsCount = 0;
-    for(VSET_ITER vIter = varSet.begin(); vIter != varSet.end(); vIter++)
+    for(auto vIter = varSet.begin(); vIter != varSet.end(); vIter++)
     {
         Variable* v = vIter->second;
         string geneName = v->getName();
@@ -1747,14 +1660,12 @@ MetaLearner::readCheckpointModuleMembership()
     return 0;
 }
 
-
 int
 MetaLearner::populateGraphsFromFile(int maxFactorSizeApprox)
 {
 	// Clear previous degree distributions
 	moduleIndegree.clear();
 	regulatorModuleOutdegree.clear();
-	//edgeMap.clear(); we want to keep the initialized edges, and only set them to 1 if we see them.
 
 	char aFName[1024];
     sprintf(aFName, "%s/prediction_k%d.txt", foldoutDirName, maxFactorSizeApprox);
@@ -1766,7 +1677,7 @@ MetaLearner::populateGraphsFromFile(int maxFactorSizeApprox)
 	}
 	
 	char buffer[1024];
-	VSET& varSet=varManager->getVariableSet();
+	unordered_map<int, Variable*>& varSet = varManager->getVariableSet();
 
 	// Parse edges and track degrees
 	while(inFile.good())
@@ -1810,10 +1721,10 @@ MetaLearner::populateGraphsFromFile(int maxFactorSizeApprox)
 
 		// Track in-degree counts for the module containing the destination variable 'v'
 		int mID=geneModuleID[v->getName()];
-		map<string,int>* currIndegree=NULL;
+		unordered_map<string, int>* currIndegree=NULL;
 		if(moduleIndegree.find(mID)==moduleIndegree.end())
 		{
-			currIndegree=new map<string,int>;
+			currIndegree = new unordered_map<string, int>;
 			moduleIndegree[mID]=currIndegree;
 		}
 		else
@@ -1847,11 +1758,7 @@ MetaLearner::populateGraphsFromFile(int maxFactorSizeApprox)
 		dFactor->mergedMB[sFactor->fId]=0;
 
 		// Record the unique edge path string in the global edge map
-		string edgeKey;
-		edgeKey.append(u->getName().c_str());
-		edgeKey.append("\t");
-		edgeKey.append(v->getName().c_str());
-		edgeMap[edgeKey]=1;
+		edgeMap[u->getID()][v->getID()] = 1;
 	}
 
 	// Re-initialize potentials: iterate through all factors to rebuild potential distributions using the restored edges
@@ -1865,6 +1772,7 @@ MetaLearner::populateGraphsFromFile(int maxFactorSizeApprox)
 			delete sFactor->potFunc;
 			sFactor->potFunc = NULL;
 		}
+
 		if (sFactor->mergedMB.size() == 0)
 		{
 			sFactor->potFunc = potManager->createPotential(sFactor->fId);
@@ -1872,21 +1780,105 @@ MetaLearner::populateGraphsFromFile(int maxFactorSizeApprox)
 		}
 
 		vector<int> parentIDs;
-		for(INTINTMAP_ITER mIter=sFactor->mergedMB.begin();mIter!=sFactor->mergedMB.end();mIter++)
+		for(auto mIter=sFactor->mergedMB.begin();mIter!=sFactor->mergedMB.end();mIter++)
 		{
 			parentIDs.push_back(mIter->first);
 		}
 
-		Potential* restoredPot = NULL;
-		potManager->computeLL(sFactor->fId, parentIDs, evidenceManager->getTrainingSet().size(), &restoredPot);
-		if (restoredPot == NULL)
-		{
+		Potential* restoredPot = potManager->createPotential(sFactor->fId, parentIDs);
+
+		if (restoredPot == NULL) {
 			sFactor->potFunc = potManager->createPotential(sFactor->fId);
-			continue;
+		} else {
+			sFactor->potFunc = restoredPot;
 		}
-		sFactor->potFunc = restoredPot;
 	}
 
 	inFile.close();
 	return 0;
+}
+
+void
+MetaLearner::updateSharedParentDistances()
+{
+	unordered_map<int, Variable*>& varSet = varManager->getVariableSet();
+	int varCount = varSet.size();
+
+	int updateCount = 0;
+
+	sort(updatedThisIteration.begin(), updatedThisIteration.end());
+
+	vector<bool> willVisit(varCount, false);
+	for (int k = 0; k < updatedThisIteration.size(); k++) {
+		willVisit[updatedThisIteration[k]] = true;
+	}
+
+	vector<double> denoms(varCount, 0);
+
+	for (auto iter = updatedThisIteration.begin(); iter != updatedThisIteration.end(); iter++) {
+		int varID = *iter;
+		SlimFactor* factorA = factorGraph->getFactorAt(varID);
+		vector<pair<int, double>>& weightsA = factorA->potFunc->getWeights();
+
+		double denomA = denoms[varID];
+		if (denomA == 0) {
+			for (const auto& weight : weightsA) {
+				denomA += fabs(weight.second);
+			}
+			denoms[varID] = denomA;
+		}
+
+		unordered_map<int, int>& siblingVarIDs = sharedParents[varID];
+
+		for (auto siblingIter = siblingVarIDs.begin(); siblingIter != siblingVarIDs.end(); siblingIter++) {
+			int siblingID = siblingIter->first;
+
+			if (varID == siblingID) {
+				continue;
+			}
+
+			if (willVisit[siblingID] && siblingID < varID) {
+				continue;
+			}
+
+			updateCount += 1;
+
+			SlimFactor* factorB = factorGraph->getFactorAt(siblingID);
+			vector<pair<int, double>>& weightsB = factorB->potFunc->getWeights();
+
+			double denomB = denoms[siblingID];
+			if (denomB == 0) {
+				for (const auto& weight : weightsB) {
+					denomB += fabs(weight.second);
+				}
+				denoms[siblingID] = denomB;
+			}
+
+			auto itA = weightsA.begin();
+			auto itB = weightsB.begin();
+			double sharedSign = 0;
+
+			while (itA != weightsA.end() && itB != weightsB.end()) {
+				if (itA->first == itB->first) {
+					double weight1 = itA->second;
+					double weight2 = itB->second;
+					if ((weight1 >= 0.0) == (weight2 >= 0.0)) {
+						sharedSign += (fabs(weight1) + fabs(weight2)) * 0.5;
+					}
+					++itA;
+					++itB;
+				} else if (itA->first < itB->first) {
+					++itA;
+				} else {
+					++itB;
+				}
+			}
+
+			double distance = 1 - sharedSign / (denomA + denomB - sharedSign);
+			sharedParentDistances->setValue(distance, varID, siblingID);
+			sharedParentDistances->setValue(distance, siblingID, varID);
+		}
+	}
+
+	std::cout << "Number of distance updates: " << updateCount << std::endl;
 }

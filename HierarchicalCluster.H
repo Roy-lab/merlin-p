@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <queue>
+#include <unordered_map>
 
 using namespace std;
 
@@ -15,8 +16,10 @@ class HierarchicalCluster
 {
 	public:
 		HierarchicalClusterNode* getNode(string nodeName);
+
 		void addNode(HierarchicalClusterNode* node);
-		int cluster(map<int,map<string,int>*>& modules, double threshold, Matrix* correlationDistances);
+
+		void cluster(map<int, map<string, int>*>& modules, double threshold, Matrix* correlationDistances, Matrix* sharedParentDistances);
 
 	private:
 		struct Pair
@@ -29,21 +32,21 @@ class HierarchicalCluster
 		class ComparePair
 		{
 			public:
-			bool operator() (Pair* p1, Pair* p2)
+			bool operator() (Pair& p1, Pair& p2)
 			{
-				return p1->value > p2->value;
+				return p1.value > p2.value;
 			}
 		};
 
-		vector<Pair*> estimatePairwiseDist(map<int,HierarchicalClusterNode*>& currNodeSet, Matrix* correlation, double threshold);
-		void addMergeNode(HierarchicalClusterNode* node, map<int,HierarchicalClusterNode*>& currNodeSet, vector<Pair*>& pairs, priority_queue<Pair*, vector<Pair*>, ComparePair>& pairQueue, double threshold);
+		vector<Pair> estimatePairwiseDist(vector<HierarchicalClusterNode*>& nodes, Matrix* correlation, Matrix* sharedParentDistances, double threshold);
+		void addMergeNode(HierarchicalClusterNode* node, unordered_map<int,HierarchicalClusterNode*>& unmergedNodes, vector<Pair>& pairs, priority_queue<Pair, vector<Pair>, ComparePair>& pairQueue, double threshold);
 
-		static HierarchicalClusterNode* createMergeNode(Pair *pair, map<int,HierarchicalClusterNode*>& currNodeSet, int nextNodeID);
-		static Pair* getNextPair(priority_queue<Pair*, vector<Pair*>, ComparePair>& pairQueue);
-		static int generateModules(map<int,HierarchicalClusterNode*>& currNodeSet,map<int,map<string,int>*>& modules);
-		static int populateMembers(map<string,int>* members,HierarchicalClusterNode* node);
+		static HierarchicalClusterNode* createMergeNode(Pair& pair, unordered_map<int,HierarchicalClusterNode*>& unmergedNodes, int nextNodeID);
+		static bool getNextPair(priority_queue<Pair, vector<Pair>, ComparePair>& pairQueue, Pair& nextPair);
+		static void generateModules(unordered_map<int, HierarchicalClusterNode*>& unmergedNodes, map<int, map<string, int>*>& modules);
+		static void populateMembers(map<string, int>* members, HierarchicalClusterNode* node);
 
-		double** distvalues;
-		map<string,HierarchicalClusterNode*> nodeSet;
+		double** distValues;
+		map<string, HierarchicalClusterNode*> nodeSet;
 };
 #endif

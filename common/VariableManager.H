@@ -2,7 +2,7 @@
 #define _VARIABLE_MANAGER
 
 #include <string>
-#include <map>
+#include <unordered_map>
 
 using namespace std;
 
@@ -11,16 +11,14 @@ class Variable;
 class VariableManager
 {
 	public:
-		VariableManager();
-		~VariableManager();
 		Error::ErrorCode readVariables(const char*);
-		int getVarID(const char*);
+		int getVarID(const string& varName);
 		bool isValid(int,int);
-		map<int,Variable*>& getVariableSet();
+		unordered_map<int, Variable*>& getVariableSet();
 		Variable* getVariableAt(int);
 	private:
-		map<string,int> varNameIDMap;
-		map<int,Variable*> variableSet;
+		unordered_map<string, int> varNameIDMap;
+		unordered_map<int, Variable*> variableSet;
 		int globalVarId;
 };
 #endif

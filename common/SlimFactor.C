@@ -175,21 +175,3 @@ SlimFactor::thresholdToOne(double threshold)
 	}
 	return 0;
 }
-
-int 
-SlimFactor::showFactor(ostream& oFile, VSET& variableSet, bool newLine)
-{
-	for(int i=0;i<vCnt;i++)
-	{
-		if(i>0)
-		{
-			oFile << "-";
-		}
-		oFile << variableSet[vIds[i]]->getName();
-	}
-	if(newLine)
-	{
-		oFile << endl;
-	}
-	return 0;
-}

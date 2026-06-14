@@ -9,9 +9,6 @@ using namespace std;
 
 class Variable;
 
-typedef map<int,Variable*> VSET;
-typedef map<int,Variable*>::iterator VSET_ITER;
-
 class Variable
 {
 	public:
