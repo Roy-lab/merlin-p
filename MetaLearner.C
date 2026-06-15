@@ -589,17 +589,24 @@ MetaLearner::getPLLScore()
 void
 MetaLearner::clearFoldSpecData()
 {
-	if (factorGraph != nullptr)
-	{
+	hc = HierarchicalCluster();
+	edgeMap.clear();
+	sharedParents.clear();
+	if (factorGraph != nullptr) {
 		delete factorGraph;
 		factorGraph = nullptr;
 	}
-	edgeMap.clear();
-	sharedParents.clear();
-	if (currPLL != nullptr)
-	{
+	if (currPLL != nullptr) {
 		delete currPLL;
 		currPLL = nullptr;
+	}
+	if (correlationDistances != nullptr) {
+		delete correlationDistances;
+		correlationDistances = nullptr;
+	}
+	if (sharedParentDistances != nullptr) {
+		delete sharedParentDistances;
+		sharedParentDistances = nullptr;
 	}
 }
 
@@ -1879,6 +1886,4 @@ MetaLearner::updateSharedParentDistances()
 			sharedParentDistances->setValue(distance, siblingID, varID);
 		}
 	}
-
-	std::cout << "Number of distance updates: " << updateCount << std::endl;
 }

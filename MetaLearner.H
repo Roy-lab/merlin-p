@@ -101,7 +101,11 @@ class MetaLearner
 		char foldoutDirName[1024];
 		int specificFold;
 		HierarchicalCluster hc;
+
+		// Used for defining modules, the distance metric based on expression.
 		Matrix* correlationDistances;
+
+		// Used for defining modules, the distance metric based on shared parents.
 		Matrix* sharedParentDistances;
 
 		// Tracks whether two nodes share at least one parent.
