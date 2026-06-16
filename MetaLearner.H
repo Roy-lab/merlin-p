@@ -23,7 +23,7 @@ class MetaLearner
 	public:
 	MetaLearner();
 	~MetaLearner();
-	int setShouldLoad(bool shouldLoadVal); //********
+	int setShouldLoad(bool shouldLoadVal); // checkpointing
 	int setMaxFactorSize_Approx(int);
 	int setBeta1(double aval);
 	int setBeta_Motif(double bval);
@@ -46,17 +46,17 @@ class MetaLearner
 
 	private:
 
-	// ******** checkpointing additions
-	bool shouldLoad; //********
-	int writeCheckpointMetadata(int iter, int randseed, bool notConvergedVal); //********
-	bool readCheckpointMetadata(int& iter, int& randseed, bool& notConvergedVal); //********
-	int writePLLScore(); //********
-	double loadInitPLLScore(); //********
-	int writeLastUpdate(); //********
-	int loadLastUpdate(); //********
-	int doTar(); //********
-	int readCheckpointModuleMembership(); //********
-	int populateGraphsFromFile(int maxFactorSizeApprox); //********
+	// checkpointing additions
+	bool shouldLoad; 
+	int writeCheckpointMetadata(int iter, int randseed, bool notConvergedVal); 
+	bool readCheckpointMetadata(int& iter, int& randseed, bool& notConvergedVal); 
+	int writePLLScore(); 
+	double loadInitPLLScore(); 
+	int writeLastUpdate(); 
+	int loadLastUpdate(); 
+	int doTar(); 
+	int readCheckpointModuleMembership(); 
+	int populateGraphsFromFile(int maxFactorSizeApprox); 
 
 	int start(int);
 	int initEdgePriorMeta_All();

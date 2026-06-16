@@ -28,7 +28,7 @@
 
 MetaLearner::MetaLearner()
 {
-	shouldLoad = false; //********
+	shouldLoad = false; // checkpointing
 	restrictedFName[0]='\0';
 	preRandomizeSplit=false;
 	random=false;
@@ -45,7 +45,7 @@ MetaLearner::~MetaLearner()
 }
 
 int
-MetaLearner::setShouldLoad(bool shouldLoadVal) //********
+MetaLearner::setShouldLoad(bool shouldLoadVal) // checkpointing
 {
 	shouldLoad = shouldLoadVal;
 	return 0;
@@ -477,8 +477,6 @@ MetaLearner::doCrossValidation(int foldCnt)
 
 		getPredictionError_CrossValid(f);
 		clearFoldSpecData();
-		// for multiple folds there is leakage: at the start of a new fold, moduleGeneSet is never reset and prev fold's modules are used in initPhysicalDegree
-		// for multiple folds there is leakage: at the start of a new fold, geneModuleID is never reset prev fold's modules are used in getNextMove, makeMove, getModuleContribLogistic
 	}
 	gsl_rng_free(r);
 
@@ -514,7 +512,7 @@ MetaLearner::start(int f)
 
 	VSET& varSet=varManager->getVariableSet();
 	double currGlobalScore=0;
-	if (shouldLoad && loadedMetadata) //********
+	if (shouldLoad && loadedMetadata) // checkpointing
 	{
 		cout << "Read modules..." << endl;
 		readCheckpointModuleMembership(); // overwrites moduleGeneSet, geneModuleID (set by readModuleMembership)
@@ -583,10 +581,10 @@ MetaLearner::start(int f)
 		scorePremodule=currGlobalScore;
 		dumpAllGraphs(maxFactorSizeApprox,f);
 
-		writeCheckpointMetadata(iter, rseed, notConverged); //********
-		writePLLScore(); //********
-		writeLastUpdate(); //********
-		doTar(); //********
+		writeCheckpointMetadata(iter, rseed, notConverged); // checkpointing
+		writePLLScore(); // checkpointing
+		writeLastUpdate(); // checkpointing
+		doTar(); // checkpointing
 
 		iter++;
 	}
@@ -691,7 +689,7 @@ MetaLearner::initEdgeSet()
 			{
 				initPrior=1-1e-6;
 			}
-			edgePresenceProb[edgeKey]=initPrior; // this is never used...
+			edgePresenceProb[edgeKey]=initPrior;
 			if(varNeighborhoodPrior.find(vIter->first)==varNeighborhoodPrior.end())
 			{
 				varNeighborhoodPrior[vIter->first]=log(1-initPrior);
@@ -1499,7 +1497,7 @@ MetaLearner::initCorrelationDistances()
 }
 
 
-// ******** checkpointing additions
+// checkpointing additions
 
 int
 MetaLearner::writeCheckpointMetadata(int iter, int randseed, bool notConvergedVal)

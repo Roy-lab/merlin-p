@@ -212,7 +212,7 @@ main(int argc, char* argv[])
 		cout <<"MERLIN-P GRN Inference " <<  endl
 			<< "-d gene_expression_file " << endl
 			<< "-k maxfactorsize (default size_of_dataset)" << endl
-			<< "-v cross_validation_cnt [BROKEN FOR >1 FOLDS] (default 1)" << endl
+			<< "-v cross_validation_cnt (default 1)" << endl
 			<< "-l restricted_regulator_fname" << endl
 			<< "-p sparsity_prior (default -5)" << endl
 			<< "-r module_prior (default 4)" << endl
