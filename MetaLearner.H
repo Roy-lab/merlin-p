@@ -23,23 +23,23 @@ class MetaLearner
 	public:
 	MetaLearner();
 	~MetaLearner();
-	int setShouldLoad(bool shouldLoadVal); // checkpointing
-	int setMaxFactorSize_Approx(int);
-	int setBeta1(double aval);
-	int setBeta_Motif(double bval);
+	void setShouldLoadCheckpoint(bool shouldLoadCheckpointVal);
+	void setMaxFactorSize_Approx(int);
+	void setBeta1(double aval);
+	void setBeta_Motif(double bval);
 	int setLambda(double bval);
-	int setConvergenceThreshold(double);
-	int setRestrictedList(const char*);
-	int setPreRandomizeSplit();
+	void setConvergenceThreshold(double);
+	void setRestrictedList(const char*);
+	void setPreRandomizeSplit();
 	int initEdgePriorMeta(const string& priorName, map<string,map<string,double>*>& graph, map<int,INTDBLMAP*>& edgePrior);
 	int doCrossValidation(int);
-	int setGlobalEvidenceManager(EvidenceManager*);
-	int setVariableManager(VariableManager*);
-	int setOutputDirName(const char*);
-	int setClusteringThreshold(double);
-	int setSpecificFold(int);
+	void setGlobalEvidenceManager(EvidenceManager*);
+	void setVariableManager(VariableManager*);
+	void setOutputDirName(const char*);
+	void setClusteringThreshold(double);
+	void setSpecificFold(int);
 	int getPredictionError_CrossValid(int);
-	int setRandom(bool);
+	void setRandom(bool);
 	int readModuleMembership(const char*);
 	int setDefaultModuleMembership();
 	int setPriorGraph_All(const char*);
@@ -47,9 +47,9 @@ class MetaLearner
 	private:
 
 	// checkpointing additions
-	bool shouldLoad; 
-	int writeCheckpointMetadata(int iter, int randseed, bool notConvergedVal); 
-	bool readCheckpointMetadata(int& iter, int& randseed, bool& notConvergedVal); 
+	bool shouldLoadCheckpoint; 
+	int writeCheckpointMetadata(int iter, bool notConvergedVal); 
+	bool readCheckpointMetadata(int& iter, bool& notConvergedVal); 
 	int writePLLScore(); 
 	double loadInitPLLScore(); 
 	int writeLastUpdate(); 
@@ -75,7 +75,7 @@ class MetaLearner
 	void makeMove(MetaMove* move, int currIteration);
 	void getNewPLLScore(Variable* u, Variable* v, vector<int>& parentIDs, string& edgeKey, double& mbScore, double& scoreImprovement, Potential**);
 
-	int dumpAllGraphs(int,int); // remove iter argument
+	int dumpAllGraphs(int,int);
 
 	int setPriorGraph(const char* aFName, map<string,map<string,double>*>& priorGraph);
 	int redefineModules();

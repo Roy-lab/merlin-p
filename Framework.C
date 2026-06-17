@@ -110,7 +110,12 @@ Framework::init(int argc, char** argv)
 			}
 			case 'q':
 			{
-				metaLearner.setPriorGraph_All(optarg);
+				int status = metaLearner.setPriorGraph_All(optarg);
+				if(status != Error::SUCCESS)
+				{
+					std::cerr << "Failed: " << Error::getErrorString(status) << std::endl;
+					exit(-1); 
+				}
 				break;
 			}
 			case 'c':
@@ -132,7 +137,7 @@ Framework::init(int argc, char** argv)
 			}
 			case 'a':
 			{
-				metaLearner.setShouldLoad(true);
+				metaLearner.setShouldLoadCheckpoint(true);
 				break;
 			}
 			case '?':

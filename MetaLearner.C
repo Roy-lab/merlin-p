@@ -5,8 +5,8 @@
 #include <sys/timeb.h>
 #include <sys/time.h>
 #include <time.h>
-#include <iomanip> // new
-#include <limits> // new
+#include <iomanip>
+#include <limits>
 
 #include "Error.H"
 #include "Variable.H"
@@ -28,7 +28,7 @@
 
 MetaLearner::MetaLearner()
 {
-	shouldLoad = false; // checkpointing
+	shouldLoadCheckpoint = false;
 	restrictedFName[0]='\0';
 	preRandomizeSplit=false;
 	random=false;
@@ -44,25 +44,22 @@ MetaLearner::~MetaLearner()
 {
 }
 
-int
-MetaLearner::setShouldLoad(bool shouldLoadVal) // checkpointing
+void
+MetaLearner::setShouldLoadCheckpoint(bool shouldLoadCheckpointVal)
 {
-	shouldLoad = shouldLoadVal;
-	return 0;
+	shouldLoadCheckpoint = shouldLoadCheckpointVal;
 }
 
-int
+void
 MetaLearner::setMaxFactorSize_Approx(int aVal)
 {
 	maxFactorSizeApprox=aVal;
-	return 0;
 }
 
-int
+void
 MetaLearner::setBeta1(double aval)
 {
 	beta1=aval;
-	return 0;
 }
 
 int
@@ -85,7 +82,7 @@ MetaLearner::setPriorGraph_All(const char* aFName)
     if (!inFile.is_open())
     {
         std::cerr << "Error: Prior config file path incorrect or file cannot be opened: " << aFName << std::endl;
-		exit(-1);
+		return Error::DATAFILE_ERR;
     }
 
 	char buffer[1024];
@@ -120,28 +117,32 @@ MetaLearner::setPriorGraph_All(const char* aFName)
 		}
 		betamap[gname] = gbeta;
 		map<string,map<string,double>*>* priorGraph = new map<string,map<string,double>*>();
-		setPriorGraph(fname.c_str(),*priorGraph);
+		int status = setPriorGraph(fname.c_str(), *priorGraph);
+		if(status != Error::SUCCESS)
+		{
+			std::cerr << "Error: failed to load prior graph for " << gname << " from " << fname << std::endl;
+			delete priorGraph;
+			return status;
+		}
 		priorgraphmap[gname] = priorGraph;
 	}
 	inFile.close();
-	return 0;
+	return Error::SUCCESS;
 }
 
-int
+void
 MetaLearner::setBeta_Motif(double aval)
 {
 	beta_motif=aval;
-	return 0;
 }
 
-int
+void
 MetaLearner::setConvergenceThreshold(double aVal)
 {
 	convThreshold=aVal;
-	return 0;
 }
 
-int
+void
 MetaLearner::setRestrictedList(const char* aFName)
 {
 	strcpy(restrictedFName,aFName);
@@ -162,51 +163,44 @@ MetaLearner::setRestrictedList(const char* aFName)
 	}
 	inFile.close();
 	std::cout << "Number of regulators read: " << count << std::endl;
-	return 0;
 }
 
 
-int
+void
 MetaLearner::setPreRandomizeSplit()
 {
 	preRandomizeSplit=true;
-	return 0;
 }
 
-int
+void
 MetaLearner::setGlobalEvidenceManager(EvidenceManager* anEvMgr)
 {
 	evidenceManager=anEvMgr;
-	return 0;
 }
 
-int
+void
 MetaLearner::setVariableManager(VariableManager* aPtr)
 {
 	varManager=aPtr;
-	return 0;
 }
 
-int
+void
 MetaLearner::setOutputDirName(const char* dirPath)
 {
 	strcpy(outputDirName,dirPath);
-	return 0;
 }
 
-int
+void
 MetaLearner::setClusteringThreshold(double aVal)
 {
 	clusterThreshold=aVal;
-	return 0;
 }
 
 
-int
+void
 MetaLearner::setSpecificFold(int fid)
 {
 	specificFold=fid;
-	return 0;
 }
 
 int
@@ -216,7 +210,7 @@ MetaLearner::setPriorGraph(const char* aFName, map<string,map<string,double>*>& 
     if (!inFile.is_open())
     {
         std::cerr << "Error: Prior file path incorrect or file cannot be opened: " << aFName << std::endl;
-		exit(-1);
+		return Error::DATAFILE_ERR;
     }
 
 	char buffer[1024];
@@ -262,14 +256,13 @@ MetaLearner::setPriorGraph(const char* aFName, map<string,map<string,double>*>& 
 		(*tgtSet)[tgtName]=edgeStrength;
 	}
 	inFile.close();
-	return 0;
+	return Error::SUCCESS;
 }
 
-int
+void
 MetaLearner::setRandom(bool flag)
 {
 	random=flag;
-	return 0;
 }
 
 int
@@ -430,7 +423,6 @@ int
 MetaLearner::doCrossValidation(int foldCnt)
 {
 	gsl_rng* r=gsl_rng_alloc(gsl_rng_default);
-	rnd=gsl_rng_alloc(gsl_rng_default);
 
 	evidenceManager->setFoldCnt(foldCnt);
 	evidenceManager->splitData(0);
@@ -480,7 +472,6 @@ MetaLearner::doCrossValidation(int foldCnt)
 	}
 	gsl_rng_free(r);
 
-	gsl_rng_free(rnd);
 	return 0;
 }
 
@@ -492,27 +483,23 @@ MetaLearner::start(int f)
 	int maxNumRegs = maxFactorSizeApprox-1; // max num of regulators a gene can have
 
 	int iter = 0;
-	int rseed=getpid();
 	bool notConverged=true;
 	bool loadedMetadata = false;
-	if(shouldLoad)
+	if(shouldLoadCheckpoint)
 	{
-		loadedMetadata = readCheckpointMetadata(iter, rseed, notConverged);
+		loadedMetadata = readCheckpointMetadata(iter, notConverged);
 		if (loadedMetadata)
 		{
 			iter++;
 		}
 	}
-	rnd=gsl_rng_alloc(gsl_rng_default);
-	gsl_rng_set(rnd,rseed);
-	cout << "Random seed: " << rseed << endl;
 
 	initEdgePriorMeta_All(); // populates edgepriormap
 	initEdgeSet(); // populates edgeMap, edgePresenceProb (unused), varNeighborhoodPrior, potentials
 
 	VSET& varSet=varManager->getVariableSet();
 	double currGlobalScore=0;
-	if (shouldLoad && loadedMetadata) // checkpointing
+	if (shouldLoadCheckpoint && loadedMetadata)
 	{
 		cout << "Read modules..." << endl;
 		readCheckpointModuleMembership(); // overwrites moduleGeneSet, geneModuleID (set by readModuleMembership)
@@ -581,10 +568,11 @@ MetaLearner::start(int f)
 		scorePremodule=currGlobalScore;
 		dumpAllGraphs(maxFactorSizeApprox,f);
 
-		writeCheckpointMetadata(iter, rseed, notConverged); // checkpointing
-		writePLLScore(); // checkpointing
-		writeLastUpdate(); // checkpointing
-		doTar(); // checkpointing
+		// checkpointing:
+		writeCheckpointMetadata(iter, notConverged);
+		writePLLScore();
+		writeLastUpdate();
+		doTar();
 
 		iter++;
 	}
@@ -1090,7 +1078,7 @@ MetaLearner::makeMove(MetaMove* nextMove, int currIteration)
 }
 
 int
-MetaLearner::dumpAllGraphs(int maxFactorSizeApprox,int foldid) // remove iter argument
+MetaLearner::dumpAllGraphs(int maxFactorSizeApprox,int foldid)
 {
 	VSET& varSet=varManager->getVariableSet();
 	char aFName[1024];
@@ -1500,14 +1488,13 @@ MetaLearner::initCorrelationDistances()
 // checkpointing additions
 
 int
-MetaLearner::writeCheckpointMetadata(int iter, int randseed, bool notConvergedVal)
+MetaLearner::writeCheckpointMetadata(int iter, bool notConvergedVal)
 {
     char aFName[1024];
     sprintf(aFName, "%s/checkpoint.txt", foldoutDirName);
 
     ofstream outFile(aFName);
     outFile << "iter " << iter << endl;
-    outFile << "randseed " << randseed << endl;
     outFile << "notConverged " << notConvergedVal << endl;
     outFile.close();
 
@@ -1515,7 +1502,7 @@ MetaLearner::writeCheckpointMetadata(int iter, int randseed, bool notConvergedVa
 }
 
 bool
-MetaLearner::readCheckpointMetadata(int& iter, int& randseed, bool& notConvergedVal)
+MetaLearner::readCheckpointMetadata(int& iter, bool& notConvergedVal)
 {
     char aFName[1024];
     sprintf(aFName, "%s/checkpoint.txt", foldoutDirName);
@@ -1530,7 +1517,6 @@ MetaLearner::readCheckpointMetadata(int& iter, int& randseed, bool& notConverged
 
     string label;
     inFile >> label >> iter;
-    inFile >> label >> randseed;
     inFile >> label >> notConvergedVal;
     inFile.close();
 
@@ -1551,7 +1537,7 @@ MetaLearner::writePLLScore()
 	INTDBLMAP* plls = currPLL;
 
 	// Force maximum double precision to prevent truncation
-    outFile << std::setprecision(std::numeric_limits<double>::max_digits10); // new
+    outFile << std::setprecision(std::numeric_limits<double>::max_digits10);
 
     for (VSET_ITER vIter = varSet.begin(); vIter != varSet.end(); vIter++)
     {
