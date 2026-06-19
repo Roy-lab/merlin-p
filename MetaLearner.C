@@ -30,7 +30,6 @@ MetaLearner::MetaLearner()
 {
 	shouldLoadCheckpoint = false;
 	restrictedFName[0]='\0';
-	preRandomizeSplit=false;
 	random=false;
 	clusterThreshold=0.5;
 	specificFold=-1;
@@ -163,13 +162,6 @@ MetaLearner::setRestrictedList(const char* aFName)
 	}
 	inFile.close();
 	std::cout << "Number of regulators read: " << count << std::endl;
-}
-
-
-void
-MetaLearner::setPreRandomizeSplit()
-{
-	preRandomizeSplit=true;
 }
 
 void

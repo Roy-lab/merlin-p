@@ -23,10 +23,8 @@ class MetaLearner
 		void setMaxFactorSize_Approx(int);
 		void setBeta1(double aval);
 		void setBeta_Motif(double bval);
-		int setLambda(double bval);
 		void setConvergenceThreshold(double);
 		void setRestrictedList(const char*);
-		void setPreRandomizeSplit();
 		int initEdgePriorMeta(const string& priorName, map<string,map<string,double>*>& graph, map<int,INTDBLMAP*>& edgePrior);
 		int doCrossValidation(int);
 		void setGlobalEvidenceManager(EvidenceManager*);
@@ -88,16 +86,12 @@ class MetaLearner
 		map<string,int> restrictedVarList;
 		INTDBLMAP* currPLL;
 		map<int,double> finalScores;
-		bool preRandomizeSplit;
-		gsl_rng* rnd;
 		char outputDirName[1024];
 		map<string,double> edgePresenceProb;
 		map<int,double> varNeighborhoodPrior;
 		double beta1;
 		double beta_motif;
-		double lambda;
 		bool random;
-		bool randomData;
 		map<int,map<string,int>*> moduleGeneSet;
 		map<string,int> geneModuleID;
 		map<int,map<string,int>*> moduleIndegree;
