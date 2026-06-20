@@ -498,6 +498,8 @@ MetaLearner::start(int currFold)
 		cout << "Beginning regulator identification of iter " << iter << endl;
 
 		int varID = 0;
+		int skippedVarCount = 0;
+		int noMoveCount = 0;
 		double scorePremodule = currGlobalScore;
 
 		while(varID < varSet.size()) {
@@ -507,14 +509,14 @@ MetaLearner::start(int currFold)
 			// If 5 iterations have passed without finding a score improving parent, then skip.
 			int lastiter = variableStatus[v->getName()];
 			if((iter - lastiter) >= 5) {
-				cout <<"   Skipping gene " << v->getName() << "; no parents added in last 5 iters." << endl;
+				skippedVarCount++;
 				varID++;
 				continue;
 			}
 
 			MetaMove nextMove;
 			if (!getNextMove(varID, nextMove)) {
-				cout <<"   No move found " << v->getName() << endl;
+				noMoveCount++;
 				varID++;
 				continue;
 			}
@@ -526,6 +528,8 @@ MetaLearner::start(int currFold)
 			varID++;
 		}
 		cout << "   Finished identifying regulators with score " << currGlobalScore << endl;
+		cout << "   Skipped target count: " << skippedVarCount << endl;
+		cout << "   No move found count: " << noMoveCount << endl;
 
 		notConverged = (currGlobalScore - scorePremodule) > convThreshold;
 
