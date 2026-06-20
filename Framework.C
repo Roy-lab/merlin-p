@@ -75,7 +75,7 @@ Framework::init(int argc, char** argv)
 			case 'k':
 			{
 				int aSize = atoi(optarg);
-				metaLearner.setMaxFactorSize_Approx(aSize);
+				metaLearner.setMaxFactorSize(aSize);
 				kDefault=false;
 				break;
 			}
@@ -191,7 +191,7 @@ Framework::init(int argc, char** argv)
 	}
 	if(kDefault)
 	{
-		metaLearner.setMaxFactorSize_Approx(300);
+		metaLearner.setMaxFactorSize(300);
 	}
 	if(rDefault)
 	{

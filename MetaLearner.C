@@ -48,9 +48,9 @@ MetaLearner::setShouldLoadCheckpoint(bool shouldLoadCheckpointVal)
 }
 
 void
-MetaLearner::setMaxFactorSize_Approx(int aVal)
+MetaLearner::setMaxFactorSize(int aVal)
 {
-	maxFactorSizeApprox=aVal;
+	maxFactorSize=aVal;
 }
 
 void
@@ -448,7 +448,6 @@ void
 MetaLearner::start(int currFold)
 {
 	sprintf(foldoutDirName, "%s/fold%d", outputDirName, currFold);
-	int maxNumRegs = maxFactorSizeApprox - 1;
 
 	int iter = 0;
 	bool notConverged=true;
@@ -476,7 +475,7 @@ MetaLearner::start(int currFold)
 
 		// populates moduleIndegree, regulatorModuleOutdegree; updates edgeMap; overwrites potentials
 		cout << "Read networks..." << endl;
-		populateGraphsFromFile(maxFactorSizeApprox);
+		populateGraphsFromFile();
 
 		currGlobalScore = loadInitPLLScore(); 
 
@@ -514,7 +513,7 @@ MetaLearner::start(int currFold)
 			}
 
 			MetaMove nextMove;
-			if (!getNextMove(maxNumRegs, varID, nextMove)) {
+			if (!getNextMove(varID, nextMove)) {
 				cout <<"   No move found " << v->getName() << endl;
 				varID++;
 				continue;
@@ -536,7 +535,7 @@ MetaLearner::start(int currFold)
 		}
 
 		scorePremodule = currGlobalScore;
-		dumpAllGraphs(maxFactorSizeApprox, currFold);
+		dumpAllGraphs(currFold);
 
 		// Checkpointing
 		writeCheckpointMetadata(iter, notConverged);
@@ -789,10 +788,11 @@ MetaLearner::getPredictionError_CrossValid(int foldid)
 }
 
 bool
-MetaLearner::getNextMove(int maxNumRegs, int vID, MetaMove& outMove)
+MetaLearner::getNextMove(int vID, MetaMove& outMove)
 {
 	unordered_map<int, Variable*>& varSet = varManager->getVariableSet();
 	Variable* v = varSet[vID];
+	int maxNumRegs = maxFactorSize - 1;
 
 	if(geneModuleID.find(v->getName()) == geneModuleID.end()) {
 		return false;
@@ -1030,16 +1030,15 @@ MetaLearner::makeMove(MetaMove& nextMove, int currIteration)
 	}
 }
 
-int
-MetaLearner::dumpAllGraphs(int maxFactorSizeApprox,int foldid)
+void
+MetaLearner::dumpAllGraphs(int foldid)
 {
-	unordered_map<int, Variable*>& varSet=varManager->getVariableSet();
 	char aFName[1024];
-	sprintf(aFName,"%s/prediction_k%d.txt",foldoutDirName,maxFactorSizeApprox);
+	sprintf(aFName, "%s/prediction_k%d.txt", foldoutDirName, maxFactorSize);
 	ofstream oFile(aFName);
+	unordered_map<int, Variable*>& varSet=varManager->getVariableSet();
 	factorGraph->dumpVarMB(oFile, varSet);
 	oFile.close();
-	return 0;
 }
 
 void
@@ -1668,14 +1667,14 @@ MetaLearner::readCheckpointModuleMembership()
 }
 
 int
-MetaLearner::populateGraphsFromFile(int maxFactorSizeApprox)
+MetaLearner::populateGraphsFromFile()
 {
 	// Clear previous degree distributions
 	moduleIndegree.clear();
 	regulatorModuleOutdegree.clear();
 
 	char aFName[1024];
-    sprintf(aFName, "%s/prediction_k%d.txt", foldoutDirName, maxFactorSizeApprox);
+    sprintf(aFName, "%s/prediction_k%d.txt", foldoutDirName, maxFactorSize);
 	ifstream inFile(aFName);
 	if (!inFile.is_open())
 	{

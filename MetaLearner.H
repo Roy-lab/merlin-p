@@ -20,7 +20,7 @@ class MetaLearner
 	public:
 		MetaLearner();
 		void setShouldLoadCheckpoint(bool shouldLoadCheckpointVal);
-		void setMaxFactorSize_Approx(int);
+		void setMaxFactorSize(int);
 		void setBeta1(double aval);
 		void setBeta_Motif(double bval);
 		void setConvergenceThreshold(double);
@@ -49,7 +49,7 @@ class MetaLearner
 		int loadLastUpdate(); 
 		int doTar(); 
 		int readCheckpointModuleMembership(); 
-		int populateGraphsFromFile(int maxFactorSizeApprox); 
+		int populateGraphsFromFile();
 
 		void start(int);
 		void initEdgePriorMeta_All();
@@ -59,9 +59,9 @@ class MetaLearner
 		double getEdgePrior(int tfID, int targetID);
 		void clearFoldSpecData();
 		int initEdgeSet();
-		bool getNextMove(int currK, int vID, MetaMove& outMove);
+		bool getNextMove(int vID, MetaMove& outMove);
 		void makeMove(MetaMove& move, int currIteration);
-		int dumpAllGraphs(int, int);
+		void dumpAllGraphs(int);
 		int setPriorGraph(const char* aFName, map<string, map<string, double>*>& priorGraph);
 		void redefineModules(int currFold);
 		double getModuleContribLogistic(string& tgtName, string& tfName);
@@ -79,7 +79,7 @@ class MetaLearner
 		map<string, double> betaMap;
 		map<string, unordered_map<int, unordered_map<int, double>*>*> edgePriorMap;
 		map<string, map<string, map<string, double>*>*> priorGraphMap;
-		int maxFactorSizeApprox;
+		int maxFactorSize;
 		double convThreshold;
 		char restrictedFName[1024];
 		unordered_map<int, unordered_map<int, int>> edgeMap;
