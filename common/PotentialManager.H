@@ -20,14 +20,15 @@ class PotentialManager
 		// Creates a Potential of a single variable.
 		Potential* createPotential(int factorID);
 
-		// Computes the conditional Gaussian log likelihood of the factor's assignments
-		// conditioned upon its parents. It also creates a Potential representing this conditional
-		// Gaussian PDF.
-		double computeLL(int factorID, vector<int>& parentIDs, int sampleSize, Potential** newPot);
+		// Creates a Potential conditioned on a set of parents.
+		Potential* createPotential(int factorID, vector<int>& parentIDs);
+
+		// Computes a Gaussian log likelihood for the factor conditioned upon its existing parents and each candidate parent.
+		void computeLLs(int factorID, int sampleSize, vector<int>& existingParents, vector<int>&candidateParents, unordered_map<int, double>&scores);
 
 	private:
-		gsl_matrix* ludecomp;
-		gsl_permutation* perm;
+		void computeSingleParentLLs(int factorID, int sampleSize, vector<int>&candidateParents, unordered_map<int, double>&scores);
+
 		vector<double> globalMeans;
 		Matrix *globalCovariances;
 };

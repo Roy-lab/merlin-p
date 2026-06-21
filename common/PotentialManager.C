@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstring>
 #include <math.h>
+#include <unordered_map>
 
 #include "CommonTypes.H"
 #include "Error.H"
@@ -11,32 +12,19 @@
 
 PotentialManager::PotentialManager()
 {
-	ludecomp=NULL;
-	perm=NULL;
-	globalCovariances=nullptr;
+	globalCovariances = nullptr;
 }
 
 PotentialManager::~PotentialManager()
 {
-	if(ludecomp!=NULL)
-	{
-		gsl_matrix_free(ludecomp);
-	}
-	if(perm!=NULL)
-	{
-		gsl_permutation_free(perm);
-	}
-	if(globalCovariances!=nullptr)
-	{
+	if (globalCovariances != nullptr) {
 		delete globalCovariances;
 	}
 }
 
-int
-PotentialManager::init(EvidenceManager* evMgr, bool randomData, vector<int>& varIDs)
+int PotentialManager::init(EvidenceManager* evMgr, bool randomData, vector<int>& varIDs)
 {
-	if (globalCovariances != nullptr)
-	{
+	if (globalCovariances != nullptr) {
 		delete globalCovariances;
 	}
 
@@ -135,89 +123,230 @@ PotentialManager::init(EvidenceManager* evMgr, bool randomData, vector<int>& var
 		}
 	}
 
-	ludecomp = gsl_matrix_alloc(MAXFACTORSIZE_ALLOC, MAXFACTORSIZE_ALLOC);
-	perm = gsl_permutation_alloc(MAXFACTORSIZE_ALLOC);
-
 	return 0;
 }
 
-Potential*
-PotentialManager::createPotential(int factorID)
+Potential* PotentialManager::createPotential(int factorID)
 {
 	int varCount = globalMeans.size();
 	double variance = globalCovariances->getValue(factorID, factorID);
 	double bias = globalMeans[factorID];
-	INTDBLMAP weights;
+	unordered_map<int, double> weights;
 	return new Potential(factorID, variance, bias, weights);
 }
 
-double
-PotentialManager::computeLL(int factorID, vector<int>& parentIDs, int sampleSize, Potential** newPot)
+void PotentialManager::computeLLs(int factorID, int sampleSize, vector<int>& existingParents, vector<int>&candidateParents, unordered_map<int, double>&scores) {
+
+	if (existingParents.size() == 0) {
+		computeSingleParentLLs(factorID, sampleSize, candidateParents, scores);
+		return;
+	}
+
+	// In order to compute likelihood, we need the variance of the factor conditioned upon existing parents and the candidate parent.
+	// We use the following framing
+	// A : Factor
+	// B : existing parents
+	// C : candidate parent
+	// Var(A | B, C) = Var(A | B) - Cov(AC | B) * Var(C | B)^-1 * Cov(CA | B)
+	// Var (A | B) = Var(A) - Cov(AB) * Var(B)^-1 * Cov(BA)
+	// Var (C | B) = Var(C) - Cov(CB) * Var(B)^-1 * Cov(BC)
+	// Cov (AC | B) = Cov(AC) - Cov(AB) * Var(B)^-1 * Cov(BC)
+
+	// This allows us to precompute Var(A | B), Var(B)^-1, and Cov(AB) * Var(B)^-1, because they don't rely on C. Since we only add a single
+	// candidate parent at a time, the per candidate work doesn't require any matrix inverts, only scalar and vector multiplication.
+
+	int parentCount = existingParents.size();
+
+	// Var(A)
+	double factorVariance = globalCovariances->getValue(factorID, factorID);
+
+	// Cov(AB)
+	gsl_vector* existingParentMarginalVariances = gsl_vector_alloc(parentCount);
+
+	// Cov(BB)
+	gsl_matrix* existingParentCovariances = gsl_matrix_alloc(parentCount, parentCount);
+
+	for (int i = 0; i < parentCount; i++) {
+		int varAID = existingParents[i];
+		double marginalCovariance = globalCovariances->getValue(factorID, varAID);
+		gsl_vector_set(existingParentMarginalVariances, i, marginalCovariance);
+
+		for (int j = i; j < parentCount; j++) {
+			int varBID = existingParents[j];
+			double covariance = globalCovariances->getValue(varAID, varBID);
+			gsl_matrix_set(existingParentCovariances, i, j, covariance);
+			gsl_matrix_set(existingParentCovariances, j, i, covariance);
+		}
+	}
+
+	gsl_permutation* permutation = gsl_permutation_alloc(parentCount);
+
+	int signum=0;
+	gsl_linalg_LU_decomp(existingParentCovariances, permutation, &signum);
+
+	// Var(B)^-1
+	gsl_matrix* parentCovInverse = gsl_matrix_alloc(parentCount, parentCount);
+	gsl_linalg_LU_invert(existingParentCovariances, permutation, parentCovInverse);
+
+	gsl_matrix_free(existingParentCovariances);
+	gsl_permutation_free(permutation);
+
+	// Cov(AB) * Var(B)^-1
+	gsl_vector* prod = gsl_vector_alloc(parentCount);
+	gsl_blas_dgemv(CblasTrans, 1, parentCovInverse, existingParentMarginalVariances, 0, prod);
+
+	// Cov(AB) * Var(B)^-1 * Cov(BA)
+	double dot = 0.0;
+	gsl_blas_ddot(prod, existingParentMarginalVariances, &dot);
+
+	// Var(A|B)
+	double existingConditionalVariance = factorVariance - dot;
+
+	gsl_vector_free(existingParentMarginalVariances);
+
+	for (int i = 0; i < candidateParents.size(); i++) {
+		int candidateID = candidateParents[i];
+
+		// Var(C)
+		double candidateVariance = globalCovariances->getValue(candidateID, candidateID);
+
+		// Cov(BC)
+		gsl_vector* candidateMarginalVariances = gsl_vector_alloc(parentCount);
+
+		for (int i = 0; i < parentCount; i++) {
+			int varAID = existingParents[i];
+			double marginalCovariance = globalCovariances->getValue(candidateID, varAID);
+			gsl_vector_set(candidateMarginalVariances, i, marginalCovariance);
+		}
+
+		// Cov(BC) * Var(B)^-1
+		gsl_vector* candidateProd = gsl_vector_alloc(parentCount);
+		gsl_blas_dgemv(CblasTrans, 1, parentCovInverse, candidateMarginalVariances, 0, candidateProd);
+
+		// Cov(BC) * Var(B)^-1 * Cov(CB)
+		double dot = 0.0;
+		gsl_blas_ddot(candidateProd, candidateMarginalVariances, &dot);
+
+		// Var(C|B)
+		double candidateConditionalVariance = candidateVariance - dot;
+
+		if (candidateConditionalVariance < 1e-10) {
+			continue;
+		}
+
+		// Cov(AC)
+		double candidateFactorCovariance = globalCovariances->getValue(candidateID, factorID);
+
+		// Cov(AB) * Var(B)^-1 * Cov(BC)
+		dot = 0.0;
+		gsl_blas_ddot(prod, candidateMarginalVariances, &dot);
+
+		gsl_vector_free(candidateProd);
+		gsl_vector_free(candidateMarginalVariances);
+
+		// Cov(AC | B)
+		double factorAndCandidateConditionalCov = candidateFactorCovariance - dot;
+
+		// Var(A | B, C)
+		double finalVariance = existingConditionalVariance - factorAndCandidateConditionalCov * factorAndCandidateConditionalCov / candidateConditionalVariance;
+
+		if (finalVariance < 1e-5) {
+			finalVariance = 1e-5;
+		}
+
+		if(isnan(finalVariance) || isinf(finalVariance)) {
+			continue;
+		}
+
+		scores[candidateID] = -0.5 * ((sampleSize - 1) + sampleSize * log(2 * PI) + sampleSize * log(finalVariance));
+	}
+
+	gsl_matrix_free(parentCovInverse);
+	gsl_vector_free(prod);
+}
+
+// Computes a gaussian log likelihood of factor id conditioned upon a single parent, for each candidate parent.
+// The single parent case is broken out into a separate function because it can be done with fast scalar arithmetic.
+void PotentialManager::computeSingleParentLLs(int factorID, int sampleSize, vector<int>&candidateParents, unordered_map<int, double>&scores) {
+
+	double factorVariance = globalCovariances->getValue(factorID, factorID);
+
+	for (int i = 0; i < candidateParents.size(); i++) {
+		int candidateID = candidateParents[i];
+
+		double candidateVariance = globalCovariances->getValue(candidateID, candidateID);
+
+		if (candidateVariance < 1e-10) {
+			continue;
+		}
+
+		double factorCandidateCov = globalCovariances->getValue(factorID, candidateID);
+		double finalVariance = factorVariance - factorCandidateCov * factorCandidateCov / candidateVariance;
+
+		if (finalVariance < 1e-5) {
+			finalVariance = 1e-5;
+		}
+
+		if(isnan(finalVariance) || isinf(finalVariance)) {
+			continue;
+		}
+
+		scores[candidateID] = -0.5 * ((sampleSize - 1) + sampleSize * log(2 * PI) + sampleSize * log(finalVariance));
+	}
+}
+
+Potential* PotentialManager::createPotential(int factorID, vector<int>& parentIDs)
 {
+	int parentCount = parentIDs.size();
 	double variance = globalCovariances->getValue(factorID, factorID);
 	double bias = globalMeans[factorID];
-	INTDBLMAP weights;
-
-	int parentCount = parentIDs.size();
 
 	// Start by collecting a matrix of all the covariances of the conditioning variables,
 	// and the marginal variances of the conditioning variables.
 
-	Matrix *parentCovariances = new Matrix(parentCount, parentCount);
-	Matrix *parentMarginalVariances = new Matrix(1, parentCount);
+	gsl_matrix* parentCovariances = gsl_matrix_alloc(parentCount, parentCount);
+	gsl_vector* parentMarginalVariances = gsl_vector_alloc(parentCount);
 
-	for (int i = 0; i < parentCount; i++)
-	{
+	for (int i = 0; i < parentCount; i++) {
 		int varAID = parentIDs[i];
-		double factorCovariance = globalCovariances->getValue(factorID, varAID);
-		parentMarginalVariances->setValue(factorCovariance, 0, i);
+		double marginalCovariance = globalCovariances->getValue(factorID, varAID);
+		gsl_vector_set(parentMarginalVariances, i, marginalCovariance);
 
-		for (int j = i; j < parentCount; j++)
-		{
+		for (int j = i; j < parentCount; j++) {
 			int varBID = parentIDs[j];
 			double covariance = globalCovariances->getValue(varAID, varBID);
-			parentCovariances->setValue(covariance, i, j);
-			parentCovariances->setValue(covariance, j, i);
+			gsl_matrix_set(parentCovariances, i, j, covariance);
+			gsl_matrix_set(parentCovariances, j, i, covariance);
 		}
 	}
 
 	// Compute the final values for the variance of the conditional gaussian,
 	// plus the regression parameters for the mean of the conditional guassian.
 
-	Matrix* parentCovInverse = parentCovariances->invMatrix(ludecomp, perm);
-	Matrix* prod = parentMarginalVariances->multiplyMatrix(parentCovInverse);
+	gsl_vector* x = gsl_vector_alloc(parentCount);
 
-	for (int i = 0; i < parentCount; i++)
-	{
+	gsl_permutation* permutation = gsl_permutation_alloc(parentCount);
+
+	int signum = 0;
+	gsl_linalg_LU_decomp(parentCovariances, permutation, &signum);
+
+	gsl_linalg_LU_solve(parentCovariances, permutation, parentMarginalVariances, x);
+
+	unordered_map<int, double> weights;
+	for (int i = 0; i < parentCount; i++) {
 		int vID = parentIDs[i];
-		double aVal = prod->getValue(0, i);
-		double bVal = parentMarginalVariances->getValue(0, i);
+		double aVal = gsl_vector_get(x, i);
+		double bVal = gsl_vector_get(parentMarginalVariances, i);
 		double cVal = globalMeans[vID];
 		weights[vID] = aVal;
 		variance -= aVal * bVal;
 		bias -= cVal * aVal;
 	}
 
-	delete prod;
-	delete parentMarginalVariances;
-	delete parentCovariances;
-	delete parentCovInverse;
+	gsl_vector_free(x);
+	gsl_vector_free(parentMarginalVariances);
+	gsl_permutation_free(permutation);
+	gsl_matrix_free(parentCovariances);
 
-	if(variance < 1e-5)
-	{
-		variance = 1e-5;
-	}
-
-	// If the variance is invalid, then we don't want to attempt adding this edge,
-	// so we should just bail out before computing the LL
-	if(isnan(variance) || isinf(variance))
-	{
-		return -1;
-	}
-
-	// Now that the conditional Gaussian params are computed, we can create the potential.
-	*newPot = new Potential(factorID, variance, bias, weights);
-
-	// Finally, compute the conditional log likelihood.
-	return -0.5 * ((sampleSize - 1) + sampleSize * log(2 * PI) + sampleSize * log(variance));
+	return new Potential(factorID, variance, bias, weights);
 }

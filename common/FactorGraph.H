@@ -17,7 +17,7 @@ class FactorGraph
 
 		int getFactorCnt();
 		SlimFactor* getFactorAt(int);
-		int dumpVarMB(ofstream&, VSET&);
+		int dumpVarMB(ofstream&, unordered_map<int, Variable*>&);
 
 	private:
 		map<int,SlimFactor*> factorSet;

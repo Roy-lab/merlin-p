@@ -14,8 +14,8 @@ class Evidence;
 
 //EMAP stores the map of variable ids and their evidence. This corresponds
 //to one line in the datafile
-typedef map<int,Evidence*> EMAP;
-typedef map<int,Evidence*>::iterator EMAP_ITER;
+typedef unordered_map<int,Evidence*> EMAP;
+typedef unordered_map<int,Evidence*>::iterator EMAP_ITER;
 
 typedef vector<EMAP*> EVIDENCE_SET;
 
@@ -34,14 +34,11 @@ class EvidenceManager
 
 		int randomizeEvidence(gsl_rng*, VariableManager*);
 		int setFoldCnt(int);
-		int setPreRandomizeSplit();
 		int splitData(int);
 		INTINTMAP& getTrainingSet();
 		INTINTMAP& getTestSet();
-		int populateRandIntegers(gsl_rng*, vector<int>&,int,int);
 
 	private:
-		int populateRandIntegers(gsl_rng*, int*,int);
 		int populateRandIntegers(gsl_rng* r, int* randInds, INTINTMAP& populateFrom, int size);
 
 		EVIDENCE_SET evidenceSet;
@@ -49,7 +46,5 @@ class EvidenceManager
 		INTINTMAP trainIndex;
 		INTINTMAP testIndex;
 		int foldCnt;
-		bool preRandomizeSplit;
-		int randseed;
 };
 #endif

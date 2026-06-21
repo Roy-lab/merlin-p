@@ -11,8 +11,6 @@
 EvidenceManager::EvidenceManager()
 {
 	foldCnt=1;
-	preRandomizeSplit=false;
-	randseed=0;
 }
 
 Error::ErrorCode
@@ -100,9 +98,9 @@ EvidenceManager::randomizeEvidence(gsl_rng* r, VariableManager* vMgr)
 		randEvidenceSet.push_back(evidMap);
 	}
 	//Populate variable wise
-	VSET& variableSet=vMgr->getVariableSet();
+	unordered_map<int, Variable*>& variableSet = vMgr->getVariableSet();
 	int* randInds=new int[trainIndex.size()];
-	for(VSET_ITER vIter=variableSet.begin();vIter!=variableSet.end();vIter++)
+	for(auto vIter=variableSet.begin();vIter!=variableSet.end();vIter++)
 	{
 		//generate a random vector of indices ranging from 0 to evidenceSet.size()-1
 		populateRandIntegers(r,randInds,trainIndex,trainIndex.size());
@@ -155,13 +153,6 @@ EvidenceManager::setFoldCnt(int f)
 }
 
 int
-EvidenceManager::setPreRandomizeSplit()
-{
-	preRandomizeSplit=true;
-	return 0;
-}
-
-int
 EvidenceManager::splitData(int s)
 {
 	int testSetSize=evidenceSet.size()/foldCnt;
@@ -179,38 +170,17 @@ EvidenceManager::splitData(int s)
 	trainIndex.clear();
 	testIndex.clear();
 	int m=0;
-	int* randInds=NULL;
-	if(preRandomizeSplit)
-	{
-		randInds=new int[evidenceSet.size()];
-		//generate a random vector of indices ranging from 0 to evidenceSet.size()-1
-		gsl_rng* r=gsl_rng_alloc(gsl_rng_default);
-		randseed=getpid();
-		gsl_rng_set(r,randseed);
-		populateRandIntegers(r,randInds,evidenceSet.size());
-		gsl_rng_free(r);
-		cout <<"Random seed " << randseed << endl;
-	}
 	for(int i=0;i<evidenceSet.size();i++)
 	{
-		int eInd=i;
-		if(randInds!=NULL)
-		{
-			eInd=randInds[i];
-		}
 		if((m>=testStartIndex) && (m<testEndIndex))
 		{
-			testIndex[eInd]=0;
+			testIndex[i]=0;
 		}
 		else
 		{
-			trainIndex[eInd]=0;
+			trainIndex[i]=0;
 		}
 		m++;
-	}
-	if(preRandomizeSplit)
-	{
-		delete[] randInds;
 	}
 	return 0;
 }
@@ -225,27 +195,6 @@ INTINTMAP&
 EvidenceManager::getTestSet()
 {
 	return testIndex;
-}
-
-int
-EvidenceManager::populateRandIntegers(gsl_rng* r, int* randInds,int size)
-{
-	double step=1.0/(double)size;
-	map<int,int> usedInit;
-	for(int i=0;i<size;i++)
-	{
-		double rVal=gsl_ran_flat(r,0,1);
-		int rind=(int)(rVal/step);
-		while(usedInit.find(rind)!=usedInit.end())
-		{
-			rVal=gsl_ran_flat(r,0,1);
-			rind=(int)(rVal/step);
-		}
-		usedInit[rind]=0;
-		randInds[i]=rind;
-	}
-	usedInit.clear();
-	return 0;
 }
 
 int
@@ -276,24 +225,3 @@ EvidenceManager::populateRandIntegers(gsl_rng* r, int* randInds, INTINTMAP& popu
 	usedInit.clear();
 	return 0;
 }
-
-int
-EvidenceManager::populateRandIntegers(gsl_rng* r, vector<int>& randInds,int size, int subsetsize)
-{
-	double step=1.0/(double)size;
-	map<int,int> usedInit;
-	for(int i=0;i<subsetsize;i++)
-	{
-		double rVal=gsl_ran_flat(r,0,1);
-		int rind=(int)(rVal/step);
-		while(usedInit.find(rind)!=usedInit.end())
-		{
-			rVal=gsl_ran_flat(r,0,1);
-			rind=(int)(rVal/step);
-		}
-		usedInit[rind]=0;
-		randInds.push_back(rind);
-	}
-	return 0;
-}
-

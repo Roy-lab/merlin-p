@@ -40,7 +40,7 @@ Framework::init(int argc, char** argv)
 	int optret;
 	opterr=1;
 
-	while((optret=getopt(argc,argv,"o:k:d:v:l:p:r:c:h:f:q:"))!=-1)
+	while((optret=getopt(argc,argv,"o:k:d:v:l:p:r:c:h:f:q:a"))!=-1)
 	{
 		switch(optret)
 		{
@@ -75,7 +75,7 @@ Framework::init(int argc, char** argv)
 			case 'k':
 			{
 				int aSize = atoi(optarg);
-				metaLearner.setMaxFactorSize_Approx(aSize);
+				metaLearner.setMaxFactorSize(aSize);
 				kDefault=false;
 				break;
 			}
@@ -110,7 +110,12 @@ Framework::init(int argc, char** argv)
 			}
 			case 'q':
 			{
-				metaLearner.setPriorGraph_All(optarg);
+				int status = metaLearner.setPriorGraph_All(optarg);
+				if(status != Error::SUCCESS)
+				{
+					std::cerr << "Failed: " << Error::getErrorString(status) << std::endl;
+					exit(-1); 
+				}
 				break;
 			}
 			case 'c':
@@ -128,6 +133,11 @@ Framework::init(int argc, char** argv)
 			case 'f':
 			{
 				metaLearner.setSpecificFold(atoi(optarg));
+				break;
+			}
+			case 'a':
+			{
+				metaLearner.setShouldLoadCheckpoint(true);
 				break;
 			}
 			case '?':
@@ -181,7 +191,7 @@ Framework::init(int argc, char** argv)
 	}
 	if(kDefault)
 	{
-		metaLearner.setMaxFactorSize_Approx(300);
+		metaLearner.setMaxFactorSize(300);
 	}
 	if(rDefault)
 	{
@@ -215,7 +225,8 @@ main(int argc, char* argv[])
 			<< "-o outputdirectory" << endl
 			<< "-c moduleassignment (default random_partitioning) "<< endl
 			<< "-h hierarchical_clustering_threshold (default 0.6)"<< endl
-			<< "-f specificfold_torun (default is -1)" << endl ;
+			<< "-f specificfold_torun (default is -1)" << endl 
+			<< "-a load_checkpoint (default is false)" << endl ;
 		return 0;
 	}
 	Framework fw;

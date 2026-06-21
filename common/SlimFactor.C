@@ -5,6 +5,11 @@
 
 SlimFactor::SlimFactor()
 {
+	vIds=NULL;
+	vCnt=0;
+	fId=-1;
+	canonicalParams=NULL;
+	potFunc=NULL;
 	refCnt=0;
 }
 
@@ -15,6 +20,8 @@ SlimFactor::SlimFactor(int fSize)
 	//secondPId=-1;
 	//confidence=0;
 	fId=-1;
+	canonicalParams=NULL;
+	potFunc=NULL;
 	refCnt=0;
 }
 
@@ -165,24 +172,6 @@ SlimFactor::thresholdToOne(double threshold)
 	if(onedEntries>0)
 	{
 		//cout <<"Oned "<< onedEntries << " of a total of " << canonicalVals.size() << endl;
-	}
-	return 0;
-}
-
-int 
-SlimFactor::showFactor(ostream& oFile, VSET& variableSet, bool newLine)
-{
-	for(int i=0;i<vCnt;i++)
-	{
-		if(i>0)
-		{
-			oFile << "-";
-		}
-		oFile << variableSet[vIds[i]]->getName();
-	}
-	if(newLine)
-	{
-		oFile << endl;
 	}
 	return 0;
 }
