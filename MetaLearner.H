@@ -14,6 +14,7 @@ class PotentialManager;
 class MetaMove;
 class HierarchicalCluster;
 class Matrix;
+class Checkpoint;
 
 class MetaLearner
 {
@@ -40,20 +41,13 @@ class MetaLearner
 
 	private:
 
-		// Checkpointing
-		int writeCheckpointMetadata(int iter, bool notConvergedVal); 
-		bool readCheckpointMetadata(int& iter, bool& notConvergedVal); 
-		int writePLLScore(); 
-		double loadInitPLLScore(); 
-		int writeLastUpdate(); 
-		int loadLastUpdate(); 
-		int doTar(); 
-		int readCheckpointModuleMembership(); 
-		int populateGraphsFromFile();
-
-		void start(int);
+		void start(int fold);
+		void setupFoldState(Checkpoint& checkpoint, int& iter, bool& notConverged, double& globalScore);
+		void setupFoldState(double& globalScore);
+		void restoreCheckpointModules(const unordered_map<string, int>& checkpointGeneModuleIDs);
+		void restoreCheckpointGraph(const vector<pair<string, string>>& checkpointEdges);
+		void writeFoldProgress(int currFold, int iter, bool notConverged, Checkpoint& checkpoint);
 		void initEdgePriorMeta_All();
-		double getInitPLLScore();
 		double getInitPLLScore(int vId);
 		double getPLLScore();
 		double getEdgePrior(int tfID, int targetID);
