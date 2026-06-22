@@ -3,6 +3,7 @@
 
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include "CommonTypes.H"
 #include "HierarchicalCluster.H"
 
@@ -106,6 +107,6 @@ class MetaLearner
 		unordered_map<int, unordered_map<int, int>> sharedParents;
 
 		// Var ids of any nodes with a parent added this iteration.
-		vector<int> updatedThisIteration;
+		unordered_set<int> updatedThisIteration;
 };
 #endif
