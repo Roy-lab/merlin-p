@@ -672,6 +672,18 @@ MetaLearner::restoreCheckpointGraph(const vector<pair<string, string>>& checkpoi
 		targetFactor->mergedMB[regID] = 0;
 
 		edgeMap[regID][targetID] = 1;
+
+		updatedThisIteration.insert(targetID);
+	}
+
+	// Track which targets share parents after restoring edges.
+	for (auto iter = edgeMap.begin(); iter != edgeMap.end(); iter++) {
+		unordered_map<int, int>& targets = iter->second;
+		for (auto targetIterA = targets.begin(); targetIterA != targets.end(); targetIterA++) {
+			for (auto targetIterB = targets.begin(); targetIterB != targets.end(); targetIterB++) {
+				sharedParents[targetIterA->first][targetIterB->first] = 1;
+			}
+		}
 	}
 
 	// Re-initialize potentials: iterate through all factors to rebuild potential distributions using the restored edges
@@ -1153,7 +1165,7 @@ MetaLearner::makeMove(MetaMove& nextMove, int currIteration)
 
 	variableStatus[v->getName()] = currIteration;
 
-	updatedThisIteration.push_back(v->getID());
+	updatedThisIteration.insert(v->getID());
 
 	// Mark all other targets of u as sharing a parent with v.
 	unordered_map<int, int> otherTargets = edgeMap[u->getID()];
@@ -1536,18 +1548,17 @@ MetaLearner::updateSharedParentDistances()
 	unordered_map<int, Variable*>& varSet = varManager->getVariableSet();
 	int varCount = varSet.size();
 
-	int updateCount = 0;
-
-	sort(updatedThisIteration.begin(), updatedThisIteration.end());
+	vector<int> sortedTargetIDs(updatedThisIteration.begin(), updatedThisIteration.end());
+	sort(sortedTargetIDs.begin(), sortedTargetIDs.end());
 
 	vector<bool> willVisit(varCount, false);
-	for (int k = 0; k < updatedThisIteration.size(); k++) {
-		willVisit[updatedThisIteration[k]] = true;
+	for (int k = 0; k < sortedTargetIDs.size(); k++) {
+		willVisit[sortedTargetIDs[k]] = true;
 	}
 
 	vector<double> denoms(varCount, 0);
 
-	for (auto iter = updatedThisIteration.begin(); iter != updatedThisIteration.end(); iter++) {
+	for (auto iter = sortedTargetIDs.begin(); iter != sortedTargetIDs.end(); iter++) {
 		int varID = *iter;
 		SlimFactor* factorA = factorGraph->getFactorAt(varID);
 		vector<pair<int, double>>& weightsA = factorA->potFunc->getWeights();
@@ -1572,8 +1583,6 @@ MetaLearner::updateSharedParentDistances()
 			if (willVisit[siblingID] && siblingID < varID) {
 				continue;
 			}
-
-			updateCount += 1;
 
 			SlimFactor* factorB = factorGraph->getFactorAt(siblingID);
 			vector<pair<int, double>>& weightsB = factorB->potFunc->getWeights();
