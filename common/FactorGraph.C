@@ -15,7 +15,6 @@ FactorGraph::FactorGraph(VariableManager* vMgr)
 		SlimFactor* sFactor=new SlimFactor;
 		sFactor->vIds=new int[1];
 		sFactor->vIds[0]=vIter->first;
-		sFactor->vCnt=1;
 		sFactor->fId=vIter->first;
 		factorSet[sFactor->fId]=sFactor;
 	}
@@ -51,10 +50,6 @@ FactorGraph::dumpVarMB(ofstream& oFile, unordered_map<int, Variable*>& variableS
 	for(map<int,SlimFactor*>::iterator aIter=factorSet.begin();aIter!=factorSet.end();aIter++)
 	{
 		SlimFactor* sFactor=aIter->second;
-		if(sFactor->vCnt>1)
-		{
-			break;
-		}
 		vector<pair<int, double>>& regWts = sFactor->potFunc->getWeights();
 		for (const auto& weight : regWts) {
 			oFile << variableSet[weight.first]->getName() << "\t" << variableSet[sFactor->vIds[0]]->getName() << "\t" << weight.second << endl;
