@@ -32,16 +32,11 @@ Potential::getWeights()
 }
 
 double
-Potential::getExpectation(unordered_map<int, double>* evidenceSet)
+Potential::getExpectation(vector<double>* evidenceSet)
 {
 	double mean=0;
 	for(auto aIter = weights.begin(); aIter != weights.end(); aIter++)
 	{
-		if(evidenceSet->find(aIter->first)==evidenceSet->end())
-		{
-			cerr << "Fatal error! No variable assignment for " << aIter->first << endl;
-			exit(-1);
-		}
 		double aval = (*evidenceSet)[aIter->first];
 		mean += aval * aIter->second;
 	}
@@ -49,13 +44,8 @@ Potential::getExpectation(unordered_map<int, double>* evidenceSet)
 }
 
 double
-Potential::evaluateProbabilityDensity(unordered_map<int, double>* evidMap)
+Potential::evaluateProbabilityDensity(vector<double>* evidMap)
 {
-	if(evidMap->find(factorID)==evidMap->end()) {
-		cerr <<"Fatal error! No variable assignment for " << factorID << endl;
-		exit(-1);
-	}
-
 	double expectation = getExpectation(evidMap);
 	double norm = sqrt(2 * PI * variance);
 	double x = (*evidMap)[factorID];

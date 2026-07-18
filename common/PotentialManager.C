@@ -6,7 +6,7 @@
 #include "CommonTypes.H"
 #include "Error.H"
 #include "Potential.H"
-#include "EvidenceManager.H"
+#include "EvidenceSet.H"
 #include "PotentialManager.H"
 
 PotentialManager::PotentialManager()
@@ -21,16 +21,15 @@ PotentialManager::~PotentialManager()
 	}
 }
 
-int PotentialManager::init(EvidenceManager* evMgr, bool randomData, vector<int>& varIDs)
+int PotentialManager::init(EvidenceSet& evidenceSet, vector<int>& regIDs)
 {
 	if (globalCovariances != nullptr) {
 		delete globalCovariances;
 	}
 
-	INTINTMAP& trainEvidSet = evMgr->getTrainingSet();
-	EMAP* evidMap = evMgr->getEvidenceAt(trainEvidSet.begin()->first);
+	vector<double>* evidMap = evidenceSet.getEvidenceAt(0);
 	int varCount = evidMap->size();
-	int sampleCount = trainEvidSet.size();
+	int sampleCount = evidenceSet.getSize();
 
 	globalMeans.clear();
 
@@ -41,25 +40,14 @@ int PotentialManager::init(EvidenceManager* evMgr, bool randomData, vector<int>&
 	vector<double> deviations(varCount * sampleCount, 0);
 
 	// Copy all the samples into the data matrix
-	int sampleIndex = 0;
-	for (INTINTMAP_ITER eIter = trainEvidSet.begin(); eIter != trainEvidSet.end(); eIter++)
+	for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
 	{
-		EMAP* evidMap=NULL;
-		if(randomData)
+		vector<double>* evidMap = evidenceSet.getEvidenceAt(sampleIndex);
+		for (int vID = 0; vID < varCount; vID++)
 		{
-			evidMap=evMgr->getRandomEvidenceAt(eIter->first);
+			double val = (*evidMap)[vID];
+			deviations[vID * sampleCount + sampleIndex] = val;
 		}
-		else
-		{
-			evidMap=evMgr->getEvidenceAt(eIter->first);
-		}
-		for (EMAP_ITER vIter = evidMap->begin(); vIter != evidMap->end(); vIter++)
-		{
-			int vId = vIter->first;
-			double val = vIter->second;
-			deviations[vId * sampleCount + sampleIndex] = val;
-		}
-		sampleIndex++;
 	}
 
 	// Done copying. Now we can go over data and get the means
@@ -74,7 +62,7 @@ int PotentialManager::init(EvidenceManager* evMgr, bool randomData, vector<int>&
 	}
 
 	// Finally, use the means to pre-center the data
-	for (int i = 0; i < trainEvidSet.size(); i++)
+	for (int i = 0; i < evidenceSet.getSize(); i++)
 	{
 		for (int j = 0; j < varCount; j++)
 		{
@@ -97,9 +85,9 @@ int PotentialManager::init(EvidenceManager* evMgr, bool randomData, vector<int>&
 	}
 
 	// Set covariances between regulators and all other variables.
-	for (int i = 0; i < varIDs.size(); i++)
+	for (int i = 0; i < regIDs.size(); i++)
 	{
-		int regID = varIDs[i];
+		int regID = regIDs[i];
 		for (int j = 0; j < varCount; j++)
 		{
 			if (regID == j)
