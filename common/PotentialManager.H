@@ -14,7 +14,7 @@ class PotentialManager
 		~PotentialManager();
 
 		// When init is called PotentialManager clears its internal data and loads
-		// new means and covariances from the provided EvidenceManager.
+		// new means and covariances from the provided EvidenceSet.
 		int init(EvidenceSet& evidenceSet, vector<int>& regIDs);
 
 		// Creates a Potential of a single variable.
