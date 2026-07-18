@@ -10,7 +10,7 @@
 using namespace std;
 
 class VariableManager;
-class EvidenceManager;
+class EvidenceSource;
 class EvidenceSet;
 class PotentialManager;
 class MetaMove;
@@ -30,7 +30,7 @@ class MetaLearner
 		void setRestrictedList(const char*);
 		int initEdgePriorMeta(const string& priorName, map<string, map<string, double>*>& graph, unordered_map<int, unordered_map<int, double>*>& edgePrior);
 		void doCrossValidation(int);
-		void setGlobalEvidenceManager(EvidenceManager*);
+		void setEvidenceSource(EvidenceSource*);
 		void setVariableManager(VariableManager*);
 		void setOutputDirName(const char*);
 		void setClusteringThreshold(double);
@@ -66,7 +66,7 @@ class MetaLearner
 
 		FactorGraph* factorGraph;
 		PotentialManager* potManager;
-		EvidenceManager* evidenceManager;
+		EvidenceSource* evidenceSource;
 		VariableManager* varManager;
 		
 		bool shouldLoadCheckpoint;

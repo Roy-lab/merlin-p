@@ -59,7 +59,7 @@ Framework::init(int argc, char** argv)
 					cerr << Error::getErrorString(eCode) << endl;
 					return eCode;
 				}
-				metaLearner.setGlobalEvidenceManager(&evManager);
+				metaLearner.setEvidenceSource(&evManager);
 				metaLearner.setVariableManager(&varManager);
 
 				break;

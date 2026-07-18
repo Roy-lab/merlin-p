@@ -11,7 +11,7 @@
 #include "Variable.H"
 #include "VariableManager.H"
 
-#include "EvidenceManager.H"
+#include "EvidenceSource.H"
 #include "EvidenceSet.H"
 
 #include "Potential.H"
@@ -159,9 +159,9 @@ MetaLearner::setRestrictedList(const char* aFName)
 }
 
 void
-MetaLearner::setGlobalEvidenceManager(EvidenceManager* anEvMgr)
+MetaLearner::setEvidenceSource(EvidenceSource* anEvMgr)
 {
-	evidenceManager=anEvMgr;
+	evidenceSource = anEvMgr;
 }
 
 void
@@ -401,7 +401,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 
 	for(int f = foldBegin; f < foldEnd; f++) {
 
-		EvidenceSet trainSet = evidenceManager->getTrainingSet(f, foldCnt);
+		EvidenceSet trainSet = evidenceSource->getTrainingSet(f, foldCnt);
 
 		vector<int> regIDs;
 		for (map<string,int>::iterator iter = restrictedVarList.begin(); iter != restrictedVarList.end(); iter++)
