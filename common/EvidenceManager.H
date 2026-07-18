@@ -10,12 +10,11 @@
 using namespace std;
 
 class Error;
-class Evidence;
 
-//EMAP stores the map of variable ids and their evidence. This corresponds
-//to one line in the datafile
-typedef unordered_map<int,Evidence*> EMAP;
-typedef unordered_map<int,Evidence*>::iterator EMAP_ITER;
+// EMAP stores the map of variable ids and their evidence. This corresponds
+// to one line in the datafile
+typedef unordered_map<int, double> EMAP;
+typedef unordered_map<int, double>::iterator EMAP_ITER;
 
 typedef vector<EMAP*> EVIDENCE_SET;
 

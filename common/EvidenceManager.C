@@ -5,7 +5,6 @@
 #include "Error.H"
 #include "Variable.H"
 #include "VariableManager.H"
-#include "Evidence.H"
 #include "EvidenceManager.H"
 
 EvidenceManager::EvidenceManager()
@@ -50,14 +49,11 @@ EvidenceManager::loadEvidenceFromFile(const char* inFName)
 		//All the evidences for each variable are stored in a map, indexed by the varId
 		EMAP* evidMap=new EMAP;
 		char* tok=strtok(buffer,"\t");
-		//The toks take the form of varid and value
 
+		//The toks take the form of varid and value
 		int vId = 0;
 		while(tok!=NULL)
 		{
-			Evidence* evid = new Evidence;
-			evid->assocVariable(vId);
-			//double varVal=log(atof(tok));
 			double varVal=atof(tok);
 			if(isinf(varVal) || isnan(varVal))
 			{
@@ -65,8 +61,7 @@ EvidenceManager::loadEvidenceFromFile(const char* inFName)
 				cerr << "Please remove NaNs from the expression data or check the data format. Not a valid number: " << tok << endl;
 				exit(-1);
 			}
-			evid->setEvidVal(varVal);
-			(*evidMap)[vId]=evid;
+			(*evidMap)[vId]=varVal;
 			tok=strtok(NULL,"\t");
 			vId++;
 		}
@@ -118,7 +113,7 @@ EvidenceManager::randomizeEvidence(gsl_rng* r, VariableManager* vMgr)
 				evidMap=evidenceSet[i];
 			}
 			EMAP* randEvidMap=randEvidenceSet[i];
-			Evidence* evid=(*evidMap)[vIter->first];
+			double evid=(*evidMap)[vIter->first];
 			(*randEvidMap)[vIter->first]=evid;
 		}
 	}

@@ -11,7 +11,6 @@
 #include "Variable.H"
 #include "VariableManager.H"
 
-#include "Evidence.H"
 #include "EvidenceManager.H"
 
 #include "Potential.H"
@@ -920,8 +919,7 @@ MetaLearner::getPredictionError_CrossValid(int foldid)
 		for(INTINTMAP_ITER dIter=testSet.begin();dIter!=testSet.end();dIter++)
 		{
 			EMAP* evidMap=evidenceManager->getEvidenceAt(dIter->first);
-			Evidence* evid=(*evidMap)[vId];
-			double trueval=evid->getEvidVal();
+			double trueval=(*evidMap)[vId];
 			truemean=truemean+trueval;
 			truevect.push_back(trueval);
 		}
@@ -935,8 +933,7 @@ MetaLearner::getPredictionError_CrossValid(int foldid)
 		{
 			EMAP* evidMap=evidenceManager->getEvidenceAt(dIter->first);
 			double predval=sPot->getExpectation(evidMap);
-			Evidence* evid=(*evidMap)[vId];
-			double trueval=evid->getEvidVal();
+			double trueval=(*evidMap)[vId];
 			totalvar=totalvar+((trueval-truemean)*(trueval-truemean));
 			//also called residuals
 			predvect.push_back(predval);
@@ -1501,8 +1498,7 @@ MetaLearner::initDistances()
 	for (INTINTMAP_ITER iter = samples.begin(); iter != samples.end(); iter++) {
 		EMAP* evidMap = evidenceManager->getEvidenceAt(iter->first);
 		for (int i = 0; i < varCount; i++) {
-			Evidence* evid=(*evidMap)[i];
-			means[i] += evid->getEvidVal();
+			means[i] += (*evidMap)[i];
 		}
 	}
 
@@ -1517,7 +1513,7 @@ MetaLearner::initDistances()
 	for (INTINTMAP_ITER iter = samples.begin(); iter != samples.end(); iter++) {
 		EMAP* evidMap = evidenceManager->getEvidenceAt(iter->first);
 		for (int i = 0; i < varCount; i++) {
-			double deviation = (*evidMap)[i]->getEvidVal() - means[i];
+			double deviation = (*evidMap)[i] - means[i];
 			deviations[i][sampleIndex] = deviation;
 			ssd[i] += deviation * deviation;
 		}

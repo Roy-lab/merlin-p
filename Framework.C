@@ -8,7 +8,6 @@ using namespace std;
 #include "Variable.H"
 #include "VariableManager.H"
 
-#include "Evidence.H"
 #include "EvidenceManager.H"
 
 #include "Potential.H"
