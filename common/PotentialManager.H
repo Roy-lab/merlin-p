@@ -4,7 +4,7 @@
 using namespace std;
 
 class Potential;
-class EvidenceManager;
+class EvidenceSet;
 class Matrix;
 
 class PotentialManager
@@ -15,7 +15,7 @@ class PotentialManager
 
 		// When init is called PotentialManager clears its internal data and loads
 		// new means and covariances from the provided EvidenceManager.
-		int init(EvidenceManager* evMgr, bool random, vector<int>& varIDs);
+		int init(EvidenceSet& evidenceSet, vector<int>& regIDs);
 
 		// Creates a Potential of a single variable.
 		Potential* createPotential(int factorID);

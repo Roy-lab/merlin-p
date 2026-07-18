@@ -1,5 +1,5 @@
 LFLAG = -lgsl -lgslcblas 
-SRC = Framework.C MetaLearner.C MetaMove.C common/Error.C common/EvidenceManager.C common/Potential.C common/SlimFactor.C common/VariableManager.C common/FactorGraph.C common/Matrix.C common/PotentialManager.C common/Variable.C HierarchicalCluster.C HierarchicalClusterNode.C HyperGeomPval.C Checkpoint.C
+SRC = Framework.C MetaLearner.C MetaMove.C common/Error.C common/EvidenceManager.C common/EvidenceSet.C common/Potential.C common/SlimFactor.C common/VariableManager.C common/FactorGraph.C common/Matrix.C common/PotentialManager.C common/Variable.C HierarchicalCluster.C HierarchicalClusterNode.C HyperGeomPval.C Checkpoint.C
 LIBPATH=gsl_lib/
 INCLPATH1=gsl_incl/
 INCLPATH2=common
