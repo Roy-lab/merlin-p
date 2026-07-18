@@ -197,6 +197,9 @@ Framework::init(int argc, char** argv)
 		metaLearner.setBeta_Motif(4);
 	}
 
+	PotentialManager* potManager = new PotentialManager(&evManager);
+	metaLearner.setPotentialSource(potManager);
+
 	return Error::SUCCESS;
 }
 
@@ -206,7 +209,6 @@ Framework::start()
 	metaLearner.doCrossValidation(cvCnt);
 	return 0;
 }
-
 
 int
 main(int argc, char* argv[])
