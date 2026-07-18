@@ -11,8 +11,8 @@ using namespace std;
 
 class VariableManager;
 class EvidenceSource;
+class PotentialSource;
 class EvidenceSet;
-class PotentialManager;
 class MetaMove;
 class HierarchicalCluster;
 class Matrix;
@@ -31,6 +31,7 @@ class MetaLearner
 		int initEdgePriorMeta(const string& priorName, map<string, map<string, double>*>& graph, unordered_map<int, unordered_map<int, double>*>& edgePrior);
 		void doCrossValidation(int);
 		void setEvidenceSource(EvidenceSource*);
+		void setPotentialSource(PotentialSource*);
 		void setVariableManager(VariableManager*);
 		void setOutputDirName(const char*);
 		void setClusteringThreshold(double);
@@ -65,7 +66,7 @@ class MetaLearner
 		void updateSharedParentDistances();
 
 		FactorGraph* factorGraph;
-		PotentialManager* potManager;
+		PotentialSource* potentialSource;
 		EvidenceSource* evidenceSource;
 		VariableManager* varManager;
 		

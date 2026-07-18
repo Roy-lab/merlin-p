@@ -14,9 +14,9 @@
 #include "EvidenceSource.H"
 #include "EvidenceSet.H"
 
+#include "PotentialSource.H"
 #include "Potential.H"
 #include "SlimFactor.H"
-#include "PotentialManager.H"
 
 #include "FactorGraph.H"
 #include "MetaMove.H"
@@ -162,6 +162,12 @@ void
 MetaLearner::setEvidenceSource(EvidenceSource* anEvMgr)
 {
 	evidenceSource = anEvMgr;
+}
+
+void
+MetaLearner::setPotentialSource(PotentialSource* potSource)
+{
+	potentialSource = potSource;
 }
 
 void
@@ -387,8 +393,6 @@ MetaLearner::initEdgePriorMeta(const string& priorName, map<string,map<string,do
 void
 MetaLearner::doCrossValidation(int foldCnt)
 {
-	potManager = new PotentialManager;
-
 	//The first key is for the fold number
 	//For each fold we have a trained model. For each trained model we have the likelihood on
 	//all the test sets, including the self test.
@@ -410,7 +414,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 			regIDs.push_back(regID);
 		}
 
-		potManager->init(trainSet, regIDs);
+		potentialSource->setupForFold(f, foldCnt, regIDs);
 
 		factorGraph = new FactorGraph(varManager);
 
@@ -682,7 +686,7 @@ MetaLearner::restoreCheckpointGraph(const vector<pair<string, string>>& checkpoi
 		}
 
 		if (factor->mergedMB.size() == 0) {
-			factor->potFunc = potManager->createPotential(factor->fId);
+			factor->potFunc = potentialSource->createPotential(factor->fId);
 			continue;
 		}
 
@@ -691,7 +695,7 @@ MetaLearner::restoreCheckpointGraph(const vector<pair<string, string>>& checkpoi
 			parentIDs.push_back(iter->first);
 		}
 
-		factor->potFunc = potManager->createPotential(factor->fId, parentIDs);
+		factor->potFunc = potentialSource->createPotential(factor->fId, parentIDs);
 	}
 }
 
@@ -792,10 +796,10 @@ MetaLearner::initEdgeSet()
 	int expEdgeCnt=r*(n-1);
 
 	// Init the potentials
-	for(int f=0;f<factorGraph->getFactorCnt();f++)
+	for (int f = 0; f < factorGraph->getFactorCnt(); f++)
 	{
-		SlimFactor* sFactor=factorGraph->getFactorAt(f);
-		sFactor->potFunc=potManager->createPotential(sFactor->fId);
+		SlimFactor* sFactor = factorGraph->getFactorAt(f);
+		sFactor->potFunc = potentialSource->createPotential(sFactor->fId);
 	}
 
 	return 0;
@@ -877,7 +881,7 @@ MetaLearner::getNextMove(int vID, int sampleCount, MetaMove& outMove)
 
 	// Collect the data likelihood for each candidate parent.
 	unordered_map<int, double> candidateScores;
-	potManager->computeLLs(vID, sampleCount, parentIDs, candidateParents, candidateScores);
+	potentialSource->computeLLs(vID, sampleCount, parentIDs, candidateParents, candidateScores);
 
 	double bestScore = 0;
 	double bestScoreImprovement = 0;
@@ -916,7 +920,7 @@ MetaLearner::getNextMove(int vID, int sampleCount, MetaMove& outMove)
 
 	parentIDs.push_back(bestRegulator->getID());
 
-	Potential* potential = potManager->createPotential(vID, parentIDs);
+	Potential* potential = potentialSource->createPotential(vID, parentIDs);
 
 	outMove.setSrcVertex(bestRegulator->getID());
 	outMove.setTargetVertex(v->getID());

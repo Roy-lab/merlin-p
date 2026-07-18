@@ -6,12 +6,14 @@
 #include "CommonTypes.H"
 #include "Error.H"
 #include "Potential.H"
+#include "EvidenceSource.H"
 #include "EvidenceSet.H"
 #include "PotentialManager.H"
 
-PotentialManager::PotentialManager()
+PotentialManager::PotentialManager(EvidenceSource* source)
 {
 	globalCovariances = nullptr;
+	evidenceSource = source;
 }
 
 PotentialManager::~PotentialManager()
@@ -21,11 +23,13 @@ PotentialManager::~PotentialManager()
 	}
 }
 
-int PotentialManager::init(EvidenceSet& evidenceSet, vector<int>& regIDs)
+void PotentialManager::setupForFold(int foldID, int foldCount, vector<int>& regIDs)
 {
 	if (globalCovariances != nullptr) {
 		delete globalCovariances;
 	}
+
+	EvidenceSet evidenceSet = evidenceSource->getTrainingSet(foldID, foldCount);
 
 	vector<double>* evidMap = evidenceSet.getEvidenceAt(0);
 	int varCount = evidMap->size();
@@ -108,8 +112,6 @@ int PotentialManager::init(EvidenceSet& evidenceSet, vector<int>& regIDs)
 			globalCovariances->setValue(covariance, j, regID);
 		}
 	}
-
-	return 0;
 }
 
 Potential* PotentialManager::createPotential(int factorID)
