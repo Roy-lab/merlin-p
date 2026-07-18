@@ -6,7 +6,6 @@
 #include "CommonTypes.H"
 #include "Error.H"
 #include "Potential.H"
-#include "Evidence.H"
 #include "EvidenceManager.H"
 #include "PotentialManager.H"
 
@@ -57,8 +56,7 @@ int PotentialManager::init(EvidenceManager* evMgr, bool randomData, vector<int>&
 		for (EMAP_ITER vIter = evidMap->begin(); vIter != evidMap->end(); vIter++)
 		{
 			int vId = vIter->first;
-			Evidence* evid = vIter->second;
-			double val = evid->getEvidVal();
+			double val = vIter->second;
 			deviations[vId * sampleCount + sampleIndex] = val;
 		}
 		sampleIndex++;

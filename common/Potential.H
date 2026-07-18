@@ -9,7 +9,6 @@
 
 #define PI 3.1472
 
-class Evidence;
 class Variable;
 
 // Encapsulates the parameters of a conditional Gaussian PDF, and allows
@@ -26,11 +25,11 @@ class Potential
 
 		// Returns the expected value of the factor variable, given the values
 		// of the conditioning variables.
-		double getExpectation(unordered_map<int, Evidence*>*);
+		double getExpectation(unordered_map<int, double>*);
 
 		// Evaluates the conditional probability density at the provided factor
 		// variable value, given the provided values of the conditioning variables.
-		double evaluateProbabilityDensity(unordered_map<int, Evidence*>*);
+		double evaluateProbabilityDensity(unordered_map<int, double>*);
 
 	private:
 		int factorID;
