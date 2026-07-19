@@ -23,17 +23,17 @@ PotentialManager::~PotentialManager()
 	}
 }
 
-void PotentialManager::setupForFold(int foldID, int foldCount, vector<int>& regIDs)
+void PotentialManager::setupForFold(vector<int>& regIDs)
 {
 	if (globalCovariances != nullptr) {
 		delete globalCovariances;
 	}
 
-	EvidenceSet evidenceSet = evidenceSource->getTrainingSet(foldID, foldCount);
+	EvidenceSet* evidenceSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TrainingSet);
 
-	vector<double>* evidMap = evidenceSet.getEvidenceAt(0);
+	vector<double>* evidMap = evidenceSet->getEvidenceAt(0);
 	int varCount = evidMap->size();
-	int sampleCount = evidenceSet.getSize();
+	int sampleCount = evidenceSet->getSize();
 
 	globalMeans.clear();
 
@@ -46,7 +46,7 @@ void PotentialManager::setupForFold(int foldID, int foldCount, vector<int>& regI
 	// Copy all the samples into the data matrix
 	for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
 	{
-		vector<double>* evidMap = evidenceSet.getEvidenceAt(sampleIndex);
+		vector<double>* evidMap = evidenceSet->getEvidenceAt(sampleIndex);
 		for (int vID = 0; vID < varCount; vID++)
 		{
 			double val = (*evidMap)[vID];
@@ -66,7 +66,7 @@ void PotentialManager::setupForFold(int foldID, int foldCount, vector<int>& regI
 	}
 
 	// Finally, use the means to pre-center the data
-	for (int i = 0; i < evidenceSet.getSize(); i++)
+	for (int i = 0; i < evidenceSet->getSize(); i++)
 	{
 		for (int j = 0; j < varCount; j++)
 		{
@@ -337,4 +337,23 @@ Potential* PotentialManager::createPotential(int factorID, vector<int>& parentID
 	gsl_matrix_free(parentCovariances);
 
 	return new Potential(factorID, variance, bias, weights);
+}
+
+double
+PotentialManager::evaluateProbabilityDensity(Potential* potential, int sampleIndex, EvidenceSource::SetType type)
+{
+	// We can get the evidMap using the sample index
+	EvidenceSet* evidenceSet = evidenceSource->getEvidenceSet(type);
+	vector<double>* evidence = evidenceSet->getEvidenceAt(sampleIndex);
+
+	int factorID = potential->getFactorID();
+	double variance = potential->getVariance();
+
+	double expectation = potential->getExpectation(evidence);
+	double norm = sqrt(2 * PI * variance);
+	double x = (*evidence)[factorID];
+	double dev = (x - expectation) * (x - expectation) / (2 * variance);
+	double eval = exp(-1.0 * dev);
+	double pval = eval / norm;
+	return pval;
 }

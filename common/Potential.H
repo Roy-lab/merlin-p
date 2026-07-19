@@ -22,13 +22,13 @@ class Potential
 
 		vector<pair<int, double>>& getWeights();
 
+		double getVariance();
+
+		int getFactorID();
+
 		// Returns the expected value of the factor variable, given the values
 		// of the conditioning variables.
 		double getExpectation(vector<double>*);
-
-		// Evaluates the conditional probability density at the provided factor
-		// variable value, given the provided values of the conditioning variables.
-		double evaluateProbabilityDensity(vector<double>*);
 
 	private:
 		int factorID;

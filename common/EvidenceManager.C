@@ -6,6 +6,22 @@
 #include "EvidenceManager.H"
 #include "EvidenceSet.H"
 
+EvidenceManager::EvidenceManager()
+{
+	trainingSet = nullptr;
+	testSet = nullptr;
+}
+
+EvidenceManager::~EvidenceManager()
+{
+	if (trainingSet != nullptr) {
+		delete trainingSet;
+	}
+	if (testSet != nullptr) {
+		delete testSet;
+	}
+}
+
 Error::ErrorCode
 EvidenceManager::loadEvidenceFromFile(const char* inFName)
 {
@@ -60,26 +76,40 @@ EvidenceManager::loadEvidenceFromFile(const char* inFName)
 
 	inFile.close();
 
-	cout <<"Number of samples read: " << evidenceSet.size() << endl;
+	cout << "Number of samples read: " << evidenceSet.size() << endl;
 
 	return Error::SUCCESS;
 }
 
-EvidenceSet
-EvidenceManager::getTrainingSet(int foldIndex, int foldCount)
+void
+EvidenceManager::setupForFold(int foldIndex, int foldCount)
 {
-	return getSet(foldIndex, foldCount, false);
+	if (trainingSet != nullptr) {
+		delete trainingSet;
+	}
+	if (testSet != nullptr) {
+		delete testSet;
+	}
+
+	trainingSet = createSet(foldIndex, foldCount, SetType::TrainingSet);
+	testSet = createSet(foldIndex, foldCount, SetType::TestSet);
 }
 
-EvidenceSet
-EvidenceManager::getTestSet(int foldIndex, int foldCount)
+EvidenceSet*
+EvidenceManager::getEvidenceSet(SetType type)
 {
-	return getSet(foldIndex, foldCount, true);
+	if (type == SetType::TrainingSet) {
+		return trainingSet;
+	} else {
+		return testSet;
+	}
 }
 
-EvidenceSet
-EvidenceManager::getSet(int foldIndex, int foldCount, bool isTestSet)
+EvidenceSet*
+EvidenceManager::createSet(int foldIndex, int foldCount, SetType type)
 {
+	bool isTestSet = type == SetType::TestSet;
+
 	int testSetSize = evidenceSet.size() / foldCount;
 
 	int testStartIndex = foldIndex * testSetSize;
@@ -108,5 +138,6 @@ EvidenceManager::getSet(int foldIndex, int foldCount, bool isTestSet)
 		}
 	}
 
-	return EvidenceSet(evidenceSet, indices);
+	EvidenceSet* subset = new EvidenceSet(evidenceSet, indices);
+	return subset;
 }

@@ -7,22 +7,27 @@
 using namespace std;
 
 class Error;
+class EvidenceSet;
 
 class EvidenceManager : public EvidenceSource
 {
 	public:
+		EvidenceManager();
+		~EvidenceManager();
 
 		//Read the evidence file
 		Error::ErrorCode loadEvidenceFromFile(const char*);
 
-		EvidenceSet getTrainingSet(int foldIndex, int foldCount) override;
+		void setupForFold(int foldIndex, int foldCount) override;
 
-		EvidenceSet getTestSet(int foldIndex, int foldCount) override;
+		EvidenceSet* getEvidenceSet(SetType type) override;
 
 	private:
-		EvidenceSet getSet(int foldIndex, int foldCount, bool isTestSet);
+		EvidenceSet* createSet(int foldIndex, int foldCount, SetType type);
 
 		vector<vector<double>*> evidenceSet;
+		EvidenceSet* trainingSet;
+		EvidenceSet* testSet;
 
 };
 #endif

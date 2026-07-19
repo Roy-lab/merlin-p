@@ -406,7 +406,9 @@ MetaLearner::doCrossValidation(int foldCnt)
 
 	for(int f = foldBegin; f < foldEnd; f++) {
 
-		EvidenceSet trainSet = evidenceSource->getTrainingSet(f, foldCnt);
+		evidenceSource->setupForFold(f, foldCnt);
+
+		EvidenceSet* trainSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TrainingSet);
 
 		vector<int> regIDs;
 		for (map<string,int>::iterator iter = restrictedVarList.begin(); iter != restrictedVarList.end(); iter++)
@@ -415,7 +417,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 			regIDs.push_back(regID);
 		}
 
-		potentialSource->setupForFold(f, foldCnt, regIDs);
+		potentialSource->setupForFold(regIDs);
 
 		factorGraph = new FactorGraph(variableSet);
 
@@ -433,7 +435,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 }
 
 void
-MetaLearner::start(int currFold, EvidenceSet& trainSet)
+MetaLearner::start(int currFold, EvidenceSet* trainSet)
 {
 	sprintf(foldoutDirName, "%s/fold%d", outputDirName, currFold);
 
@@ -482,7 +484,7 @@ MetaLearner::start(int currFold, EvidenceSet& trainSet)
 			}
 
 			MetaMove nextMove;
-			if (!getNextMove(varID, trainSet.getSize(), nextMove)) {
+			if (!getNextMove(varID, trainSet->getSize(), nextMove)) {
 				noMoveCount++;
 				varID++;
 				continue;
@@ -529,7 +531,7 @@ MetaLearner::writeFoldProgress(int currFold, int iter, bool notConverged, Checkp
 }
 
 void
-MetaLearner::setupFoldState(double& globalScore, EvidenceSet& trainSet)
+MetaLearner::setupFoldState(double& globalScore, EvidenceSet* trainSet)
 {
 	// populates moduleIndegree and regulatorModuleOutdegree ONLY IF some initial modules contain >=5 genes. Otherwise they begin empty 
 	initPhysicalDegree();
@@ -930,17 +932,17 @@ MetaLearner::getNextMove(int vID, int sampleCount, MetaMove& outMove)
 }
 
 double
-MetaLearner::getInitPLLScore(int vId, EvidenceSet& trainSet)
+MetaLearner::getInitPLLScore(int vId, EvidenceSet* trainSet)
 {
 	SlimFactor* sFactor = factorGraph->getFactorAt(vId);
 	Potential* sPot = sFactor->potFunc;
 
 	double pll = 0;
 
-	for (int i = 0; i < trainSet.getSize(); i++)
+	for (int i = 0; i < trainSet->getSize(); i++)
 	{
-		vector<double>* evidMap = trainSet.getEvidenceAt(i);
-		double pval = sPot->evaluateProbabilityDensity(evidMap);
+		vector<double>* evidMap = trainSet->getEvidenceAt(i);
+		double pval = potentialSource->evaluateProbabilityDensity(sPot, i, EvidenceSource::SetType::TrainingSet);
 		if (isnan(pval))
 		{
 			cout << "Pval is nan for datapoint " << i << endl;
@@ -1207,7 +1209,7 @@ MetaLearner::getModuleContribLogistic(string& tgtName, string& tfName)
 //finding the next most similar pair of nodes.
 
 void
-MetaLearner::redefineModules(int currFold, EvidenceSet& trainSet)
+MetaLearner::redefineModules(int currFold, EvidenceSet* trainSet)
 {
 	if (correlationDistances == nullptr) {
 		initDistances(trainSet);
@@ -1327,17 +1329,17 @@ MetaLearner::redefineModules(int currFold, EvidenceSet& trainSet)
 }
 
 void
-MetaLearner::initDistances(EvidenceSet& trainSet)
+MetaLearner::initDistances(EvidenceSet* trainSet)
 {
 	vector<Variable*>& varSet = variableSet->getVariables();
 
 	int varCount = varSet.size();
-	int sampleCount = trainSet.getSize();
+	int sampleCount = trainSet->getSize();
 
 	vector<double> means(varCount, 0);
 
 	for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
-		vector<double>* evidMap = trainSet.getEvidenceAt(sampleIndex);
+		vector<double>* evidMap = trainSet->getEvidenceAt(sampleIndex);
 		for (int i = 0; i < varCount; i++) {
 			means[i] += (*evidMap)[i];
 		}
@@ -1352,7 +1354,7 @@ MetaLearner::initDistances(EvidenceSet& trainSet)
 
 	int sampleIndex = 0;
 	for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
-		vector<double>* evidMap = trainSet.getEvidenceAt(sampleIndex);
+		vector<double>* evidMap = trainSet->getEvidenceAt(sampleIndex);
 		for (int i = 0; i < varCount; i++) {
 			double deviation = (*evidMap)[i] - means[i];
 			deviations[i][sampleIndex] = deviation;

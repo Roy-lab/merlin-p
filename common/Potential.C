@@ -32,25 +32,25 @@ Potential::getWeights()
 }
 
 double
+Potential::getVariance()
+{
+	return variance;
+}
+
+int
+Potential::getFactorID()
+{
+	return factorID;
+}
+
+double
 Potential::getExpectation(vector<double>* evidenceSet)
 {
-	double mean=0;
+	double mean = 0;
 	for(auto aIter = weights.begin(); aIter != weights.end(); aIter++)
 	{
 		double aval = (*evidenceSet)[aIter->first];
 		mean += aval * aIter->second;
 	}
 	return mean + bias;
-}
-
-double
-Potential::evaluateProbabilityDensity(vector<double>* evidMap)
-{
-	double expectation = getExpectation(evidMap);
-	double norm = sqrt(2 * PI * variance);
-	double x = (*evidMap)[factorID];
-	double dev = (x - expectation) * (x - expectation) / (2 * variance);
-	double eval = exp(-1.0 * dev);
-	double pval = eval / norm;
-	return pval;
 }
