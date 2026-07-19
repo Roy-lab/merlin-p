@@ -1,36 +1,23 @@
 #ifndef _VARIABLE
 #define _VARIABLE
 
-#include <map>
 #include <string>
 
 using namespace std;
-#include "CommonTypes.H"
-
-class Variable;
 
 class Variable
 {
 	public:
-		Variable();
-		~Variable();
-		//This is how the variable will be used throughout
-		//the system
-		int setID(int);
+
+		// This is how the variable will be used throughout the system
+		void setID(int);
 		int getID();
-		//This is the name assigned to the variable by the user
-		int setName(const char*);
+
+		// This is the name assigned to the variable by the user
+		void setName(const char*);
 		const string& getName();
-		
-		int setNextValue(int);
-		int setValues(INTVECT&);
-		INTVECT& getValues();
-		int getValueCnt();
-		bool isValidValue(int);
-		int initEvidence(INTDBLMAP&);
+
 	private:
-		//The set of values this variable can take
-		INTVECT valueSet;
 		string name;
 		int vId;
 };

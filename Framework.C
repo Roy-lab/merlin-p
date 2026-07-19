@@ -6,6 +6,7 @@
 using namespace std;
 #include "Error.H"
 #include "Variable.H"
+#include "VariableSet.H"
 #include "VariableManager.H"
 
 #include "EvidenceManager.H"
@@ -46,7 +47,10 @@ Framework::init(int argc, char** argv)
 			case 'd':
 			{
 				dDefault=false;
-				Error::ErrorCode eCode = varManager.readVariables(optarg);
+
+				Error::ErrorCode eCode;
+				VariableManager varManager;
+				VariableSet* varSet = varManager.readVariables(optarg, eCode);
 				if(eCode != Error::SUCCESS)
 				{
 					cerr << Error::getErrorString(eCode) << endl;
@@ -60,7 +64,7 @@ Framework::init(int argc, char** argv)
 					return eCode;
 				}
 				metaLearner.setEvidenceSource(&evManager);
-				metaLearner.setVariableManager(&varManager);
+				metaLearner.setVariableSet(varSet);
 
 				break;
 			}

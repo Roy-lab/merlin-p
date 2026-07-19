@@ -9,7 +9,7 @@
 
 using namespace std;
 
-class VariableManager;
+class VariableSet;
 class EvidenceSource;
 class PotentialSource;
 class EvidenceSet;
@@ -32,7 +32,7 @@ class MetaLearner
 		void doCrossValidation(int);
 		void setEvidenceSource(EvidenceSource*);
 		void setPotentialSource(PotentialSource*);
-		void setVariableManager(VariableManager*);
+		void setVariableSet(VariableSet*);
 		void setOutputDirName(const char*);
 		void setClusteringThreshold(double);
 		void setSpecificFold(int);
@@ -68,7 +68,7 @@ class MetaLearner
 		FactorGraph* factorGraph;
 		PotentialSource* potentialSource;
 		EvidenceSource* evidenceSource;
-		VariableManager* varManager;
+		VariableSet* variableSet;
 		
 		bool shouldLoadCheckpoint;
 		map<string, double> betaMap;
