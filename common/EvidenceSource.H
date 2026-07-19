@@ -6,11 +6,17 @@ class EvidenceSet;
 class EvidenceSource
 {
     public:
+        enum class SetType
+        {
+            TrainingSet,
+            TestSet
+        };
+
         virtual ~EvidenceSource() = default;
 
-        virtual EvidenceSet getTrainingSet(int foldIndex, int foldCount) = 0;
+        virtual void setupForFold(int foldIndex, int foldCount) = 0;
 
-		virtual EvidenceSet getTestSet(int foldIndex, int foldCount) = 0;
+        virtual EvidenceSet* getEvidenceSet(SetType type) = 0;
 };
 
 #endif
