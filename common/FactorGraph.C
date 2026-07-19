@@ -2,21 +2,20 @@
 #include <cstring>
 #include "Variable.H"
 #include "Error.H"
-#include "VariableManager.H"
+#include "VariableSet.H"
 #include "Potential.H"
 #include "SlimFactor.H"
 #include "FactorGraph.H"
 
-FactorGraph::FactorGraph(VariableManager* vMgr)
+FactorGraph::FactorGraph(VariableSet* varSet)
 {
-	unordered_map<int, Variable*>& variableSet = vMgr->getVariableSet();
-	for(auto vIter = variableSet.begin(); vIter != variableSet.end(); vIter++)
-	{
-		SlimFactor* sFactor=new SlimFactor;
-		sFactor->vIds=new int[1];
-		sFactor->vIds[0]=vIter->first;
-		sFactor->fId=vIter->first;
-		factorSet[sFactor->fId]=sFactor;
+	vector<Variable*>& variableSet = varSet->getVariables();
+	for (int varID = 0; varID < variableSet.size(); varID++) {
+		SlimFactor* sFactor = new SlimFactor;
+		sFactor->vIds = new int[1];
+		sFactor->vIds[0] = varID;
+		sFactor->fId = varID;
+		factorSet[sFactor->fId] = sFactor;
 	}
 }
 
@@ -45,7 +44,7 @@ FactorGraph::getFactorAt(int fid)
 }
 
 int
-FactorGraph::dumpVarMB(ofstream& oFile, unordered_map<int, Variable*>& variableSet)
+FactorGraph::dumpVarMB(ofstream& oFile, vector<Variable*>& variableSet)
 {
 	for(map<int,SlimFactor*>::iterator aIter=factorSet.begin();aIter!=factorSet.end();aIter++)
 	{

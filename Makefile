@@ -15,6 +15,7 @@ LIB_SRC = \
 	common/Potential.C \
 	common/SlimFactor.C \
 	common/VariableManager.C \
+	common/VariableSet.C \
 	common/FactorGraph.C \
 	common/Matrix.C \
 	common/PotentialManager.C \

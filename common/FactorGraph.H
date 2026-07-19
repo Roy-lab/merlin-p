@@ -2,22 +2,23 @@
 #define _FACTOR_GRAPH
 
 #include <map>
+#include <vector>
 #include <fstream>
 
 using namespace std;
 
 class SlimFactor;
-class VariableManager;
+class VariableSet;
 
 class FactorGraph
 {
 	public:
-		FactorGraph(VariableManager*);
+		FactorGraph(VariableSet*);
 		~FactorGraph();
 
 		int getFactorCnt();
 		SlimFactor* getFactorAt(int);
-		int dumpVarMB(ofstream&, unordered_map<int, Variable*>&);
+		int dumpVarMB(ofstream&, vector<Variable*>&);
 
 	private:
 		map<int,SlimFactor*> factorSet;
