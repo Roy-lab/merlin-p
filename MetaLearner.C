@@ -6,6 +6,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <algorithm>
+#include "gsl/gsl_randist.h"
 
 #include "Error.H"
 #include "Variable.H"
