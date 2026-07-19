@@ -3,7 +3,6 @@
 
 #include <fstream>
 #include <unordered_map>
-#include "gsl/gsl_randist.h"
 #include "CommonTypes.H"
 #include "Matrix.H"
 
