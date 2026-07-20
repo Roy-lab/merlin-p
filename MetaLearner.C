@@ -433,8 +433,6 @@ MetaLearner::doCrossValidation(int foldCnt)
 
 		evidenceSource->setupForFold(f, foldCnt);
 
-		EvidenceSet* trainSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TrainingSet);
-
 		vector<int> regIDs;
 		for (map<string,int>::iterator iter = restrictedVarList.begin(); iter != restrictedVarList.end(); iter++)
 		{
@@ -453,14 +451,14 @@ MetaLearner::doCrossValidation(int foldCnt)
 		system(foldOutputDirCmd);
 
 		// Begin identifying regulators/inferring modules for this fold
-		start(f, trainSet);
+		start(f);
 
 		clearFoldSpecData();
 	}
 }
 
 void
-MetaLearner::start(int currFold, EvidenceSet* trainSet)
+MetaLearner::start(int currFold)
 {
 	sprintf(foldoutDirName, "%s/fold%d", outputDirName, currFold);
 
@@ -483,7 +481,7 @@ MetaLearner::start(int currFold, EvidenceSet* trainSet)
 	if (checkpointLoaded) {
 		setupFoldState(checkpoint, iter, notConverged, currGlobalScore);
 	} else {
-		setupFoldState(currGlobalScore, trainSet);
+		setupFoldState(currGlobalScore);
 	}
 
 	vector<Variable*>& varSet = variableSet->getVariables();
@@ -509,7 +507,7 @@ MetaLearner::start(int currFold, EvidenceSet* trainSet)
 			}
 
 			MetaMove nextMove;
-			if (!getNextMove(varID, trainSet->getSize(), nextMove)) {
+			if (!getNextMove(varID, nextMove)) {
 				noMoveCount++;
 				varID++;
 				continue;
@@ -529,7 +527,7 @@ MetaLearner::start(int currFold, EvidenceSet* trainSet)
 
 		if(notConverged) {
 			cout << "   Network not converged; score improvement of " << (currGlobalScore - scorePremodule) << ". Redefining modules." << endl;
-			redefineModules(currFold, trainSet);
+			redefineModules(currFold);
 		}
 
 		scorePremodule = currGlobalScore;
@@ -556,7 +554,7 @@ MetaLearner::writeFoldProgress(int currFold, int iter, bool notConverged, Checkp
 }
 
 void
-MetaLearner::setupFoldState(double& globalScore, EvidenceSet* trainSet)
+MetaLearner::setupFoldState(double& globalScore)
 {
 	// populates moduleIndegree and regulatorModuleOutdegree ONLY IF some initial modules contain >=5 genes. Otherwise they begin empty 
 	initPhysicalDegree();
@@ -574,7 +572,7 @@ MetaLearner::setupFoldState(double& globalScore, EvidenceSet* trainSet)
 		if (varNeighborhoodPrior.find(varID) == varNeighborhoodPrior.end()) {
 			continue;
 		}
-		double newPLL_s = getInitPLLScore(varID, trainSet);
+		double newPLL_s = getInitPLLScore(varID);
 		double priorScore = varNeighborhoodPrior[varID];
 		(*currPLL)[varID] = newPLL_s + priorScore;
 		globalScore += (*currPLL)[varID];
@@ -831,7 +829,7 @@ MetaLearner::initEdgeSet()
 }
 
 bool
-MetaLearner::getNextMove(int vID, int sampleCount, MetaMove& outMove)
+MetaLearner::getNextMove(int vID, MetaMove& outMove)
 {
 	vector<Variable*>& varSet = variableSet->getVariables();
 	Variable* v = varSet[vID];
@@ -906,7 +904,7 @@ MetaLearner::getNextMove(int vID, int sampleCount, MetaMove& outMove)
 
 	// Collect the data likelihood for each candidate parent.
 	unordered_map<int, double> candidateScores;
-	potentialSource->computeLLs(vID, sampleCount, parentIDs, candidateParents, candidateScores);
+	potentialSource->computeLLs(vID, parentIDs, candidateParents, candidateScores);
 
 	double bestScore = 0;
 	double bestScoreImprovement = 0;
@@ -957,31 +955,11 @@ MetaLearner::getNextMove(int vID, int sampleCount, MetaMove& outMove)
 }
 
 double
-MetaLearner::getInitPLLScore(int vId, EvidenceSet* trainSet)
+MetaLearner::getInitPLLScore(int vId)
 {
 	SlimFactor* sFactor = factorGraph->getFactorAt(vId);
 	Potential* sPot = sFactor->potFunc;
-
-	double pll = 0;
-
-	for (int i = 0; i < trainSet->getSize(); i++)
-	{
-		vector<double>* evidMap = trainSet->getEvidenceAt(i);
-		double pval = potentialSource->evaluateProbabilityDensity(sPot, i, EvidenceSource::SetType::TrainingSet);
-		if (isnan(pval))
-		{
-			cout << "Pval is nan for datapoint " << i << endl;
-		}
-		if (pval < 1e-50)
-		{
-			pval = 1e-50;
-		}
-		pll += log(pval);
-	}
-
-	// The initial graph has no edges, meaning this variable is univariate
-	// gaussian, with just 2 params (mean, variance).
-	return pll;
+	return potentialSource->getInitPLLScore(sPot);
 }
 
 double
@@ -1234,10 +1212,10 @@ MetaLearner::getModuleContribLogistic(string& tgtName, string& tfName)
 //finding the next most similar pair of nodes.
 
 void
-MetaLearner::redefineModules(int currFold, EvidenceSet* trainSet)
+MetaLearner::redefineModules(int currFold)
 {
 	if (correlationDistances == nullptr) {
-		initDistances(trainSet);
+		initDistances();
 	}
 
 	map<string,int> genesWithNoNeighbors;
@@ -1354,8 +1332,10 @@ MetaLearner::redefineModules(int currFold, EvidenceSet* trainSet)
 }
 
 void
-MetaLearner::initDistances(EvidenceSet* trainSet)
+MetaLearner::initDistances()
 {
+	EvidenceSet* trainSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TrainingSet);
+
 	vector<Variable*>& varSet = variableSet->getVariables();
 
 	int varCount = varSet.size();

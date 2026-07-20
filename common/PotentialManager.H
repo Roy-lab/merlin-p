@@ -23,7 +23,9 @@ class PotentialManager : public PotentialSource
 		Potential* createPotential(int factorID, vector<int>& parentIDs) override;
 
 		// Computes a Gaussian log likelihood for the factor conditioned upon its existing parents and each candidate parent.
-		void computeLLs(int factorID, int sampleSize, vector<int>& existingParents, vector<int>&candidateParents, unordered_map<int, double>&scores) override;
+		void computeLLs(int factorID, vector<int>& existingParents, vector<int>&candidateParents, unordered_map<int, double>&scores) override;
+
+		double getInitPLLScore(Potential* potential) override;
 
 		double evaluateProbabilityDensity(Potential* potential, int sampleIndex, EvidenceSource::SetType type) override;
 

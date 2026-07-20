@@ -24,7 +24,10 @@ class PotentialSource
         virtual Potential* createPotential(int factorID, vector<int>& parentIDs) = 0;
 
         // Computes log likelihood for the factor conditioned upon its existing parents and each candidate parent.
-        virtual void computeLLs(int factorID, int sampleSize, vector<int>& existingParents, vector<int>&candidateParents, unordered_map<int, double>&scores) = 0;
+        virtual void computeLLs(int factorID, vector<int>& existingParents, vector<int>&candidateParents, unordered_map<int, double>&scores) = 0;
+
+        // Evaluates pseudo log likelihood for the factor as univariate gaussian, for the initial edgeless graph.
+        virtual double getInitPLLScore(Potential* potential) = 0;
 
         // Evaluates conditional probability density of the Potential's factor, given its parents, at the sample index.
         virtual double evaluateProbabilityDensity(Potential* potential, int sampleIndex, EvidenceSource::SetType type) = 0;

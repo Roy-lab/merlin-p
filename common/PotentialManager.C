@@ -123,7 +123,10 @@ Potential* PotentialManager::createPotential(int factorID)
 	return new Potential(factorID, variance, bias, weights);
 }
 
-void PotentialManager::computeLLs(int factorID, int sampleSize, vector<int>& existingParents, vector<int>&candidateParents, unordered_map<int, double>&scores) {
+void PotentialManager::computeLLs(int factorID, vector<int>& existingParents, vector<int>&candidateParents, unordered_map<int, double>&scores) {
+
+	EvidenceSet* evidenceSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TrainingSet);
+	int sampleSize = evidenceSet->getSize();
 
 	if (existingParents.size() == 0) {
 		computeSingleParentLLs(factorID, sampleSize, candidateParents, scores);
@@ -337,6 +340,33 @@ Potential* PotentialManager::createPotential(int factorID, vector<int>& parentID
 	gsl_matrix_free(parentCovariances);
 
 	return new Potential(factorID, variance, bias, weights);
+}
+
+double
+PotentialManager::getInitPLLScore(Potential* potential)
+{
+	EvidenceSet* trainSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TrainingSet);
+
+	double pll = 0;
+
+	for (int i = 0; i < trainSet->getSize(); i++)
+	{
+		vector<double>* evidMap = trainSet->getEvidenceAt(i);
+		double pval = evaluateProbabilityDensity(potential, i, EvidenceSource::SetType::TrainingSet);
+		if (isnan(pval))
+		{
+			cout << "Pval is nan for datapoint " << i << endl;
+		}
+		if (pval < 1e-50)
+		{
+			pval = 1e-50;
+		}
+		pll += log(pval);
+	}
+
+	// The initial graph has no edges, meaning this variable is univariate
+	// gaussian, with just 2 params (mean, variance).
+	return pll;
 }
 
 double
