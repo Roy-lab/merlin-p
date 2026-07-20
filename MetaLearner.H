@@ -12,7 +12,6 @@ using namespace std;
 class VariableSet;
 class EvidenceSource;
 class PotentialSource;
-class EvidenceSet;
 class MetaMove;
 class HierarchicalCluster;
 class Matrix;
@@ -42,27 +41,27 @@ class MetaLearner
 
 	private:
 
-		void start(int fold, EvidenceSet* trainSet);
+		void start(int fold);
 		void setupFoldState(Checkpoint& checkpoint, int& iter, bool& notConverged, double& globalScore);
-		void setupFoldState(double& globalScore, EvidenceSet* trainSet);
+		void setupFoldState(double& globalScore);
 		void restoreCheckpointModules(const unordered_map<string, int>& checkpointGeneModuleIDs);
 		void restoreCheckpointGraph(const vector<pair<string, string>>& checkpointEdges);
 		void writeFoldProgress(int currFold, int iter, bool notConverged, Checkpoint& checkpoint);
 		void initEdgePriorMeta_All();
-		double getInitPLLScore(int vId, EvidenceSet* trainSet);
+		double getInitPLLScore(int vId);
 		double getPLLScore();
 		double getEdgePrior(int tfID, int targetID);
 		void clearFoldSpecData();
 		int initEdgeSet();
-		bool getNextMove(int vID, int sampleCount, MetaMove& outMove);
+		bool getNextMove(int vID, MetaMove& outMove);
 		void makeMove(MetaMove& move, int currIteration);
 		void dumpAllGraphs(int);
 		int setPriorGraph(const char* aFName, map<string, map<string, double>*>& priorGraph);
-		void redefineModules(int currFold, EvidenceSet* trainSet);
+		void redefineModules(int currFold);
 		double getModuleContribLogistic(string& tgtName, string& tfName);
 		void initPhysicalDegree();
 		void getEnrichedTFs(map<string, int>& tfSet, map<string, int>* genes, map<string, map<string, double>*>& edgeSet);
-		void initDistances(EvidenceSet* trainSet);
+		void initDistances();
 		void updateSharedParentDistances();
 
 		FactorGraph* factorGraph;
