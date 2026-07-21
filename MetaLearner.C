@@ -411,7 +411,14 @@ MetaLearner::doCrossValidation(int foldCnt)
 		foldEnd = specificFold + 1;
 	}
 
+	map<int, map<string, int>*> originalModuleGeneSet = moduleGeneSet;
+	unordered_map<string, int> originalGeneModuleID = geneModuleID;
+	
 	for(int f = foldBegin; f < foldEnd; f++) {
+
+		// Reset the module and gene module ID maps for each fold
+		moduleGeneSet = originalModuleGeneSet;
+		geneModuleID = originalGeneModuleID;
 
 		evidenceSource->setupForFold(f, foldCnt);
 
