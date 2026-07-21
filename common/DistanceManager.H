@@ -33,15 +33,16 @@ class DistanceManager
 
         void addUpdatedThisIteration(int targetID);
 
+    protected:
+        // Tracks whether two nodes share at least one parent.
+		unordered_map<int, unordered_map<int, int>> sharedParents;
+
     private:
         // Used for defining modules, the distance metric based on expression.
 		Matrix* correlationDistances;
 
 		// Used for defining modules, the distance metric based on shared parents.
 		Matrix* sharedParentDistances;
-
-		// Tracks whether two nodes share at least one parent.
-		unordered_map<int, unordered_map<int, int>> sharedParents;
 
 		// Var ids of any nodes with a parent added this iteration.
 		unordered_set<int> updatedThisIteration;
