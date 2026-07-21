@@ -13,7 +13,7 @@ using namespace std;
 
 #include "Potential.H"
 #include "SlimFactor.H"
-
+#include "DistanceManager.H"
 #include "FactorGraph.H"
 #include "PotentialManager.H"
 #include "MetaMove.H"
@@ -156,7 +156,6 @@ Framework::init(int argc, char** argv)
 		}
 	}
 
-
 	// Validate required arguments
 	if(dDefault)
 	{
@@ -203,6 +202,9 @@ Framework::init(int argc, char** argv)
 
 	PotentialManager* potManager = new PotentialManager(&evManager);
 	metaLearner.setPotentialSource(potManager);
+
+	DistanceManager* distanceManager = new DistanceManager();
+	metaLearner.setDistanceManager(distanceManager);
 
 	return Error::SUCCESS;
 }

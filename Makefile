@@ -19,7 +19,8 @@ LIB_SRC = \
 	common/FactorGraph.C \
 	common/Matrix.C \
 	common/PotentialManager.C \
-	common/Variable.C
+	common/Variable.C \
+	common/DistanceManager.C
 
 LIB_OBJ = $(LIB_SRC:.C=.o)
 

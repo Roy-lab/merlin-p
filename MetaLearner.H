@@ -3,9 +3,8 @@
 
 #include <map>
 #include <unordered_map>
-#include <unordered_set>
-#include "CommonTypes.H"
 #include "HierarchicalCluster.H"
+#include "DistanceManager.H"
 
 using namespace std;
 
@@ -14,7 +13,6 @@ class EvidenceSource;
 class PotentialSource;
 class MetaMove;
 class HierarchicalCluster;
-class Matrix;
 class Checkpoint;
 
 class MetaLearner
@@ -33,6 +31,7 @@ class MetaLearner
 		void setEvidenceSource(EvidenceSource*);
 		void setPotentialSource(PotentialSource*);
 		void setVariableSet(VariableSet*);
+		void setDistanceManager(DistanceManager*);
 		void setOutputDirName(const char*);
 		void setClusteringThreshold(double);
 		void setSpecificFold(int);
@@ -62,13 +61,12 @@ class MetaLearner
 		double getModuleContribLogistic(string& tgtName, string& tfName);
 		void initPhysicalDegree();
 		void getEnrichedTFs(map<string, int>& tfSet, map<string, int>* genes, map<string, map<string, double>*>& edgeSet);
-		void initDistances();
-		void updateSharedParentDistances();
 
 		FactorGraph* factorGraph;
 		PotentialSource* potentialSource;
 		EvidenceSource* evidenceSource;
 		VariableSet* variableSet;
+		DistanceManager* distanceManager;
 		
 		bool shouldLoadCheckpoint;
 		map<string, double> betaMap;
@@ -96,17 +94,5 @@ class MetaLearner
 		int specificFold;
 		HierarchicalCluster hc;
 		int numIters;
-
-		// Used for defining modules, the distance metric based on expression.
-		Matrix* correlationDistances;
-
-		// Used for defining modules, the distance metric based on shared parents.
-		Matrix* sharedParentDistances;
-
-		// Tracks whether two nodes share at least one parent.
-		unordered_map<int, unordered_map<int, int>> sharedParents;
-
-		// Var ids of any nodes with a parent added this iteration.
-		unordered_set<int> updatedThisIteration;
 };
 #endif

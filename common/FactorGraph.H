@@ -9,6 +9,7 @@ using namespace std;
 
 class SlimFactor;
 class VariableSet;
+class Variable;
 
 class FactorGraph
 {

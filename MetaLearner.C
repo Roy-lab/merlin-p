@@ -37,8 +37,6 @@ MetaLearner::MetaLearner()
 	convThreshold=1e-3;
 	factorGraph=nullptr;
 	currPLL=nullptr;
-	correlationDistances=nullptr;
-	sharedParentDistances=nullptr;
 }
 
 void
@@ -182,6 +180,12 @@ void
 MetaLearner::setVariableSet(VariableSet* aPtr)
 {
 	variableSet = aPtr;
+}
+
+void
+MetaLearner::setDistanceManager(DistanceManager* inDistanceManager)
+{
+	distanceManager = inDistanceManager;
 }
 
 void
@@ -524,7 +528,7 @@ MetaLearner::start(int currFold)
 		writeFoldProgress(currFold, iter, notConverged, checkpoint);
 
 		iter++;
-		updatedThisIteration.clear();
+		distanceManager->clearIterationData();
 	}
 
 	cout << "Final Score " << currGlobalScore << endl;
@@ -673,18 +677,11 @@ MetaLearner::restoreCheckpointGraph(const vector<pair<string, string>>& checkpoi
 
 		edgeMap[regID][targetID] = 1;
 
-		updatedThisIteration.insert(targetID);
+		distanceManager->addUpdatedThisIteration(targetID);
 	}
 
 	// Track which targets share parents after restoring edges.
-	for (auto iter = edgeMap.begin(); iter != edgeMap.end(); iter++) {
-		unordered_map<int, int>& targets = iter->second;
-		for (auto targetIterA = targets.begin(); targetIterA != targets.end(); targetIterA++) {
-			for (auto targetIterB = targets.begin(); targetIterB != targets.end(); targetIterB++) {
-				sharedParents[targetIterA->first][targetIterB->first] = 1;
-			}
-		}
-	}
+	distanceManager->restoreCheckpointSharedParents(edgeMap);
 
 	// Re-initialize potentials: iterate through all factors to rebuild potential distributions using the restored edges
 	for(int i = 0; i < factorGraph->getFactorCnt(); i++)
@@ -729,7 +726,6 @@ MetaLearner::clearFoldSpecData()
 {
 	hc = HierarchicalCluster();
 	edgeMap.clear();
-	sharedParents.clear();
 	if (factorGraph != nullptr) {
 		delete factorGraph;
 		factorGraph = nullptr;
@@ -738,19 +734,12 @@ MetaLearner::clearFoldSpecData()
 		delete currPLL;
 		currPLL = nullptr;
 	}
-	if (correlationDistances != nullptr) {
-		delete correlationDistances;
-		correlationDistances = nullptr;
-	}
-	if (sharedParentDistances != nullptr) {
-		delete sharedParentDistances;
-		sharedParentDistances = nullptr;
-	}
 	for (auto iter = moduleIndegree.begin(); iter != moduleIndegree.end(); iter++) {
 		delete iter->second;
 	}
 	moduleIndegree.clear();
 	regulatorModuleOutdegree.clear();
+	distanceManager->clearFoldData();
 }
 
 int
@@ -1025,15 +1014,7 @@ MetaLearner::makeMove(MetaMove& nextMove, int currIteration)
 
 	variableStatus[v->getName()] = currIteration;
 
-	updatedThisIteration.insert(v->getID());
-
-	// Mark all other targets of u as sharing a parent with v.
-	unordered_map<int, int> otherTargets = edgeMap[u->getID()];
-	for (auto iter = otherTargets.begin(); iter != otherTargets.end(); iter++) {
-		int targetID = iter->first;
-		sharedParents[v->getID()][targetID] = 1;
-		sharedParents[targetID][v->getID()] = 1;
-	}
+	distanceManager->addSharedParents(edgeMap, u->getID(), v->getID());
 }
 
 void
@@ -1203,9 +1184,9 @@ MetaLearner::getModuleContribLogistic(string& tgtName, string& tfName)
 void
 MetaLearner::redefineModules(int currFold)
 {
-	if (correlationDistances == nullptr) {
-		initDistances();
-	}
+	vector<Variable*>& varSet = variableSet->getVariables();
+	EvidenceSet* trainSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TrainingSet);
+	distanceManager->initDistances(trainSet, varSet.size());
 
 	map<string,int> genesWithNoNeighbors;
 
@@ -1238,7 +1219,10 @@ MetaLearner::redefineModules(int currFold)
 		}
 	}
 
-	updateSharedParentDistances();
+	distanceManager->updateSharedParentDistances(factorGraph, varSet.size());
+
+	Matrix* correlationDistances = distanceManager->getCorrelationDistances();
+	Matrix* sharedParentDistances = distanceManager->getSharedParentDistances();
 
 	// Perform the new clustering
 	map<int,map<string,int>*> newModules;
@@ -1264,7 +1248,6 @@ MetaLearner::redefineModules(int currFold)
 
 	// Read in the new module assignments
 	int largestModuleID=0;
-	vector<Variable*>& varSet = variableSet->getVariables();
 	for(map<int,map<string,int>*>::iterator mIter=newModules.begin();mIter!=newModules.end();mIter++)
 	{
 		moduleGeneSet[mIter->first]=mIter->second;
@@ -1318,163 +1301,4 @@ MetaLearner::redefineModules(int currFold)
 	}
 	genesWithNoNeighbors.clear();
 	cout << "   Finished redefining modules; " << moduleGeneSet.size() << " total modules" << endl;
-}
-
-void
-MetaLearner::initDistances()
-{
-	EvidenceSet* trainSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TrainingSet);
-
-	vector<Variable*>& varSet = variableSet->getVariables();
-
-	int varCount = varSet.size();
-	int sampleCount = trainSet->getSize();
-
-	vector<double> means(varCount, 0);
-
-	for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
-		vector<double>* evidMap = trainSet->getEvidenceAt(sampleIndex);
-		for (int i = 0; i < varCount; i++) {
-			means[i] += (*evidMap)[i];
-		}
-	}
-
-	for (int i = 0; i < means.size(); i++) {
-		means[i] /= sampleCount;
-	}
-
-	vector<double> ssd(varCount, 0);
-	vector<vector<double>> deviations(varCount, vector<double>(sampleCount, 0));
-
-	int sampleIndex = 0;
-	for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
-		vector<double>* evidMap = trainSet->getEvidenceAt(sampleIndex);
-		for (int i = 0; i < varCount; i++) {
-			double deviation = (*evidMap)[i] - means[i];
-			deviations[i][sampleIndex] = deviation;
-			ssd[i] += deviation * deviation;
-		}
-	}
-
-	correlationDistances = new Matrix(varCount, varCount);
-
-	double threshold = sampleCount / 2.0;
-
-	vector<double> invStd(varCount, 0);
-	for (int i = 0; i < varCount; i++) {
-		invStd[i] = 1.0 / sqrt(ssd[i]);
-	}
-
-	for (int i = 0; i < varCount; i++) {
-		double* dev_i = deviations[i].data();
-
-		for (int j = i; j < varCount; j++) {
-			double* dev_j = deviations[j].data();
-			double xy = 0;
-			int oppRel = 0;
-
-			for(int k = 0; k < sampleCount; k++) {
-				double diff1 = dev_i[k];
-				double diff2 = dev_j[k];
-				double val = diff1 * diff2;
-				xy += val;
-				oppRel += (val < 0);
-			}
-
-			double cc = abs(xy) * invStd[i] * invStd[j];
-
-			if(oppRel > threshold) {
-				cc *= -1;
-			}
-
-			cc = 0.5 * (1 - cc);
-
-			correlationDistances->setValue(cc, i, j);
-			correlationDistances->setValue(cc, j, i);
-		}
-	}
-
-	// Initially we have no edges, so no nodes share a parent, and all distances are 1.
-	sharedParentDistances = new Matrix(varCount, varCount);
-	sharedParentDistances->setAllValues(1);
-}
-
-void
-MetaLearner::updateSharedParentDistances()
-{
-	vector<Variable*>& varSet = variableSet->getVariables();
-	int varCount = varSet.size();
-
-	vector<int> sortedTargetIDs(updatedThisIteration.begin(), updatedThisIteration.end());
-	sort(sortedTargetIDs.begin(), sortedTargetIDs.end());
-
-	vector<bool> willVisit(varCount, false);
-	for (int k = 0; k < sortedTargetIDs.size(); k++) {
-		willVisit[sortedTargetIDs[k]] = true;
-	}
-
-	vector<double> denoms(varCount, 0);
-
-	for (auto iter = sortedTargetIDs.begin(); iter != sortedTargetIDs.end(); iter++) {
-		int varID = *iter;
-		SlimFactor* factorA = factorGraph->getFactorAt(varID);
-		vector<pair<int, double>>& weightsA = factorA->potFunc->getWeights();
-
-		double denomA = denoms[varID];
-		if (denomA == 0) {
-			for (const auto& weight : weightsA) {
-				denomA += fabs(weight.second);
-			}
-			denoms[varID] = denomA;
-		}
-
-		unordered_map<int, int>& siblingVarIDs = sharedParents[varID];
-
-		for (auto siblingIter = siblingVarIDs.begin(); siblingIter != siblingVarIDs.end(); siblingIter++) {
-			int siblingID = siblingIter->first;
-
-			if (varID == siblingID) {
-				continue;
-			}
-
-			if (willVisit[siblingID] && siblingID < varID) {
-				continue;
-			}
-
-			SlimFactor* factorB = factorGraph->getFactorAt(siblingID);
-			vector<pair<int, double>>& weightsB = factorB->potFunc->getWeights();
-
-			double denomB = denoms[siblingID];
-			if (denomB == 0) {
-				for (const auto& weight : weightsB) {
-					denomB += fabs(weight.second);
-				}
-				denoms[siblingID] = denomB;
-			}
-
-			auto itA = weightsA.begin();
-			auto itB = weightsB.begin();
-			double sharedSign = 0;
-
-			while (itA != weightsA.end() && itB != weightsB.end()) {
-				if (itA->first == itB->first) {
-					double weight1 = itA->second;
-					double weight2 = itB->second;
-					if ((weight1 >= 0.0) == (weight2 >= 0.0)) {
-						sharedSign += (fabs(weight1) + fabs(weight2)) * 0.5;
-					}
-					++itA;
-					++itB;
-				} else if (itA->first < itB->first) {
-					++itA;
-				} else {
-					++itB;
-				}
-			}
-
-			double distance = 1 - sharedSign / (denomA + denomB - sharedSign);
-			sharedParentDistances->setValue(distance, varID, siblingID);
-			sharedParentDistances->setValue(distance, siblingID, varID);
-		}
-	}
 }
