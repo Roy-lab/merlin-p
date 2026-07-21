@@ -29,6 +29,7 @@
 
 MetaLearner::MetaLearner()
 {
+	numIters = 50;
 	shouldLoadCheckpoint = false;
 	restrictedFName[0]='\0';
 	clusterThreshold=0.5;
@@ -56,6 +57,12 @@ void
 MetaLearner::setBeta1(double aval)
 {
 	beta1=aval;
+}
+
+void
+MetaLearner::setNumIters(int numItersValue)
+{
+	numIters = numItersValue;
 }
 
 void
@@ -461,7 +468,7 @@ MetaLearner::start(int currFold)
 
 	vector<Variable*>& varSet = variableSet->getVariables();
 
-	while(notConverged && iter < 50) {
+	while(notConverged && iter < numIters) {
 		cout << "Beginning regulator identification of iter " << iter << endl;
 
 		int varID = 0;

@@ -27,6 +27,7 @@ class MetaLearner
 		void setBeta_Motif(double bval);
 		void setConvergenceThreshold(double);
 		void setRestrictedList(const char*);
+		void setNumIters(int numItersValue);
 		int initEdgePriorMeta(const string& priorName, map<string, map<string, double>*>& graph, unordered_map<int, unordered_map<int, double>*>& edgePrior);
 		void doCrossValidation(int);
 		void setEvidenceSource(EvidenceSource*);
@@ -94,6 +95,7 @@ class MetaLearner
 		char foldoutDirName[1024];
 		int specificFold;
 		HierarchicalCluster hc;
+		int numIters;
 
 		// Used for defining modules, the distance metric based on expression.
 		Matrix* correlationDistances;
