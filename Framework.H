@@ -16,7 +16,6 @@ class Framework
 	private:
 		MetaLearner metaLearner;
 		EvidenceManager evManager;
-		EvidenceManager holdoutEvManager;
 		int cvCnt;
 };
 #endif
