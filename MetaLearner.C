@@ -11,14 +11,13 @@
 #include "Error.H"
 #include "Variable.H"
 #include "VariableSet.H"
-
 #include "EvidenceSource.H"
 #include "EvidenceSet.H"
-
+#include "DistanceManager.H"
 #include "PotentialSource.H"
 #include "Potential.H"
 #include "SlimFactor.H"
-
+#include "ValidationLogger.H"
 #include "FactorGraph.H"
 #include "MetaMove.H"
 #include "HierarchicalClusterNode.H"
@@ -209,6 +208,12 @@ void
 MetaLearner::setDistanceManager(DistanceManager* inDistanceManager)
 {
 	distanceManager = inDistanceManager;
+}
+
+void
+MetaLearner::setValidationLogger(ValidationLogger* inValLogger)
+{
+	validationLogger = inValLogger;
 }
 
 void
@@ -428,6 +433,8 @@ MetaLearner::initEdgePriorMeta(const string& priorName, map<string,map<string,do
 void
 MetaLearner::doCrossValidation(int foldCnt)
 {
+	validationLogger->init(outputDirName, variableSet);
+
 	validateRestrictedList();
 
 	//The first key is for the fold number
@@ -439,15 +446,8 @@ MetaLearner::doCrossValidation(int foldCnt)
 		foldBegin = specificFold;
 		foldEnd = specificFold + 1;
 	}
-
-	map<int, map<string, int>*> originalModuleGeneSet = moduleGeneSet;
-	unordered_map<string, int> originalGeneModuleID = geneModuleID;
 	
 	for(int f = foldBegin; f < foldEnd; f++) {
-
-		// Reset the module and gene module ID maps for each fold
-		moduleGeneSet = originalModuleGeneSet;
-		geneModuleID = originalGeneModuleID;
 
 		evidenceSource->setupForFold(f, foldCnt);
 
@@ -470,6 +470,11 @@ MetaLearner::doCrossValidation(int foldCnt)
 
 		// Begin identifying regulators/inferring modules for this fold
 		start(f);
+
+		if (foldCnt > 1) {
+			EvidenceSet* testSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TestSet);
+			validationLogger->logValidationError(f, testSet, factorGraph, potentialSource);
+		}
 
 		clearFoldSpecData();
 	}
