@@ -463,7 +463,7 @@ MetaLearner::start(int currFold)
 	// populates edgePriorMap
 	initEdgePriorMeta_All();
 
-	// populates edgeMap, edgePresenceProb, varNeighborhoodPrior, potentials
+	// populates edgeMap, varNeighborhoodPrior, potentials
 	initEdgeSet();
 
 	bool checkpointLoaded = false;
@@ -785,7 +785,6 @@ MetaLearner::initEdgeSet()
 			{
 				initPrior = 1-1e-6;
 			}
-			edgePresenceProb[edgeKey] = initPrior;
 			if (varNeighborhoodPrior.find(vID) == varNeighborhoodPrior.end())
 			{
 				varNeighborhoodPrior[vID] = log(1 - initPrior);

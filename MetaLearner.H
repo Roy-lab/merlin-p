@@ -82,7 +82,6 @@ class MetaLearner
 		unordered_map<int, double>* currPLL;
 		map<int, double> finalScores;
 		char outputDirName[1024];
-		map<string, double> edgePresenceProb;
 		map<int, double> varNeighborhoodPrior;
 		double beta1;
 		double beta_motif;
