@@ -4,7 +4,6 @@
 #include <map>
 #include <unordered_map>
 #include "HierarchicalCluster.H"
-#include "DistanceManager.H"
 
 using namespace std;
 
@@ -14,6 +13,8 @@ class PotentialSource;
 class MetaMove;
 class HierarchicalCluster;
 class Checkpoint;
+class DistanceManager;
+class ValidationLogger;
 
 class MetaLearner
 {
@@ -32,6 +33,7 @@ class MetaLearner
 		void setPotentialSource(PotentialSource*);
 		void setVariableSet(VariableSet*);
 		void setDistanceManager(DistanceManager*);
+		void setValidationLogger(ValidationLogger*);
 		void setOutputDirName(const char*);
 		void setClusteringThreshold(double);
 		void setSpecificFold(int);
@@ -67,6 +69,7 @@ class MetaLearner
 		EvidenceSource* evidenceSource;
 		VariableSet* variableSet;
 		DistanceManager* distanceManager;
+		ValidationLogger* validationLogger;
 		
 		bool shouldLoadCheckpoint;
 		map<string, double> betaMap;
