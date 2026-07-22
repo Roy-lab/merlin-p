@@ -1,3 +1,5 @@
+#include <math.h>
+#include <algorithm>
 #include "DistanceManager.H"
 #include "Matrix.H"
 #include "EvidenceSet.H"
