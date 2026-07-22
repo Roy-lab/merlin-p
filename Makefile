@@ -21,8 +21,8 @@ LIB_SRC = \
 	common/PotentialManager.C \
 	common/Variable.C \
 	common/DistanceManager.C \
-	common/ValidationLogger.C \
-	common/MerlinValidationLogger.C
+	common/Logger.C \
+	common/MerlinLogger.C
 
 LIB_OBJ = $(LIB_SRC:.C=.o)
 

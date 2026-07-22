@@ -42,17 +42,3 @@ FactorGraph::getFactorAt(int fid)
 	}
 	return factorSet[fid];
 }
-
-int
-FactorGraph::dumpVarMB(ofstream& oFile, vector<Variable*>& variableSet)
-{
-	for(map<int,SlimFactor*>::iterator aIter=factorSet.begin();aIter!=factorSet.end();aIter++)
-	{
-		SlimFactor* sFactor=aIter->second;
-		vector<pair<int, double>>& regWts = sFactor->potFunc->getWeights();
-		for (const auto& weight : regWts) {
-			oFile << variableSet[weight.first]->getName() << "\t" << variableSet[sFactor->vIds[0]]->getName() << "\t" << weight.second << endl;
-		}
-	}
-	return 0;
-}

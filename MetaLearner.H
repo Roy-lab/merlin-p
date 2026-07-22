@@ -14,7 +14,7 @@ class MetaMove;
 class HierarchicalCluster;
 class Checkpoint;
 class DistanceManager;
-class ValidationLogger;
+class Logger;
 
 class MetaLearner
 {
@@ -33,7 +33,7 @@ class MetaLearner
 		void setPotentialSource(PotentialSource*);
 		void setVariableSet(VariableSet*);
 		void setDistanceManager(DistanceManager*);
-		void setValidationLogger(ValidationLogger*);
+		void setLogger(Logger*);
 		void setOutputDirName(const char*);
 		void setClusteringThreshold(double);
 		void setSpecificFold(int);
@@ -57,7 +57,6 @@ class MetaLearner
 		int initEdgeSet();
 		bool getNextMove(int vID, MetaMove& outMove);
 		void makeMove(MetaMove& move, int currIteration);
-		void dumpAllGraphs(int);
 		int setPriorGraph(const char* aFName, map<string, map<string, double>*>& priorGraph);
 		void redefineModules(int currFold);
 		double getModuleContribLogistic(string& tgtName, string& tfName);
@@ -69,7 +68,7 @@ class MetaLearner
 		EvidenceSource* evidenceSource;
 		VariableSet* variableSet;
 		DistanceManager* distanceManager;
-		ValidationLogger* validationLogger;
+		Logger* logger;
 		
 		bool shouldLoadCheckpoint;
 		map<string, double> betaMap;
