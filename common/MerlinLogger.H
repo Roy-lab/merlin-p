@@ -3,6 +3,8 @@
 
 #include "Logger.H"
 
+using namespace std;
+
 class EvidenceSource;
 class PotentialSource;
 
