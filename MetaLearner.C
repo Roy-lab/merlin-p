@@ -17,7 +17,7 @@
 #include "PotentialSource.H"
 #include "Potential.H"
 #include "SlimFactor.H"
-#include "ValidationLogger.H"
+#include "Logger.H"
 #include "FactorGraph.H"
 #include "MetaMove.H"
 #include "HierarchicalClusterNode.H"
@@ -211,9 +211,9 @@ MetaLearner::setDistanceManager(DistanceManager* inDistanceManager)
 }
 
 void
-MetaLearner::setValidationLogger(ValidationLogger* inValLogger)
+MetaLearner::setLogger(Logger* inLogger)
 {
-	validationLogger = inValLogger;
+	logger = inLogger;
 }
 
 void
@@ -433,8 +433,8 @@ MetaLearner::initEdgePriorMeta(const string& priorName, map<string,map<string,do
 void
 MetaLearner::doCrossValidation(int foldCnt)
 {
-	validationLogger->setOutDirName(outputDirName);
-	validationLogger->setVariableSet(variableSet);
+	logger->setOutDirName(outputDirName);
+	logger->setVariableSet(variableSet);
 
 	validateRestrictedList();
 
@@ -473,7 +473,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 		start(f);
 
 		if (foldCnt > 1) {
-			validationLogger->logValidationError(f, factorGraph);
+			logger->logValidationError(f, factorGraph);
 		}
 
 		clearFoldSpecData();
@@ -569,7 +569,7 @@ void
 MetaLearner::writeFoldProgress(int currFold, int iter, bool notConverged, Checkpoint& checkpoint)
 {
 	vector<Variable*>& varSet = variableSet->getVariables();
-	dumpAllGraphs(currFold);
+	logger->logVariableMarkovBlankets(currFold, maxFactorSize, factorGraph);
 	checkpoint.writeCheckpointMetadata(iter, notConverged);
 	checkpoint.writePLLScore(currPLL, varSet);
 	checkpoint.writeLastUpdate(variableStatus);
@@ -1045,17 +1045,6 @@ MetaLearner::makeMove(MetaMove& nextMove, int currIteration)
 	variableStatus[v->getName()] = currIteration;
 
 	distanceManager->addSharedParents(edgeMap, u->getID(), v->getID());
-}
-
-void
-MetaLearner::dumpAllGraphs(int foldid)
-{
-	char aFName[1024];
-	sprintf(aFName, "%s/prediction_k%d.txt", foldoutDirName, maxFactorSize);
-	ofstream oFile(aFName);
-	vector<Variable*>& varSet = variableSet->getVariables();
-	factorGraph->dumpVarMB(oFile, varSet);
-	oFile.close();
 }
 
 void

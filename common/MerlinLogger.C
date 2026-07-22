@@ -1,5 +1,5 @@
 #include <iostream>
-#include "MerlinValidationLogger.H"
+#include "MerlinLogger.H"
 #include "EvidenceSource.H"
 #include "EvidenceSet.H"
 #include "FactorGraph.H"
@@ -9,7 +9,7 @@
 #include "SlimFactor.H"
 #include "PotentialSource.H"
 
-MerlinValidationLogger::MerlinValidationLogger(EvidenceSource* inEvSource, PotentialSource* inPotentialSource)
+MerlinLogger::MerlinLogger(EvidenceSource* inEvSource, PotentialSource* inPotentialSource)
 {
     evidenceSource = inEvSource;
     potentialSource = inPotentialSource;
@@ -32,7 +32,7 @@ MerlinValidationLogger::MerlinValidationLogger(EvidenceSource* inEvSource, Poten
  * Returns 0 on success, -1 if the output file cannot be opened.
  */
 int
-MerlinValidationLogger::logValidationError(int foldID, FactorGraph* factorGraph)
+MerlinLogger::logValidationError(int foldID, FactorGraph* factorGraph)
 {
     EvidenceSet* testSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TestSet);
     if (testSet->getSize() == 0) {
@@ -111,4 +111,29 @@ MerlinValidationLogger::logValidationError(int foldID, FactorGraph* factorGraph)
     cout << "Fold " << foldID << " prediction stats written to " << statsFileName << endl;
 
     return 0;
+}
+
+void
+MerlinLogger::logVariableMarkovBlankets(int foldID, int maxFactorSize, FactorGraph* factorGraph)
+{
+    char foldoutDirName[1024];
+    sprintf(foldoutDirName, "%s/fold%d", outDirName, foldID);
+
+	char aFName[1024];
+	sprintf(aFName, "%s/prediction_k%d.txt", foldoutDirName, maxFactorSize);
+
+    vector<Variable*>& varSet = variableSet->getVariables();
+
+	ofstream oFile(aFName);
+
+	for (int i = 0; i < factorGraph->getFactorCnt(); i++)
+	{
+		SlimFactor* sFactor = factorGraph->getFactorAt(i);
+		vector<pair<int, double>>& regWts = sFactor->potFunc->getWeights();
+		for (const auto& weight : regWts) {
+			oFile << varSet[weight.first]->getName() << "\t" << varSet[sFactor->vIds[0]]->getName() << "\t" << weight.second << endl;
+		}
+	}
+
+	oFile.close();
 }

@@ -1,5 +1,5 @@
-#ifndef _VALIDATION_LOGGER
-#define _VALIDATION_LOGGER
+#ifndef _LOGGER
+#define _LOGGER
 
 #include <vector>
 
@@ -9,7 +9,7 @@ class VariableSet;
 class EvidenceSet;
 class FactorGraph;
 
-class ValidationLogger
+class Logger
 {
     public:
         void setOutDirName(const char* outDirName);
@@ -17,6 +17,8 @@ class ValidationLogger
         void setVariableSet(VariableSet* varSet);
 
         virtual int logValidationError(int foldID, FactorGraph* factorGraph) = 0;
+
+        virtual void logVariableMarkovBlankets(int foldID, int maxFactorSize, FactorGraph* factorGraph) = 0;
 
     protected:
 

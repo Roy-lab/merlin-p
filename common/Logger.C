@@ -1,19 +1,19 @@
-#include "ValidationLogger.H"
+#include "Logger.H"
 
 void
-ValidationLogger::setOutDirName(const char* dirName)
+Logger::setOutDirName(const char* dirName)
 {
     outDirName = dirName;
 }
 
 void
-ValidationLogger::setVariableSet(VariableSet* inVarSet)
+Logger::setVariableSet(VariableSet* inVarSet)
 {
     variableSet = inVarSet;
 }
 
-ValidationLogger::PredictionMetrics
-ValidationLogger::computePredictionMetrics(const vector<double>& tv, const vector<double>& pv)
+Logger::PredictionMetrics
+Logger::computePredictionMetrics(const vector<double>& tv, const vector<double>& pv)
 {
     int n = (int)tv.size();
     double tmean = 0, pmean = 0, maxv = -1e9, minv = 1e9;
