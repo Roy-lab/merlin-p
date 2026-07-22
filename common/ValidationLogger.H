@@ -13,9 +13,11 @@ class PotentialSource;
 class ValidationLogger
 {
     public:
-        void init(const char* outDirName, VariableSet* varSet);
+        void setOutDirName(const char* outDirName);
 
-        virtual int logValidationError(int foldID, EvidenceSet* testSet, FactorGraph* factorGraph, PotentialSource* potentialSource);
+        void setVariableSet(VariableSet* varSet);
+
+        virtual int logValidationError(int foldID, FactorGraph* factorGraph, PotentialSource* potentialSource) = 0;
 
     protected:
 

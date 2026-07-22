@@ -10,7 +10,7 @@ using namespace std;
 #include "VariableManager.H"
 
 #include "EvidenceManager.H"
-#include "ValidationLogger.H"
+#include "MerlinValidationLogger.H"
 #include "Potential.H"
 #include "SlimFactor.H"
 #include "DistanceManager.H"
@@ -206,7 +206,7 @@ Framework::init(int argc, char** argv)
 	DistanceManager* distanceManager = new DistanceManager();
 	metaLearner.setDistanceManager(distanceManager);
 
-	ValidationLogger* valLogger = new ValidationLogger();
+	MerlinValidationLogger* valLogger = new MerlinValidationLogger(&evManager);
 	metaLearner.setValidationLogger(valLogger);
 
 	return Error::SUCCESS;

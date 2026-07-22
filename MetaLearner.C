@@ -410,7 +410,8 @@ MetaLearner::initEdgePriorMeta(const string& priorName, map<string,map<string,do
 void
 MetaLearner::doCrossValidation(int foldCnt)
 {
-	validationLogger->init(outputDirName, variableSet);
+	validationLogger->setOutDirName(outputDirName);
+	validationLogger->setVariableSet(variableSet);
 
 	//The first key is for the fold number
 	//For each fold we have a trained model. For each trained model we have the likelihood on
@@ -447,8 +448,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 		start(f);
 
 		if (foldCnt > 1) {
-			EvidenceSet* testSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TestSet);
-			validationLogger->logValidationError(f, testSet, factorGraph, potentialSource);
+			validationLogger->logValidationError(f, factorGraph, potentialSource);
 		}
 
 		clearFoldSpecData();
