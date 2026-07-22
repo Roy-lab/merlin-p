@@ -1,4 +1,5 @@
 #include <iostream>
+#include <math.h>
 #include "MerlinLogger.H"
 #include "EvidenceSource.H"
 #include "EvidenceSet.H"
