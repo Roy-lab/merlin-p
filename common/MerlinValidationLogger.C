@@ -9,9 +9,10 @@
 #include "SlimFactor.H"
 #include "PotentialSource.H"
 
-MerlinValidationLogger::MerlinValidationLogger(EvidenceSource* inEvSource)
+MerlinValidationLogger::MerlinValidationLogger(EvidenceSource* inEvSource, PotentialSource* inPotentialSource)
 {
     evidenceSource = inEvSource;
+    potentialSource = inPotentialSource;
 }
 
 /**
@@ -31,7 +32,7 @@ MerlinValidationLogger::MerlinValidationLogger(EvidenceSource* inEvSource)
  * Returns 0 on success, -1 if the output file cannot be opened.
  */
 int
-MerlinValidationLogger::logValidationError(int foldID, FactorGraph* factorGraph, PotentialSource* potentialSource)
+MerlinValidationLogger::logValidationError(int foldID, FactorGraph* factorGraph)
 {
     EvidenceSet* testSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TestSet);
     if (testSet->getSize() == 0) {

@@ -4,16 +4,18 @@
 #include "ValidationLogger.H"
 
 class EvidenceSource;
+class PotentialSource;
 
 class MerlinValidationLogger : public ValidationLogger
 {
     public:
-        MerlinValidationLogger(EvidenceSource* evidenceSource);
+        MerlinValidationLogger(EvidenceSource* evidenceSource, PotentialSource* potentialSource);
 
-        int logValidationError(int foldID, FactorGraph* factorGraph, PotentialSource* potentialSource) override;
+        int logValidationError(int foldID, FactorGraph* factorGraph) override;
 
     private:
         EvidenceSource* evidenceSource;
+        PotentialSource* potentialSource;
 };
 
 #endif

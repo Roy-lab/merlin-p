@@ -206,7 +206,7 @@ Framework::init(int argc, char** argv)
 	DistanceManager* distanceManager = new DistanceManager();
 	metaLearner.setDistanceManager(distanceManager);
 
-	MerlinValidationLogger* valLogger = new MerlinValidationLogger(&evManager);
+	MerlinValidationLogger* valLogger = new MerlinValidationLogger(&evManager, potManager);
 	metaLearner.setValidationLogger(valLogger);
 
 	return Error::SUCCESS;

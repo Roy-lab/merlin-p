@@ -448,7 +448,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 		start(f);
 
 		if (foldCnt > 1) {
-			validationLogger->logValidationError(f, factorGraph, potentialSource);
+			validationLogger->logValidationError(f, factorGraph);
 		}
 
 		clearFoldSpecData();

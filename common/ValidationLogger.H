@@ -8,7 +8,6 @@ using namespace std;
 class VariableSet;
 class EvidenceSet;
 class FactorGraph;
-class PotentialSource;
 
 class ValidationLogger
 {
@@ -17,7 +16,7 @@ class ValidationLogger
 
         void setVariableSet(VariableSet* varSet);
 
-        virtual int logValidationError(int foldID, FactorGraph* factorGraph, PotentialSource* potentialSource) = 0;
+        virtual int logValidationError(int foldID, FactorGraph* factorGraph) = 0;
 
     protected:
 
