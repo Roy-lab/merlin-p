@@ -20,7 +20,9 @@ LIB_SRC = \
 	common/Matrix.C \
 	common/PotentialManager.C \
 	common/Variable.C \
-	common/DistanceManager.C
+	common/DistanceManager.C \
+	common/ValidationLogger.C \
+	common/MerlinValidationLogger.C
 
 LIB_OBJ = $(LIB_SRC:.C=.o)
 

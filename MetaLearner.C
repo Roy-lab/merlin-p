@@ -433,7 +433,8 @@ MetaLearner::initEdgePriorMeta(const string& priorName, map<string,map<string,do
 void
 MetaLearner::doCrossValidation(int foldCnt)
 {
-	validationLogger->init(outputDirName, variableSet);
+	validationLogger->setOutDirName(outputDirName);
+	validationLogger->setVariableSet(variableSet);
 
 	validateRestrictedList();
 
@@ -472,8 +473,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 		start(f);
 
 		if (foldCnt > 1) {
-			EvidenceSet* testSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TestSet);
-			validationLogger->logValidationError(f, testSet, factorGraph, potentialSource);
+			validationLogger->logValidationError(f, factorGraph, potentialSource);
 		}
 
 		clearFoldSpecData();
