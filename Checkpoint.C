@@ -182,7 +182,7 @@ Checkpoint::writeCheckpointMetadata(int iter, bool notConvergedVal)
 }
 
 void
-Checkpoint::writePLLScore(unordered_map<int, double>* currPLL, const unordered_map<int, Variable*>& varSet)
+Checkpoint::writePLLScore(unordered_map<int, double>* currPLL, const vector<Variable*>& varSet)
 {
 	if (currPLL == NULL) {
 		return;
@@ -195,11 +195,7 @@ Checkpoint::writePLLScore(unordered_map<int, double>* currPLL, const unordered_m
     outFile << std::setprecision(std::numeric_limits<double>::max_digits10);
 
     for(auto iter = currPLL->begin(); iter != currPLL->end(); iter++) {
-        auto varIter = varSet.find(iter->first);
-        if (varIter == varSet.end()) {
-            continue;
-        }
-        Variable* var = varIter->second;
+        Variable* var = varSet[iter->first];
         outFile << var->getName() << "\t" << iter->second << endl;
 	}
 }

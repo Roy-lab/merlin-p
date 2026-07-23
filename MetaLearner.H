@@ -3,19 +3,18 @@
 
 #include <map>
 #include <unordered_map>
-#include <unordered_set>
-#include "CommonTypes.H"
 #include "HierarchicalCluster.H"
 
 using namespace std;
 
-class VariableManager;
-class EvidenceManager;
-class PotentialManager;
+class VariableSet;
+class EvidenceSource;
+class PotentialSource;
 class MetaMove;
 class HierarchicalCluster;
-class Matrix;
 class Checkpoint;
+class DistanceManager;
+class Logger;
 
 class MetaLearner
 {
@@ -27,15 +26,17 @@ class MetaLearner
 		void setBeta_Motif(double bval);
 		void setConvergenceThreshold(double);
 		void setRestrictedList(const char*);
+		void setNumIters(int numItersValue);
 		int initEdgePriorMeta(const string& priorName, map<string, map<string, double>*>& graph, unordered_map<int, unordered_map<int, double>*>& edgePrior);
 		void doCrossValidation(int);
-		void setGlobalEvidenceManager(EvidenceManager*);
-		void setVariableManager(VariableManager*);
+		void setEvidenceSource(EvidenceSource*);
+		void setPotentialSource(PotentialSource*);
+		void setVariableSet(VariableSet*);
+		void setDistanceManager(DistanceManager*);
+		void setLogger(Logger*);
 		void setOutputDirName(const char*);
 		void setClusteringThreshold(double);
 		void setSpecificFold(int);
-		int getPredictionError_CrossValid(int);
-		void setRandom(bool);
 		void readModuleMembership(const char*);
 		void setDefaultModuleMembership();
 		int setPriorGraph_All(const char*);
@@ -56,19 +57,18 @@ class MetaLearner
 		int initEdgeSet();
 		bool getNextMove(int vID, MetaMove& outMove);
 		void makeMove(MetaMove& move, int currIteration);
-		void dumpAllGraphs(int);
 		int setPriorGraph(const char* aFName, map<string, map<string, double>*>& priorGraph);
 		void redefineModules(int currFold);
 		double getModuleContribLogistic(string& tgtName, string& tfName);
 		void initPhysicalDegree();
 		void getEnrichedTFs(map<string, int>& tfSet, map<string, int>* genes, map<string, map<string, double>*>& edgeSet);
-		void initDistances();
-		void updateSharedParentDistances();
 
 		FactorGraph* factorGraph;
-		PotentialManager* potManager;
-		EvidenceManager* evidenceManager;
-		VariableManager* varManager;
+		PotentialSource* potentialSource;
+		EvidenceSource* evidenceSource;
+		VariableSet* variableSet;
+		DistanceManager* distanceManager;
+		Logger* logger;
 		
 		bool shouldLoadCheckpoint;
 		map<string, double> betaMap;
@@ -82,11 +82,9 @@ class MetaLearner
 		unordered_map<int, double>* currPLL;
 		map<int, double> finalScores;
 		char outputDirName[1024];
-		map<string, double> edgePresenceProb;
 		map<int, double> varNeighborhoodPrior;
 		double beta1;
 		double beta_motif;
-		bool random;
 		map<int, map<string, int>*> moduleGeneSet;
 		unordered_map<string, int> geneModuleID;
 		unordered_map<int, unordered_map<string, int>*> moduleIndegree;
@@ -96,17 +94,6 @@ class MetaLearner
 		char foldoutDirName[1024];
 		int specificFold;
 		HierarchicalCluster hc;
-
-		// Used for defining modules, the distance metric based on expression.
-		Matrix* correlationDistances;
-
-		// Used for defining modules, the distance metric based on shared parents.
-		Matrix* sharedParentDistances;
-
-		// Tracks whether two nodes share at least one parent.
-		unordered_map<int, unordered_map<int, int>> sharedParents;
-
-		// Var ids of any nodes with a parent added this iteration.
-		unordered_set<int> updatedThisIteration;
+		int numIters;
 };
 #endif

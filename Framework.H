@@ -4,7 +4,6 @@
 
 //All the managers need forward declarations
 class MetaLearner;
-class VariableManager;
 class EvidenceManager;
 class Framework
 {
@@ -16,9 +15,7 @@ class Framework
 
 	private:
 		MetaLearner metaLearner;
-		VariableManager varManager;
 		EvidenceManager evManager;
-		EvidenceManager holdoutEvManager;
 		int cvCnt;
 };
 #endif

@@ -1,35 +1,39 @@
 #ifndef _POTENTIAL_MANAGER
 #define _POTENTIAL_MANAGER
 
+#include "PotentialSource.H"
+#include "EvidenceSource.H"
+
 using namespace std;
 
 class Potential;
-class EvidenceManager;
+class EvidenceSource;
 class Matrix;
 
-class PotentialManager
+class PotentialManager : public PotentialSource
 {
 	public:
-		PotentialManager();
+		PotentialManager(EvidenceSource* evidenceSource);
 		~PotentialManager();
 
-		// When init is called PotentialManager clears its internal data and loads
-		// new means and covariances from the provided EvidenceManager.
-		int init(EvidenceManager* evMgr, bool random, vector<int>& varIDs);
+		void setupForFold(vector<int>& regIDs) override;
 
-		// Creates a Potential of a single variable.
-		Potential* createPotential(int factorID);
+		Potential* createPotential(int factorID) override;
 
-		// Creates a Potential conditioned on a set of parents.
-		Potential* createPotential(int factorID, vector<int>& parentIDs);
+		Potential* createPotential(int factorID, vector<int>& parentIDs) override;
 
 		// Computes a Gaussian log likelihood for the factor conditioned upon its existing parents and each candidate parent.
-		void computeLLs(int factorID, int sampleSize, vector<int>& existingParents, vector<int>&candidateParents, unordered_map<int, double>&scores);
+		void computeLLs(int factorID, vector<int>& existingParents, vector<int>&candidateParents, unordered_map<int, double>&scores) override;
+
+		double getInitPLLScore(Potential* potential) override;
+
+		double evaluateProbabilityDensity(Potential* potential, int sampleIndex, EvidenceSource::SetType type) override;
 
 	private:
 		void computeSingleParentLLs(int factorID, int sampleSize, vector<int>&candidateParents, unordered_map<int, double>&scores);
 
 		vector<double> globalMeans;
 		Matrix *globalCovariances;
+		EvidenceSource *evidenceSource;
 };
 #endif

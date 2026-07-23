@@ -6,13 +6,14 @@
 #include "CommonTypes.H"
 #include "Error.H"
 #include "Potential.H"
-#include "Evidence.H"
-#include "EvidenceManager.H"
+#include "EvidenceSource.H"
+#include "EvidenceSet.H"
 #include "PotentialManager.H"
 
-PotentialManager::PotentialManager()
+PotentialManager::PotentialManager(EvidenceSource* source)
 {
 	globalCovariances = nullptr;
+	evidenceSource = source;
 }
 
 PotentialManager::~PotentialManager()
@@ -22,16 +23,17 @@ PotentialManager::~PotentialManager()
 	}
 }
 
-int PotentialManager::init(EvidenceManager* evMgr, bool randomData, vector<int>& varIDs)
+void PotentialManager::setupForFold(vector<int>& regIDs)
 {
 	if (globalCovariances != nullptr) {
 		delete globalCovariances;
 	}
 
-	INTINTMAP& trainEvidSet = evMgr->getTrainingSet();
-	EMAP* evidMap = evMgr->getEvidenceAt(trainEvidSet.begin()->first);
+	EvidenceSet* evidenceSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TrainingSet);
+
+	vector<double>* evidMap = evidenceSet->getEvidenceAt(0);
 	int varCount = evidMap->size();
-	int sampleCount = trainEvidSet.size();
+	int sampleCount = evidenceSet->getSize();
 
 	globalMeans.clear();
 
@@ -42,26 +44,14 @@ int PotentialManager::init(EvidenceManager* evMgr, bool randomData, vector<int>&
 	vector<double> deviations(varCount * sampleCount, 0);
 
 	// Copy all the samples into the data matrix
-	int sampleIndex = 0;
-	for (INTINTMAP_ITER eIter = trainEvidSet.begin(); eIter != trainEvidSet.end(); eIter++)
+	for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
 	{
-		EMAP* evidMap=NULL;
-		if(randomData)
+		vector<double>* evidMap = evidenceSet->getEvidenceAt(sampleIndex);
+		for (int vID = 0; vID < varCount; vID++)
 		{
-			evidMap=evMgr->getRandomEvidenceAt(eIter->first);
+			double val = (*evidMap)[vID];
+			deviations[vID * sampleCount + sampleIndex] = val;
 		}
-		else
-		{
-			evidMap=evMgr->getEvidenceAt(eIter->first);
-		}
-		for (EMAP_ITER vIter = evidMap->begin(); vIter != evidMap->end(); vIter++)
-		{
-			int vId = vIter->first;
-			Evidence* evid = vIter->second;
-			double val = evid->getEvidVal();
-			deviations[vId * sampleCount + sampleIndex] = val;
-		}
-		sampleIndex++;
 	}
 
 	// Done copying. Now we can go over data and get the means
@@ -76,7 +66,7 @@ int PotentialManager::init(EvidenceManager* evMgr, bool randomData, vector<int>&
 	}
 
 	// Finally, use the means to pre-center the data
-	for (int i = 0; i < trainEvidSet.size(); i++)
+	for (int i = 0; i < evidenceSet->getSize(); i++)
 	{
 		for (int j = 0; j < varCount; j++)
 		{
@@ -99,9 +89,9 @@ int PotentialManager::init(EvidenceManager* evMgr, bool randomData, vector<int>&
 	}
 
 	// Set covariances between regulators and all other variables.
-	for (int i = 0; i < varIDs.size(); i++)
+	for (int i = 0; i < regIDs.size(); i++)
 	{
-		int regID = varIDs[i];
+		int regID = regIDs[i];
 		for (int j = 0; j < varCount; j++)
 		{
 			if (regID == j)
@@ -122,8 +112,6 @@ int PotentialManager::init(EvidenceManager* evMgr, bool randomData, vector<int>&
 			globalCovariances->setValue(covariance, j, regID);
 		}
 	}
-
-	return 0;
 }
 
 Potential* PotentialManager::createPotential(int factorID)
@@ -135,7 +123,10 @@ Potential* PotentialManager::createPotential(int factorID)
 	return new Potential(factorID, variance, bias, weights);
 }
 
-void PotentialManager::computeLLs(int factorID, int sampleSize, vector<int>& existingParents, vector<int>&candidateParents, unordered_map<int, double>&scores) {
+void PotentialManager::computeLLs(int factorID, vector<int>& existingParents, vector<int>&candidateParents, unordered_map<int, double>&scores) {
+
+	EvidenceSet* evidenceSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TrainingSet);
+	int sampleSize = evidenceSet->getSize();
 
 	if (existingParents.size() == 0) {
 		computeSingleParentLLs(factorID, sampleSize, candidateParents, scores);
@@ -349,4 +340,50 @@ Potential* PotentialManager::createPotential(int factorID, vector<int>& parentID
 	gsl_matrix_free(parentCovariances);
 
 	return new Potential(factorID, variance, bias, weights);
+}
+
+double
+PotentialManager::getInitPLLScore(Potential* potential)
+{
+	EvidenceSet* trainSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TrainingSet);
+
+	double pll = 0;
+
+	for (int i = 0; i < trainSet->getSize(); i++)
+	{
+		vector<double>* evidMap = trainSet->getEvidenceAt(i);
+		double pval = evaluateProbabilityDensity(potential, i, EvidenceSource::SetType::TrainingSet);
+		if (isnan(pval))
+		{
+			cout << "Pval is nan for datapoint " << i << endl;
+		}
+		if (pval < 1e-50)
+		{
+			pval = 1e-50;
+		}
+		pll += log(pval);
+	}
+
+	// The initial graph has no edges, meaning this variable is univariate
+	// gaussian, with just 2 params (mean, variance).
+	return pll;
+}
+
+double
+PotentialManager::evaluateProbabilityDensity(Potential* potential, int sampleIndex, EvidenceSource::SetType type)
+{
+	// We can get the evidMap using the sample index
+	EvidenceSet* evidenceSet = evidenceSource->getEvidenceSet(type);
+	vector<double>* evidence = evidenceSet->getEvidenceAt(sampleIndex);
+
+	int factorID = potential->getFactorID();
+	double variance = potential->getVariance();
+
+	double expectation = potential->getExpectation(evidence);
+	double norm = sqrt(2 * PI * variance);
+	double x = (*evidence)[factorID];
+	double dev = (x - expectation) * (x - expectation) / (2 * variance);
+	double eval = exp(-1.0 * dev);
+	double pval = eval / norm;
+	return pval;
 }
