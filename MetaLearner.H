@@ -64,6 +64,7 @@ class MetaLearner
 		void getEnrichedTFs(map<string, int>& tfSet, map<string, int>* genes, map<string, map<string, double>*>& edgeSet);
 		void initDistances();
 		void updateSharedParentDistances();
+		void validateRestrictedList();
 
 		FactorGraph* factorGraph;
 		PotentialManager* potManager;

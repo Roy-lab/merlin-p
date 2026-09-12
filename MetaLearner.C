@@ -160,6 +160,29 @@ MetaLearner::setRestrictedList(const char* aFName)
 }
 
 void
+MetaLearner::validateRestrictedList()
+{
+	// Trim any regulators not present in the expression data
+
+	int initialCount = restrictedVarList.size();
+
+	for (auto iter = restrictedVarList.begin(); iter != restrictedVarList.end(); )
+	{
+		int regID = varManager->getVarID(iter->first);
+		if (regID == -1)
+		{
+			iter = restrictedVarList.erase(iter);
+		}
+		else
+		{
+			++iter;
+		}
+	}
+
+	cout << "Restricted list validation: " << initialCount << " regulators provided, " << restrictedVarList.size() << " found in gene expression data." << endl;
+}
+
+void
 MetaLearner::setGlobalEvidenceManager(EvidenceManager* anEvMgr)
 {
 	evidenceManager=anEvMgr;
@@ -395,6 +418,8 @@ void
 MetaLearner::doCrossValidation(int foldCnt)
 {
 	gsl_rng* r = gsl_rng_alloc(gsl_rng_default);
+
+	validateRestrictedList();
 
 	evidenceManager->setFoldCnt(foldCnt);
 	evidenceManager->splitData(0);
