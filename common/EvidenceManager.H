@@ -1,50 +1,33 @@
 #ifndef _EVIDENCE_MANAGER
 #define _EVIDENCE_MANAGER
 
-#include <map>
-#include <fstream>
-#include <sys/types.h>
-#include <unistd.h>
+#include <vector>
+#include "EvidenceSource.H"
 
-#include "gsl/gsl_randist.h"
 using namespace std;
 
 class Error;
-class Evidence;
+class EvidenceSet;
 
-//EMAP stores the map of variable ids and their evidence. This corresponds
-//to one line in the datafile
-typedef unordered_map<int,Evidence*> EMAP;
-typedef unordered_map<int,Evidence*>::iterator EMAP_ITER;
-
-typedef vector<EMAP*> EVIDENCE_SET;
-
-class VariableManager;
-class EvidenceManager
+class EvidenceManager : public EvidenceSource
 {
 	public:
 		EvidenceManager();
+		~EvidenceManager();
 
 		//Read the evidence file
 		Error::ErrorCode loadEvidenceFromFile(const char*);
 
-		//Get the evidence set at the specified id
-		EMAP* getEvidenceAt(int);
-		EMAP* getRandomEvidenceAt(int);
+		void setupForFold(int foldIndex, int foldCount) override;
 
-		int randomizeEvidence(gsl_rng*, VariableManager*);
-		int setFoldCnt(int);
-		int splitData(int);
-		INTINTMAP& getTrainingSet();
-		INTINTMAP& getTestSet();
+		EvidenceSet* getEvidenceSet(SetType type) override;
 
 	private:
-		int populateRandIntegers(gsl_rng* r, int* randInds, INTINTMAP& populateFrom, int size);
+		EvidenceSet* createSet(int foldIndex, int foldCount, SetType type);
 
-		EVIDENCE_SET evidenceSet;
-		EVIDENCE_SET randEvidenceSet;
-		INTINTMAP trainIndex;
-		INTINTMAP testIndex;
-		int foldCnt;
+		vector<vector<double>*> evidenceSet;
+		EvidenceSet* trainingSet;
+		EvidenceSet* testSet;
+
 };
 #endif

@@ -4,78 +4,55 @@
 #include <stdlib.h>
 #include "Error.H"
 #include "Variable.H"
+#include "VariableSet.H"
 #include "VariableManager.H"
 
 //Reads the schema of the variables
 
-Error::ErrorCode
-VariableManager::readVariables(const char* aFName)
+VariableSet*
+VariableManager::readVariables(const char* aFName, Error::ErrorCode& errorCode)
 {
 	ifstream inFile(aFName);
 	char buffer[400000];
 
-	if(inFile.good())
+	vector<Variable*> variableSet;
+	unordered_map<string, int> varNameIDMap;
+
+	if (inFile.good())
 	{
 		inFile.getline(buffer,400000);
 
-		if(strlen(buffer)<=0)
+		if (strlen(buffer) <= 0)
 		{
-			cout <<"Error: gene expression header is empty" << endl;
-			return Error::VARSCHEMA_ERR;
+			cout << "Error: gene expression header is empty" << endl;
+			errorCode = Error::VARSCHEMA_ERR;
+			return nullptr;
 		}
 
-		char* tok=strtok(buffer,"\t");
-		int tokCnt=0;
+		char* tok = strtok(buffer, "\t");
+		int tokCnt = 0;
 
-		while(tok!=NULL)
+		while (tok != NULL)
 		{
-			Variable* var=new Variable;
+			Variable* var = new Variable;
 			var->setID(tokCnt);
 			var->setName(tok);
-			variableSet[tokCnt]=var;
+			variableSet.push_back(var);
 
 			string varKey(tok);
-			varNameIDMap[varKey]=tokCnt;
+			varNameIDMap[varKey] = tokCnt;
+
 			tokCnt++;
-			tok=strtok(NULL,"\t");
+			tok = strtok(NULL, "\t");
 		}
 	}
 
 	inFile.close();
 
-	cout <<"Number of genes read: " << variableSet.size() << endl;
+	cout << "Number of genes read: " << variableSet.size() << endl;
 
-	return Error::SUCCESS;
-}
+	errorCode = Error::SUCCESS;
 
-int
-VariableManager::getVarID(const string& varKey)
-{
-	if(varNameIDMap.find(varKey)==varNameIDMap.end()) {
-		return -1;
-	}
-	return varNameIDMap[varKey];
-}
-
-bool
-VariableManager::isValid(int varID,int varVal)
-{
-	Variable* rVar=variableSet[varID];
-	return rVar->isValidValue(varVal);
-}
-
-unordered_map<int, Variable*>&
-VariableManager::getVariableSet()
-{
-	return variableSet;
-}
-
-Variable*
-VariableManager::getVariableAt(int vId)
-{
-	if(variableSet.find(vId) == variableSet.end()) {
-		cout << "Illegal variable id " << vId << endl;
-		return NULL;
-	}
-	return variableSet[vId];
+	VariableSet* varSet = new VariableSet(varNameIDMap, variableSet);
+	return varSet;
 }

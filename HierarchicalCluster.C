@@ -5,10 +5,7 @@
 #include <string.h>
 #include <math.h>
 
-#include "Error.H"
 #include "Matrix.H"
-#include "Variable.H"
-#include "VariableManager.H"
 #include "HierarchicalClusterNode.H"
 #include "HierarchicalCluster.H"
 
