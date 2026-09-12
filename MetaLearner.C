@@ -447,7 +447,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 		foldBegin = specificFold;
 		foldEnd = specificFold + 1;
 	}
-	
+
 	for(int f = foldBegin; f < foldEnd; f++) {
 
 		evidenceSource->setupForFold(f, foldCnt);
@@ -820,10 +820,6 @@ MetaLearner::initEdgeSet()
 			}
 		}
 	}
-
-	int n = varSet.size();
-	int r = restrictedVarList.size();
-	int expEdgeCnt = r * (n - 1);
 
 	// Init the potentials
 	for (int f = 0; f < factorGraph->getFactorCnt(); f++)
