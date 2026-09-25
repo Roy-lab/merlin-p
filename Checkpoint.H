@@ -32,7 +32,7 @@ class Checkpoint
 
         void writeCheckpointMetadata(int iter, bool notConvergedVal);
 
-        void writePLLScore(unordered_map<int, double>* currPLL, const unordered_map<int, Variable*>& varSet);
+        void writePLLScore(unordered_map<int, double>* currPLL, const vector<Variable*>& varSet);
 
         void writeLastUpdate(unordered_map<string, int>& variableStatus);
 

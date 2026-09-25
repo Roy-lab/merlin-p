@@ -6,14 +6,14 @@
 using namespace std;
 #include "Error.H"
 #include "Variable.H"
+#include "VariableSet.H"
 #include "VariableManager.H"
 
-#include "Evidence.H"
 #include "EvidenceManager.H"
-
+#include "MerlinLogger.H"
 #include "Potential.H"
 #include "SlimFactor.H"
-
+#include "DistanceManager.H"
 #include "FactorGraph.H"
 #include "PotentialManager.H"
 #include "MetaMove.H"
@@ -47,7 +47,10 @@ Framework::init(int argc, char** argv)
 			case 'd':
 			{
 				dDefault=false;
-				Error::ErrorCode eCode = varManager.readVariables(optarg);
+
+				Error::ErrorCode eCode;
+				VariableManager varManager;
+				VariableSet* varSet = varManager.readVariables(optarg, eCode);
 				if(eCode != Error::SUCCESS)
 				{
 					cerr << Error::getErrorString(eCode) << endl;
@@ -60,8 +63,8 @@ Framework::init(int argc, char** argv)
 					cerr << Error::getErrorString(eCode) << endl;
 					return eCode;
 				}
-				metaLearner.setGlobalEvidenceManager(&evManager);
-				metaLearner.setVariableManager(&varManager);
+				metaLearner.setEvidenceSource(&evManager);
+				metaLearner.setVariableSet(varSet);
 
 				break;
 			}
@@ -153,7 +156,6 @@ Framework::init(int argc, char** argv)
 		}
 	}
 
-
 	// Validate required arguments
 	if(dDefault)
 	{
@@ -198,6 +200,15 @@ Framework::init(int argc, char** argv)
 		metaLearner.setBeta_Motif(4);
 	}
 
+	PotentialManager* potManager = new PotentialManager(&evManager);
+	metaLearner.setPotentialSource(potManager);
+
+	DistanceManager* distanceManager = new DistanceManager();
+	metaLearner.setDistanceManager(distanceManager);
+
+	MerlinLogger* logger = new MerlinLogger(&evManager, potManager);
+	metaLearner.setLogger(logger);
+
 	return Error::SUCCESS;
 }
 
@@ -207,7 +218,6 @@ Framework::start()
 	metaLearner.doCrossValidation(cvCnt);
 	return 0;
 }
-
 
 int
 main(int argc, char* argv[])

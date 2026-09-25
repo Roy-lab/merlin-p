@@ -1,7 +1,6 @@
 #include <iostream>
 #include <math.h>
 #include <algorithm>
-#include "Evidence.H"
 #include "Potential.H"
 
 #include "gsl/gsl_randist.h"
@@ -33,37 +32,25 @@ Potential::getWeights()
 }
 
 double
-Potential::getExpectation(unordered_map<int, Evidence*>* evidenceSet)
+Potential::getVariance()
 {
-	double mean=0;
-	for(auto aIter = weights.begin(); aIter != weights.end(); aIter++)
-	{
-		if(evidenceSet->find(aIter->first)==evidenceSet->end())
-		{
-			cerr << "Fatal error! No variable assignment for " << aIter->first << endl;
-			exit(-1);
-		}
-		Evidence* evid = (*evidenceSet)[aIter->first];
-		double aval = evid->getEvidVal();
-		mean += aval * aIter->second;
-	}
-	return mean + bias;
+	return variance;
+}
+
+int
+Potential::getFactorID()
+{
+	return factorID;
 }
 
 double
-Potential::evaluateProbabilityDensity(unordered_map<int, Evidence*>* evidMap)
+Potential::getExpectation(vector<double>* evidenceSet)
 {
-	if(evidMap->find(factorID)==evidMap->end()) {
-		cerr <<"Fatal error! No variable assignment for " << factorID << endl;
-		exit(-1);
+	double mean = 0;
+	for(auto aIter = weights.begin(); aIter != weights.end(); aIter++)
+	{
+		double aval = (*evidenceSet)[aIter->first];
+		mean += aval * aIter->second;
 	}
-
-	double expectation = getExpectation(evidMap);
-	double norm = sqrt(2 * PI * variance);
-	Evidence* factorEvid = (*evidMap)[factorID];
-	double x = factorEvid->getEvidVal();
-	double dev = (x - expectation) * (x - expectation) / (2 * variance);
-	double eval = exp(-1.0 * dev);
-	double pval = eval / norm;
-	return pval;
+	return mean + bias;
 }
