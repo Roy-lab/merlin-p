@@ -15,19 +15,22 @@ class EvidenceManager : public EvidenceSource
 		EvidenceManager();
 		~EvidenceManager();
 
-		//Read the evidence file
-		Error::ErrorCode loadEvidenceFromFile(const char*);
+		void setExpressionFile(const char*);
 
 		void setupForFold(int foldIndex, int foldCount) override;
 
 		EvidenceSet* getEvidenceSet(SetType type) override;
 
 	private:
-		EvidenceSet* createSet(int foldIndex, int foldCount, SetType type);
+		void loadData(int foldIndex, int foldCount);
+		void centerData(vector<double>& data, size_t sampleCount);
 
-		vector<vector<double>*> evidenceSet;
+		vector<double> trainData;
+		vector<double> testData;
+		size_t trainSampleCount;
+		size_t testSampleCount;
 		EvidenceSet* trainingSet;
 		EvidenceSet* testSet;
-
+		string expressionFile;
 };
 #endif

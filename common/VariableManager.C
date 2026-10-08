@@ -13,38 +13,42 @@ VariableSet*
 VariableManager::readVariables(const char* aFName, Error::ErrorCode& errorCode)
 {
 	ifstream inFile(aFName);
-	char buffer[400000];
 
+	if (!inFile.good())
+	{
+		cout << "Error: could not open file: " << aFName << endl;
+		errorCode = Error::DATAFILE_ERR;
+		return nullptr;
+	}
+
+	char buffer[400000];
 	vector<Variable*> variableSet;
 	unordered_map<string, int> varNameIDMap;
 
-	if (inFile.good())
+	inFile.getline(buffer, 400000);
+
+	if (strlen(buffer) <= 0)
 	{
-		inFile.getline(buffer,400000);
+		cout << "Error: gene expression header is empty" << endl;
+		errorCode = Error::VARSCHEMA_ERR;
+		return nullptr;
+	}
 
-		if (strlen(buffer) <= 0)
-		{
-			cout << "Error: gene expression header is empty" << endl;
-			errorCode = Error::VARSCHEMA_ERR;
-			return nullptr;
-		}
+	char* tok = strtok(buffer, "\t");
+	int tokCnt = 0;
 
-		char* tok = strtok(buffer, "\t");
-		int tokCnt = 0;
+	while (tok != NULL)
+	{
+		Variable* var = new Variable;
+		var->setID(tokCnt);
+		var->setName(tok);
+		variableSet.push_back(var);
 
-		while (tok != NULL)
-		{
-			Variable* var = new Variable;
-			var->setID(tokCnt);
-			var->setName(tok);
-			variableSet.push_back(var);
+		string varKey(tok);
+		varNameIDMap[varKey] = tokCnt;
 
-			string varKey(tok);
-			varNameIDMap[varKey] = tokCnt;
-
-			tokCnt++;
-			tok = strtok(NULL, "\t");
-		}
+		tokCnt++;
+		tok = strtok(NULL, "\t");
 	}
 
 	inFile.close();

@@ -47,38 +47,22 @@ DistanceManager::clearIterationData()
 }
 
 void
-DistanceManager::initDistances(EvidenceSet* trainSet, int varCount)
+DistanceManager::initDistances(EvidenceSet* trainSet)
 {
     // If distances are already initialized, no need to re-initialize.
 	if (correlationDistances != nullptr) {
         return;
     }
 
-	int sampleCount = trainSet->getSize();
-
-	vector<double> means(varCount, 0);
-
-	for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
-		vector<double>* evidence = trainSet->getEvidenceAt(sampleIndex);
-		for (int i = 0; i < varCount; i++) {
-			means[i] += (*evidence)[i];
-		}
-	}
-
-	for (int i = 0; i < means.size(); i++) {
-		means[i] /= sampleCount;
-	}
+	int sampleCount = trainSet->getSampleCount();
+	int varCount = trainSet->getVariableCount();
 
 	vector<double> ssd(varCount, 0);
-	vector<vector<double>> deviations(varCount, vector<double>(sampleCount, 0));
 
-	int sampleIndex = 0;
 	for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
-		vector<double>* evidence = trainSet->getEvidenceAt(sampleIndex);
-		for (int i = 0; i < varCount; i++) {
-			double deviation = (*evidence)[i] - means[i];
-			deviations[i][sampleIndex] = deviation;
-			ssd[i] += deviation * deviation;
+		for (int varIndex = 0; varIndex < varCount; varIndex++) {
+			double deviation = trainSet->getEvidenceAt(varIndex, sampleIndex);
+			ssd[varIndex] += deviation * deviation;
 		}
 	}
 
@@ -92,16 +76,14 @@ DistanceManager::initDistances(EvidenceSet* trainSet, int varCount)
 	}
 
 	for (int i = 0; i < varCount; i++) {
-		double* dev_i = deviations[i].data();
 
 		for (int j = i; j < varCount; j++) {
-			double* dev_j = deviations[j].data();
 			double xy = 0;
 			int oppRel = 0;
 
 			for(int k = 0; k < sampleCount; k++) {
-				double diff1 = dev_i[k];
-				double diff2 = dev_j[k];
+				double diff1 = trainSet->getEvidenceAt(i, k);
+				double diff2 = trainSet->getEvidenceAt(j, k);
 				double val = diff1 * diff2;
 				xy += val;
 				oppRel += (val < 0);
@@ -216,9 +198,9 @@ DistanceManager::restoreCheckpointSharedParents(unordered_map<int, unordered_map
 }
 
 void 
-DistanceManager::addSharedParents(unordered_map<int, unordered_map<int, int>> edgeMap, int parentID, int childID)
+DistanceManager::addSharedParents(unordered_map<int, unordered_map<int, int>>& edgeMap, int parentID, int childID)
 {
-    // Mark all other children of parentID as sharing a parent with childID.
+	// Mark all other children of parentID as sharing a parent with childID.
 	unordered_map<int, int> otherTargets = edgeMap[parentID];
 	for (auto iter = otherTargets.begin(); iter != otherTargets.end(); iter++) {
 		int siblingID = iter->first;
@@ -226,7 +208,7 @@ DistanceManager::addSharedParents(unordered_map<int, unordered_map<int, int>> ed
 		sharedParents[siblingID][childID] = 1;
 	}
 
-    addUpdatedThisIteration(childID);
+	addUpdatedThisIteration(childID);
 }
 
 void

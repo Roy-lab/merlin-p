@@ -1,5 +1,10 @@
 #include <math.h>
+#include <iostream>
 #include "Logger.H"
+#include "ModuleManager.H"
+#include "FactorGraph.H"
+#include "VariableSet.H"
+#include "SlimFactor.H"
 
 void
 Logger::setOutDirName(const char* dirName)
@@ -42,4 +47,37 @@ Logger::computePredictionMetrics(const vector<double>& tv, const vector<double>&
     m.r2 = (ss_tot > 0) ? 1.0 - (ss_res / ss_tot) : 0.0;
     m.cc = (ss_tot > 0 && ss_yy > 0) ? ss_xy / sqrt(ss_tot * ss_yy) : 0.0;
     return m;
+}
+
+void
+Logger::logModules(int foldID, ModuleManager& moduleManager, FactorGraph *factorGraph)
+{
+    char foldoutDirName[1024];
+    sprintf(foldoutDirName, "%s/fold%d", outDirName, foldID);
+
+	char moduleFName[1024];
+	sprintf(moduleFName, "%s/modules.tsv", foldoutDirName);
+
+	ofstream modFile(moduleFName);
+
+	if(!modFile.is_open()) {
+		cerr << "Error: cannot open module output file " << moduleFName << endl;
+		return;
+	}
+
+    for (auto iter = moduleManager.begin(); iter != moduleManager.end(); iter++)
+    {
+        int moduleID = iter->first;
+        const unordered_set<string>& geneSet = iter->second;
+
+		for (const string& geneName : geneSet)
+		{
+			int geneID = variableSet->getVarID(geneName);
+			if (geneID == -1 || factorGraph->getFactorAt(geneID)->mergedMB.size() == 0)
+			{
+				continue;
+			}
+			modFile << geneName << "\t" << moduleID << endl;
+		}
+	}
 }

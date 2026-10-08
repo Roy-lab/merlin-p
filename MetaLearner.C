@@ -143,11 +143,17 @@ MetaLearner::setConvergenceThreshold(double aVal)
 void
 MetaLearner::setRestrictedList(const char* aFName)
 {
-	strcpy(restrictedFName,aFName);
+	strcpy(restrictedFName, aFName);
 	ifstream inFile(restrictedFName);
-	string buffer;
 
-	int count = 0; // counter for number of restricted regulators
+	if (!inFile.good())
+	{
+		std::cerr << "Error: could not open restricted list file: " << restrictedFName << std::endl;
+		exit(1);
+	}
+
+	string buffer;
+	int count = 0;
 
 	while(inFile.good())
 	{
@@ -293,98 +299,13 @@ MetaLearner::setPriorGraph(const char* aFName, map<string,map<string,double>*>& 
 void
 MetaLearner::readModuleMembership(const char* aFName)
 {
-	ifstream inFile(aFName);
-	char buffer[1024];
-	while(inFile.good())
-	{
-		inFile.getline(buffer,1023);
-		if(strlen(buffer)<=0)
-		{
-			continue;
-		}
-		string geneName;
-		int moduleID;
-		int tokCnt=0;
-		char* tok=strtok(buffer,"\t");
-		while(tok!=NULL)
-		{
-			if(tokCnt==0)
-			{
-				geneName.append(tok);
-			}
-			else if(tokCnt==1)
-			{
-				moduleID=atoi(tok);
-			}
-			tok=strtok(NULL,"\t");
-			tokCnt++;
-		}
-		map<string,int>* geneSet=NULL;
-		if(moduleGeneSet.find(moduleID)==moduleGeneSet.end())
-		{
-			geneSet=new map<string,int>;
-			moduleGeneSet[moduleID]=geneSet;
-		}
-		else
-		{
-			geneSet=moduleGeneSet[moduleID];
-		}
-		(*geneSet)[geneName]=0;
-		geneModuleID[geneName]=moduleID;
-	}
-	inFile.close();
+	moduleManager.readModuleMembership(aFName, variableSet);
 }
 
 void
 MetaLearner::setDefaultModuleMembership()
 {
-	vector<Variable*>& varSet = variableSet->getVariables();
-	int vCnt = varSet.size();
-	int moduleCnt=(int) sqrt(vCnt/2);
-	if(moduleCnt>30)
-	{
-		moduleCnt=30;
-	}
-	gsl_rng* r=gsl_rng_alloc(gsl_rng_default);
-	//Randomly partition the variables into clusterassignments
-	vector<int> randIndex;
-	double step=1.0/(double)vCnt;
-	map<int,int> usedInit;
-	for(int i=0;i<vCnt;i++)
-	{
-		double rVal=gsl_ran_flat(r,0,1);
-		int rind=(int)(rVal/step);
-		while(usedInit.find(rind)!=usedInit.end())
-		{
-			rVal=gsl_ran_flat(r,0,1);
-			rind=(int)(rVal/step);
-		}
-		usedInit[rind]=0;
-		randIndex.push_back(rind);
-	}
-	//For each partition estimate the mean and covariance
-	int clusterSize=vCnt/moduleCnt;
-	for(int e=0;e<moduleCnt;e++)
-	{
-		int startInd=e*clusterSize;
-		int endInd=(e+1)*clusterSize;
-		if(e==moduleCnt-1)
-		{
-			endInd=clusterSize;
-		}
-		map<string,int>* geneSet=NULL;
-		geneSet=new map<string,int>;
-		moduleGeneSet[e]=geneSet;
-		for(int i=startInd;i<endInd;i++)
-		{
-			int dataId=randIndex[i];
-			Variable* v=varSet[dataId];
-			(*geneSet)[v->getName()]=0;
-			geneModuleID[v->getName()]=e;
-		}
-	}
-	randIndex.clear();
-	usedInit.clear();
+	moduleManager.setDefaultModuleMembership(variableSet);
 }
 
 int
@@ -570,6 +491,7 @@ MetaLearner::writeFoldProgress(int currFold, int iter, bool notConverged, Checkp
 {
 	vector<Variable*>& varSet = variableSet->getVariables();
 	logger->logVariableMarkovBlankets(currFold, maxFactorSize, factorGraph);
+	logger->logModules(currFold, moduleManager, factorGraph);
 	checkpoint.writeCheckpointMetadata(iter, notConverged);
 	checkpoint.writePLLScore(currPLL, varSet);
 	checkpoint.writeLastUpdate(variableStatus);
@@ -621,57 +543,10 @@ MetaLearner::setupFoldState(Checkpoint& checkpoint, int& iter, bool& notConverge
 		(*currPLL)[varID] = iter->second;
 	}
 
-	// populates moduleGeneSet, geneModuleID
-	restoreCheckpointModules(checkpoint.getGeneModuleIDs());
+	moduleManager.restoreCheckpointModules(checkpoint.getGeneModuleIDs(), variableSet);
 
 	// populates moduleIndegree, regulatorModuleOutdegree; updates edgeMap; overwrites potentials
 	restoreCheckpointGraph(checkpoint.getEdges());
-}
-
-void
-MetaLearner::restoreCheckpointModules(const unordered_map<string, int>& checkpointGeneModuleIDs)
-{
-	cout << "Load checkpoint modules..." << endl;
-
-	geneModuleID = checkpointGeneModuleIDs;
-
-	// Clear out the initial module gene sets
-	for (auto iter = moduleGeneSet.begin(); iter != moduleGeneSet.end(); iter++) {
-		delete iter->second;
-	}
-	moduleGeneSet.clear();
-
-    // Build the module gene sets
-	int largestModuleID = 0;
-	for (auto iter = geneModuleID.begin(); iter != geneModuleID.end(); iter++) {
-        int moduleID = iter->second;
-		if (moduleGeneSet.find(moduleID) == moduleGeneSet.end()) {
-			moduleGeneSet[moduleID] = new map<string, int>;
-		}
-		(*moduleGeneSet[moduleID])[iter->first] = 0;
-        if (moduleID > largestModuleID) {
-            largestModuleID = moduleID;
-        }
-	}
-
-	vector<Variable*>& varSet = variableSet->getVariables();
-
-    // Recreate singleton modules (for parentless genes) that were not written to modules.txt
-    int genesWithNoNeighborsCount = 0;
-    for(auto vIter = varSet.begin(); vIter != varSet.end(); vIter++) {
-        string geneName = (*vIter)->getName();
-        if(geneModuleID.find(geneName) != geneModuleID.end()) {
-            continue;
-        }
-        largestModuleID++;
-        moduleGeneSet[largestModuleID] = new map<string, int>;
-        (*moduleGeneSet[largestModuleID])[geneName] = 0;
-        geneModuleID[geneName] = largestModuleID;
-        genesWithNoNeighborsCount++;
-    }
-
-    cout << "Recovered " << genesWithNoNeighborsCount << " parentless genes not present in modules.txt" << endl;
-    cout << "Total modules after recovery: " << moduleGeneSet.size() << endl;
 }
 
 void
@@ -691,7 +566,7 @@ MetaLearner::restoreCheckpointGraph(const vector<pair<string, string>>& checkpoi
 
 		Variable* regulator = varSet[regID];
 		Variable* target = varSet[targetID];
-		int moduleID = geneModuleID[target->getName()];
+		int moduleID = moduleManager.getModuleID(target->getName());
 
 		if (moduleIndegree.find(moduleID) == moduleIndegree.end()) {
 			moduleIndegree[moduleID] = new unordered_map<string, int>;
@@ -770,6 +645,7 @@ MetaLearner::clearFoldSpecData()
 	moduleIndegree.clear();
 	regulatorModuleOutdegree.clear();
 	distanceManager->clearFoldData();
+	moduleManager.resetModuleAssignments();
 }
 
 int
@@ -789,10 +665,6 @@ MetaLearner::initEdgeSet()
 				continue;
 			}
 			Variable* v = varSet[vID];
-			if (geneModuleID.find(v->getName()) == geneModuleID.end())
-			{
-				continue;
-			}
 
 			// This is going to be a directed graph. edgeKey looks like "reg_name\tgene_name"
 			string edgeKey;
@@ -838,10 +710,6 @@ MetaLearner::getNextMove(int vID, MetaMove& outMove)
 	Variable* v = varSet[vID];
 	int maxNumRegs = maxFactorSize - 1;
 
-	if(geneModuleID.find(v->getName()) == geneModuleID.end()) {
-		return false;
-	}
-
 	// If v already has the max number of parents, dont test adding another.
 	SlimFactor* dFactor = factorGraph->getFactorAt(vID);
 	if(dFactor->mergedMB.size() >= maxNumRegs) {
@@ -867,9 +735,6 @@ MetaLearner::getNextMove(int vID, MetaMove& outMove)
 	}
 
 	double existingParentPrior = varNeighborhoodPrior[vID] + existingParentPlus - existingParentMinus;
-
-	int moduleID = geneModuleID[v->getName()];
-	map<string, int>* moduleMembers = moduleGeneSet[moduleID];
 
 	// Collect all the candidate parents, and the edge priors for each of them.
 	vector<int> candidateParents;
@@ -1010,7 +875,7 @@ MetaLearner::makeMove(MetaMove& nextMove, int currIteration)
 	// Update the current score for this factor
 	(*currPLL)[dFactor->fId] = nextMove.getTargetMBScore();
 
-	int mID = geneModuleID[v->getName()];
+	int mID = moduleManager.getModuleID(v->getName());
 
 	// Get or create an indegree map for this module
 	unordered_map<string, int>* currIndegree = NULL;
@@ -1045,10 +910,10 @@ MetaLearner::makeMove(MetaMove& nextMove, int currIteration)
 void
 MetaLearner::initPhysicalDegree()
 {
-	for(map<int, map<string, int>*>::iterator mIter = moduleGeneSet.begin(); mIter != moduleGeneSet.end(); mIter++) {
+	for(auto mIter = moduleManager.begin(); mIter != moduleManager.end(); mIter++) {
 
 		int moduleID = mIter->first;
-		map<string, int>* moduleGenes = mIter->second;
+		const unordered_set<string>& moduleGenes = mIter->second;
 
 		// Collect the prior edges from enriched TFs to genes in this module, from all prior graphs.
 		unordered_map<string, vector<string>> priorEdges;
@@ -1063,8 +928,8 @@ MetaLearner::initPhysicalDegree()
 			for(map<string, int>::iterator tfIter = enrichedTFs.begin(); tfIter != enrichedTFs.end(); tfIter++) {
 
 				map<string, double>* motiftgts = (*priorgraph)[tfIter->first];
-				for(map<string, double>::iterator gIter = motiftgts->begin(); gIter != motiftgts->end(); gIter++) {
-					if(moduleGenes->find(gIter->first) == moduleGenes->end()) {
+				for (map<string, double>::iterator gIter = motiftgts->begin(); gIter != motiftgts->end(); gIter++) {
+					if (moduleGenes.find(gIter->first) == moduleGenes.end()) {
 						continue;
 					}
 					priorEdges[tfIter->first].push_back(gIter->first);
@@ -1092,7 +957,7 @@ MetaLearner::initPhysicalDegree()
 		}
 
 		moduleIndegree[mIter->first] = indegree;
-		cout << "Module " << moduleID << ": " << moduleGenes->size() << " genes, " << indegree->size() << " enriched TFs" << endl;
+		cout << "Module " << moduleID << ": " << moduleGenes.size() << " genes, " << indegree->size() << " enriched TFs" << endl;
 
 		// Increment the total count of outgoing edges for each TF
 
@@ -1108,20 +973,20 @@ MetaLearner::initPhysicalDegree()
 }
 
 void
-MetaLearner::getEnrichedTFs(map<string, int>& tfSet, map<string, int>* moduleGenes, map<string, map<string, double>*>& edgeSet)
+MetaLearner::getEnrichedTFs(map<string, int>& tfSet, const unordered_set<string>& moduleGenes, map<string, map<string, double>*>& edgeSet)
 {
 	// A tf is enriched for a module, if it has at least 4 targets within that module, and
 	// more module members than expected are targets of the tf.
 
 	// We require 4 in-module targets in order for a tf to be enriched. If there aren't 4 total
 	// module genes, then no tf can be enriched.
-	if (moduleGenes->size() < 4) {
+	if (moduleGenes.size() < 4) {
 		return;
 	}
 
 	vector<Variable*>& varSet = variableSet->getVariables();
 	int varCount = varSet.size();
-	int moduleVarCount = moduleGenes->size();
+	int moduleVarCount = moduleGenes.size();
 
 	HyperGeomPval hgp;
 	for(map<string, map<string, double>*>::iterator fIter = edgeSet.begin(); fIter != edgeSet.end(); fIter++) {
@@ -1143,7 +1008,7 @@ MetaLearner::getEnrichedTFs(map<string, int>& tfSet, map<string, int>* moduleGen
 
             targetsCount++;
 
-            if(moduleGenes->find(gIter->first) != moduleGenes->end()) {
+            if (moduleGenes.find(gIter->first) != moduleGenes.end()) {
 				targetsInModuleCount++;
 			}
 		}
@@ -1158,12 +1023,7 @@ MetaLearner::getEnrichedTFs(map<string, int>& tfSet, map<string, int>* moduleGen
 double
 MetaLearner::getModuleContribLogistic(string& tgtName, string& tfName)
 {
-	auto moduleIter = geneModuleID.find(tgtName);
-	if(moduleIter == geneModuleID.end()) {
-		return 0;
-	}
-
-	int moduleID = moduleIter->second;
+	int moduleID = moduleManager.getModuleID(tgtName);
 
 	auto degreeIter = moduleIndegree.find(moduleID);
 	if(degreeIter == moduleIndegree.end()) {
@@ -1200,33 +1060,33 @@ MetaLearner::redefineModules(int currFold)
 {
 	vector<Variable*>& varSet = variableSet->getVariables();
 	EvidenceSet* trainSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TrainingSet);
-	distanceManager->initDistances(trainSet, varSet.size());
+	distanceManager->initDistances(trainSet);
 
-	map<string,int> genesWithNoNeighbors;
+	map<string, int> genesWithNoNeighbors;
 
 	// Create a node for each member of each module
-	for(map<int, map<string, int>*>::iterator gIter = moduleGeneSet.begin(); gIter != moduleGeneSet.end(); gIter++) {
-		map<string, int>* moduleMembers=gIter->second;
+	for (auto gIter = moduleManager.begin(); gIter != moduleManager.end(); gIter++) {
+		const unordered_set<string>& moduleMembers = gIter->second;
 
-		for(map<string, int>::iterator mIter = moduleMembers->begin(); mIter != moduleMembers->end(); mIter++) {
-			int mID = variableSet->getVarID(mIter->first);
-			if(mID < 0) {
+		for (const string& geneName : moduleMembers) {
+			int mID = variableSet->getVarID(geneName);
+			if (mID < 0) {
 				continue;
 			}
-			SlimFactor* mFactor=factorGraph->getFactorAt(mID);
+			SlimFactor* mFactor = factorGraph->getFactorAt(mID);
 
 			// If a gene has no neighbors, we dont include it in the clustering algorithm.
 			INTINTMAP& mbvars1 = mFactor->mergedMB;
 			if(mbvars1.size() == 0) {
-				genesWithNoNeighbors[mIter->first] = 0;
+				genesWithNoNeighbors[geneName] = 0;
 				continue;
 			}
 
 			// Create a node for this gene
-			HierarchicalClusterNode* node = hc.getNode(mIter->first);
+			HierarchicalClusterNode* node = hc.getNode(geneName);
 			if (node == nullptr) {
 				node = new HierarchicalClusterNode;
-				node->nodeName.append(mIter->first);
+				node->nodeName.append(geneName);
 				node->varID = mID;
 				hc.addNode(node);
 			}
@@ -1239,15 +1099,10 @@ MetaLearner::redefineModules(int currFold)
 	Matrix* sharedParentDistances = distanceManager->getSharedParentDistances();
 
 	// Perform the new clustering
-	map<int,map<string,int>*> newModules;
+	map<int, unordered_set<string>> newModules;
 	hc.cluster(newModules, clusterThreshold, correlationDistances, sharedParentDistances);
 
 	// Clear out any data representing the old module assignments
-	for (auto iter = moduleGeneSet.begin(); iter != moduleGeneSet.end(); iter++) {
-		delete iter->second;
-	}
-	moduleGeneSet.clear();
-	geneModuleID.clear();
 	regulatorModuleOutdegree.clear();
 	for(auto mIter=moduleIndegree.begin(); mIter!=moduleIndegree.end(); mIter++)
 	{
@@ -1256,24 +1111,19 @@ MetaLearner::redefineModules(int currFold)
 	}
 	moduleIndegree.clear();
 
-	char moduleFName[1024];
-	sprintf(moduleFName,"%s/fold%d/modules.txt",outputDirName,currFold);
-	ofstream modFile(moduleFName);
-
 	// Read in the new module assignments
-	int largestModuleID=0;
-	for(map<int,map<string,int>*>::iterator mIter=newModules.begin();mIter!=newModules.end();mIter++)
+	int largestModuleID = 0;
+	for (auto mIter = newModules.begin(); mIter != newModules.end(); mIter++)
 	{
-		moduleGeneSet[mIter->first]=mIter->second;
-		map<string,int>* geneSet=mIter->second;
+		unordered_set<string>& geneSet = mIter->second;
+		moduleManager.setModuleMembers(mIter->first, geneSet);
+
 		unordered_map<string, int>* indegree = new unordered_map<string,int>;
-		for(map<string,int>::iterator gIter=geneSet->begin();gIter!=geneSet->end();gIter++)
+		for (const string& geneName : geneSet)
 		{
-			modFile << gIter->first <<"\t" << mIter->first << endl;
-			geneModuleID[gIter->first]=mIter->first;
-			int mID=variableSet->getVarID(gIter->first);
-			SlimFactor* mFactor=factorGraph->getFactorAt(mID);
-			INTINTMAP& mbvars1=mFactor->mergedMB;
+			int mID = variableSet->getVarID(geneName);
+			SlimFactor* mFactor = factorGraph->getFactorAt(mID);
+			INTINTMAP& mbvars1 = mFactor->mergedMB;
 
 			for(INTINTMAP_ITER nIter=mbvars1.begin();nIter!=mbvars1.end();nIter++)
 			{
@@ -1301,18 +1151,16 @@ MetaLearner::redefineModules(int currFold)
 		moduleIndegree[mIter->first]=indegree;
 		largestModuleID=mIter->first;
 	}
-	modFile.close();
 
 	// For any genes with no neighbors, create single-gene modules
 	cout << "   Number of parentless genes: " << genesWithNoNeighbors.size() << endl;
-	for(map<string,int>::iterator gIter=genesWithNoNeighbors.begin();gIter!=genesWithNoNeighbors.end();gIter++)
+	for (auto gIter = genesWithNoNeighbors.begin(); gIter != genesWithNoNeighbors.end(); gIter++)
 	{
 		largestModuleID++;
-		map<string,int>* newmodule=new map<string,int>;
-		(*newmodule)[gIter->first]=0;
-		moduleGeneSet[largestModuleID]=newmodule;
-		geneModuleID[gIter->first]=largestModuleID;
+
+		unordered_set<string> newModule{gIter->first};
+		moduleManager.setModuleMembers(largestModuleID, newModule);
 	}
 	genesWithNoNeighbors.clear();
-	cout << "   Finished redefining modules; " << moduleGeneSet.size() << " total modules" << endl;
+	cout << "   Finished redefining modules; " << moduleManager.moduleCount() << " total modules" << endl;
 }

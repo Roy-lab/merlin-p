@@ -1,20 +1,20 @@
 #include "EvidenceSet.H"
 
-EvidenceSet::EvidenceSet(vector<vector<double>*>& inDataset, vector<int> inIndices)
+EvidenceSet::EvidenceSet(vector<double>& inDataset, size_t inSampleCount)
 {
     dataset = &inDataset;
-    indices = inIndices;
-}
-
-vector<double>*
-EvidenceSet::getEvidenceAt(int index)
-{
-    int globalIndex = indices[index];
-    return (*dataset)[globalIndex];
+    sampleCount = inSampleCount;
+    varCount = inDataset.size() == 0 ? 0 : inDataset.size() / inSampleCount;
 }
 
 int
-EvidenceSet::getSize()
+EvidenceSet::getSampleCount()
 {
-    return indices.size();
+    return sampleCount;
+}
+
+int
+EvidenceSet::getVariableCount()
+{
+    return varCount;
 }

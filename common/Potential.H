@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include "CommonTypes.H"
 #include "Matrix.H"
+#include "EvidenceSet.H"
 
 #define PI 3.1472
 
@@ -18,7 +19,7 @@ class Variable;
 class Potential
 {
 	public:
-		Potential(int factorID, double variance, double bias, unordered_map<int, double>& weights);
+		Potential(int factorID, double variance, unordered_map<int, double>& weights);
 
 		vector<pair<int, double>>& getWeights();
 
@@ -28,12 +29,11 @@ class Potential
 
 		// Returns the expected value of the factor variable, given the values
 		// of the conditioning variables.
-		double getExpectation(vector<double>*);
+		double getExpectation(EvidenceSet* evidenceSet, int sampleIndex);
 
 	private:
 		int factorID;
 		double variance;
-		double bias;
 		vector<pair<int, double>> weights;
 };
 #endif

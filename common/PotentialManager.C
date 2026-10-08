@@ -31,48 +31,11 @@ void PotentialManager::setupForFold(vector<int>& regIDs)
 
 	EvidenceSet* evidenceSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TrainingSet);
 
-	vector<double>* evidMap = evidenceSet->getEvidenceAt(0);
-	int varCount = evidMap->size();
-	int sampleCount = evidenceSet->getSize();
-
-	globalMeans.clear();
+	int varCount = evidenceSet->getVariableCount();
+	int sampleCount = evidenceSet->getSampleCount();
 
 	globalCovariances = new Matrix(varCount, varCount);
 	globalCovariances->setAllValues(-1);
-
-	// Stores the deviations from the mean for each variable and sample.
-	vector<double> deviations(varCount * sampleCount, 0);
-
-	// Copy all the samples into the data matrix
-	for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
-	{
-		vector<double>* evidMap = evidenceSet->getEvidenceAt(sampleIndex);
-		for (int vID = 0; vID < varCount; vID++)
-		{
-			double val = (*evidMap)[vID];
-			deviations[vID * sampleCount + sampleIndex] = val;
-		}
-	}
-
-	// Done copying. Now we can go over data and get the means
-	for (int i = 0; i < varCount; i++)
-	{
-		double sampleSum = 0;
-		for(int j = 0; j < sampleCount; j++)
-		{
-			sampleSum += deviations[i * sampleCount + j];
-		}
-		globalMeans.push_back(sampleSum / sampleCount);
-	}
-
-	// Finally, use the means to pre-center the data
-	for (int i = 0; i < evidenceSet->getSize(); i++)
-	{
-		for (int j = 0; j < varCount; j++)
-		{
-			deviations[j * sampleCount + i] -= globalMeans[j];
-		}
-	}
 
 	int norm = sampleCount - 1;
 
@@ -82,7 +45,7 @@ void PotentialManager::setupForFold(vector<int>& regIDs)
 		double ssd = 0.001;
 		for (int j = 0; j < sampleCount; j++)
 		{
-			double dev = deviations[i * sampleCount + j];
+			double dev = evidenceSet->getEvidenceAt(i, j);
 			ssd += dev * dev;
 		}
 		globalCovariances->setValue(ssd / norm, i, i);
@@ -102,8 +65,8 @@ void PotentialManager::setupForFold(vector<int>& regIDs)
 			double ssd = 0;
 			for (int k = 0; k < sampleCount; k++)
 			{
-				double devI = deviations[regID * sampleCount + k];
-				double devJ = deviations[j * sampleCount + k];
+				double devI = evidenceSet->getEvidenceAt(regID, k);
+				double devJ = evidenceSet->getEvidenceAt(j, k);
 				ssd += devI * devJ;
 			}
 
@@ -116,17 +79,15 @@ void PotentialManager::setupForFold(vector<int>& regIDs)
 
 Potential* PotentialManager::createPotential(int factorID)
 {
-	int varCount = globalMeans.size();
 	double variance = globalCovariances->getValue(factorID, factorID);
-	double bias = globalMeans[factorID];
 	unordered_map<int, double> weights;
-	return new Potential(factorID, variance, bias, weights);
+	return new Potential(factorID, variance, weights);
 }
 
 void PotentialManager::computeLLs(int factorID, vector<int>& existingParents, vector<int>&candidateParents, unordered_map<int, double>&scores) {
 
 	EvidenceSet* evidenceSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TrainingSet);
-	int sampleSize = evidenceSet->getSize();
+	int sampleSize = evidenceSet->getSampleCount();
 
 	if (existingParents.size() == 0) {
 		computeSingleParentLLs(factorID, sampleSize, candidateParents, scores);
@@ -290,7 +251,6 @@ Potential* PotentialManager::createPotential(int factorID, vector<int>& parentID
 {
 	int parentCount = parentIDs.size();
 	double variance = globalCovariances->getValue(factorID, factorID);
-	double bias = globalMeans[factorID];
 
 	// Start by collecting a matrix of all the covariances of the conditioning variables,
 	// and the marginal variances of the conditioning variables.
@@ -328,10 +288,8 @@ Potential* PotentialManager::createPotential(int factorID, vector<int>& parentID
 		int vID = parentIDs[i];
 		double aVal = gsl_vector_get(x, i);
 		double bVal = gsl_vector_get(parentMarginalVariances, i);
-		double cVal = globalMeans[vID];
 		weights[vID] = aVal;
 		variance -= aVal * bVal;
-		bias -= cVal * aVal;
 	}
 
 	gsl_vector_free(x);
@@ -339,19 +297,19 @@ Potential* PotentialManager::createPotential(int factorID, vector<int>& parentID
 	gsl_permutation_free(permutation);
 	gsl_matrix_free(parentCovariances);
 
-	return new Potential(factorID, variance, bias, weights);
+	return new Potential(factorID, variance, weights);
 }
 
 double
 PotentialManager::getInitPLLScore(Potential* potential)
 {
 	EvidenceSet* trainSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TrainingSet);
+	int sampleCount = trainSet->getSampleCount();
 
 	double pll = 0;
 
-	for (int i = 0; i < trainSet->getSize(); i++)
+	for (int i = 0; i < sampleCount; i++)
 	{
-		vector<double>* evidMap = trainSet->getEvidenceAt(i);
 		double pval = evaluateProbabilityDensity(potential, i, EvidenceSource::SetType::TrainingSet);
 		if (isnan(pval))
 		{
@@ -374,14 +332,13 @@ PotentialManager::evaluateProbabilityDensity(Potential* potential, int sampleInd
 {
 	// We can get the evidMap using the sample index
 	EvidenceSet* evidenceSet = evidenceSource->getEvidenceSet(type);
-	vector<double>* evidence = evidenceSet->getEvidenceAt(sampleIndex);
 
 	int factorID = potential->getFactorID();
 	double variance = potential->getVariance();
 
-	double expectation = potential->getExpectation(evidence);
+	double expectation = potential->getExpectation(evidenceSet, sampleIndex);
 	double norm = sqrt(2 * PI * variance);
-	double x = (*evidence)[factorID];
+	double x = evidenceSet->getEvidenceAt(factorID, sampleIndex);
 	double dev = (x - expectation) * (x - expectation) / (2 * variance);
 	double eval = exp(-1.0 * dev);
 	double pval = eval / norm;

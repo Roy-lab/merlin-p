@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS = -g
+CFLAGS = -g -O3
 LFLAG = -lgsl -lgslcblas 
 
 LIB_SRC = \
@@ -22,7 +22,8 @@ LIB_SRC = \
 	common/Variable.C \
 	common/DistanceManager.C \
 	common/Logger.C \
-	common/MerlinLogger.C
+	common/MerlinLogger.C \
+	common/ModuleManager.C
 
 LIB_OBJ = $(LIB_SRC:.C=.o)
 
