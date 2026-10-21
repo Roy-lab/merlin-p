@@ -4,6 +4,7 @@
 #include <map>
 #include <unordered_map>
 #include "HierarchicalCluster.H"
+#include "ModuleManager.H"
 
 using namespace std;
 
@@ -46,7 +47,6 @@ class MetaLearner
 		void start(int fold);
 		void setupFoldState(Checkpoint& checkpoint, int& iter, bool& notConverged, double& globalScore);
 		void setupFoldState(double& globalScore);
-		void restoreCheckpointModules(const unordered_map<string, int>& checkpointGeneModuleIDs);
 		void restoreCheckpointGraph(const vector<pair<string, string>>& checkpointEdges);
 		void writeFoldProgress(int currFold, int iter, bool notConverged, Checkpoint& checkpoint);
 		void initEdgePriorMeta_All();
@@ -61,7 +61,7 @@ class MetaLearner
 		void redefineModules(int currFold);
 		double getModuleContribLogistic(string& tgtName, string& tfName);
 		void initPhysicalDegree();
-		void getEnrichedTFs(map<string, int>& tfSet, map<string, int>* genes, map<string, map<string, double>*>& edgeSet);
+		void getEnrichedTFs(map<string, int>& tfSet, const unordered_set<string>& genes, map<string, map<string, double>*>& edgeSet);
 		void validateRestrictedList();
 
 		FactorGraph* factorGraph;
@@ -86,8 +86,7 @@ class MetaLearner
 		map<int, double> varNeighborhoodPrior;
 		double beta1;
 		double beta_motif;
-		map<int, map<string, int>*> moduleGeneSet;
-		unordered_map<string, int> geneModuleID;
+		ModuleManager moduleManager;
 		unordered_map<int, unordered_map<string, int>*> moduleIndegree;
 		unordered_map<string, int> regulatorModuleOutdegree;
 		double clusterThreshold;

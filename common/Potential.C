@@ -5,11 +5,10 @@
 
 #include "gsl/gsl_randist.h"
 
-Potential::Potential(int factorID, double variance, double bias, unordered_map<int, double>& weights)
+Potential::Potential(int factorID, double variance, unordered_map<int, double>& weights)
 {
 	this->factorID = factorID;
 	this->variance = variance;
-	this->bias = bias;
 
 	this->weights.reserve(weights.size());
 
@@ -44,13 +43,13 @@ Potential::getFactorID()
 }
 
 double
-Potential::getExpectation(vector<double>* evidenceSet)
+Potential::getExpectation(EvidenceSet* evidenceSet, int sampleIndex)
 {
-	double mean = 0;
+	double expectation = 0;
 	for(auto aIter = weights.begin(); aIter != weights.end(); aIter++)
 	{
-		double aval = (*evidenceSet)[aIter->first];
-		mean += aval * aIter->second;
+		double aval = evidenceSet->getEvidenceAt(aIter->first, sampleIndex);
+		expectation += aval * aIter->second;
 	}
-	return mean + bias;
+	return expectation;
 }

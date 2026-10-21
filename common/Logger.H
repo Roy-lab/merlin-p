@@ -8,6 +8,7 @@ using namespace std;
 class VariableSet;
 class EvidenceSet;
 class FactorGraph;
+class ModuleManager;
 
 class Logger
 {
@@ -15,6 +16,8 @@ class Logger
         void setOutDirName(const char* outDirName);
 
         void setVariableSet(VariableSet* varSet);
+
+        void logModules(int foldID, ModuleManager& moduleManager, FactorGraph* factorGraph);
 
         virtual int logValidationError(int foldID, FactorGraph* factorGraph) = 0;
 

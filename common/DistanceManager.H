@@ -23,13 +23,13 @@ class DistanceManager
 
         void clearIterationData();
 
-        void initDistances(EvidenceSet* trainSet, int varCount);
+        void initDistances(EvidenceSet* trainSet);
 
         void updateSharedParentDistances(FactorGraph* graph, int varCount);
 
         virtual void restoreCheckpointSharedParents(unordered_map<int, unordered_map<int, int>> edgeMap);
 
-        virtual void addSharedParents(unordered_map<int, unordered_map<int, int>> edgeMap, int parentID, int childID);
+        virtual void addSharedParents(unordered_map<int, unordered_map<int, int>>& edgeMap, int parentID, int childID);
 
         void addUpdatedThisIteration(int targetID);
 
