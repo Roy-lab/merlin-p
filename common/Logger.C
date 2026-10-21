@@ -56,7 +56,7 @@ Logger::logModules(int foldID, ModuleManager& moduleManager, FactorGraph *factor
     sprintf(foldoutDirName, "%s/fold%d", outDirName, foldID);
 
 	char moduleFName[1024];
-	sprintf(moduleFName, "%s/modules.tsv", foldoutDirName);
+	sprintf(moduleFName, "%s/modules.txt", foldoutDirName);
 
 	ofstream modFile(moduleFName);
 
