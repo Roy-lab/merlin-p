@@ -25,7 +25,7 @@ HierarchicalCluster::addNode(HierarchicalClusterNode* node)
 }
 
 void
-HierarchicalCluster::cluster(map<int,map<string,int>*>& modules, double threshold, Matrix* correlationDistances, Matrix* sharedParentDistances)
+HierarchicalCluster::cluster(map<int, unordered_set<string>>& modules, double threshold, Matrix* correlationDistances, Matrix* sharedParentDistances)
 {
 	//The total number of nodes that can be there in a hierarchical cluster is 2n-1
 	int treeNodeCnt = (nodeSet.size() * 2) - 1;
@@ -204,24 +204,22 @@ HierarchicalCluster::addMergeNode(HierarchicalClusterNode* node, unordered_map<i
 }
 
 void
-HierarchicalCluster::generateModules(unordered_map<int, HierarchicalClusterNode*>& unmergedNodes, map<int, map<string, int>*>& modules)
+HierarchicalCluster::generateModules(unordered_map<int, HierarchicalClusterNode*>& unmergedNodes, map<int, unordered_set<string>>& modules)
 {
 	int moduleCnt = modules.size();
 	for(auto cIter = unmergedNodes.begin(); cIter != unmergedNodes.end(); cIter++) {
 		HierarchicalClusterNode* node = cIter->second;
-		map<string,int>* moduleMembers = new map<string,int>;
-		modules[moduleCnt] = moduleMembers;
-		populateMembers(moduleMembers, node);
+		populateMembers(modules[moduleCnt], node);
 		moduleCnt += 1;
 	}
 	cout <<"   Number of non-singleton modules: " << moduleCnt << endl;
 }
 
 void
-HierarchicalCluster::populateMembers(map<string,int>* members, HierarchicalClusterNode* node)
+HierarchicalCluster::populateMembers(unordered_set<string>& members, HierarchicalClusterNode* node)
 {
 	if(node->left == NULL && node->right == NULL) {
-		(*members)[node->nodeName] = 0;
+		members.insert(node->nodeName);
 	} else {
 		if (node->left != NULL) {
 			populateMembers(members, node->left);

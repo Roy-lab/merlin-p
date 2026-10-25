@@ -32,7 +32,6 @@ class PotentialManager : public PotentialSource
 	private:
 		void computeSingleParentLLs(int factorID, int sampleSize, vector<int>&candidateParents, unordered_map<int, double>&scores);
 
-		vector<double> globalMeans;
 		Matrix *globalCovariances;
 		EvidenceSource *evidenceSource;
 };

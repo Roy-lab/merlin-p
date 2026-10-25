@@ -34,8 +34,9 @@ Framework::init(int argc, char** argv)
 	bool regDefault = true;
 	bool pDefault = true;
 	bool rDefault = true;
-	bool moduleDefault = true;
 	bool hDefault = true;
+
+	string moduleFileName;
 
 	int optret;
 	opterr=1;
@@ -57,12 +58,7 @@ Framework::init(int argc, char** argv)
 					return eCode;
 				}
 
-				eCode = evManager.loadEvidenceFromFile(optarg);
-				if(eCode != Error::SUCCESS)
-				{
-					cerr << Error::getErrorString(eCode) << endl;
-					return eCode;
-				}
+				evManager.setExpressionFile(optarg);
 				metaLearner.setEvidenceSource(&evManager);
 				metaLearner.setVariableSet(varSet);
 
@@ -123,8 +119,7 @@ Framework::init(int argc, char** argv)
 			}
 			case 'c':
 			{
-				moduleDefault=false;
-				metaLearner.readModuleMembership(optarg);
+				moduleFileName = optarg;
 				break;
 			}
 			case 'h':
@@ -173,12 +168,14 @@ Framework::init(int argc, char** argv)
 		return Error::UNKNOWN;
 	}
 
-	// Apply defaults for unset options
-	if(moduleDefault)
-	{
+	if (moduleFileName.empty()) {
 		cout << "Setting to default clustering" << endl;
 		metaLearner.setDefaultModuleMembership();
+	} else {
+		metaLearner.readModuleMembership(moduleFileName.c_str());
 	}
+
+	// Apply defaults for unset options
 	if(cvDefault)
 	{
 		cvCnt=1;

@@ -6,6 +6,7 @@
 #include <vector>
 #include <queue>
 #include <unordered_map>
+#include <unordered_set>
 
 using namespace std;
 
@@ -19,7 +20,7 @@ class HierarchicalCluster
 
 		void addNode(HierarchicalClusterNode* node);
 
-		void cluster(map<int, map<string, int>*>& modules, double threshold, Matrix* correlationDistances, Matrix* sharedParentDistances);
+		void cluster(map<int, unordered_set<string>>& modules, double threshold, Matrix* correlationDistances, Matrix* sharedParentDistances);
 
 	private:
 		struct Pair
@@ -43,8 +44,8 @@ class HierarchicalCluster
 
 		static HierarchicalClusterNode* createMergeNode(Pair& pair, unordered_map<int,HierarchicalClusterNode*>& unmergedNodes, int nextNodeID);
 		static bool getNextPair(priority_queue<Pair, vector<Pair>, ComparePair>& pairQueue, Pair& nextPair);
-		static void generateModules(unordered_map<int, HierarchicalClusterNode*>& unmergedNodes, map<int, map<string, int>*>& modules);
-		static void populateMembers(map<string, int>* members, HierarchicalClusterNode* node);
+		static void generateModules(unordered_map<int, HierarchicalClusterNode*>& unmergedNodes, map<int, unordered_set<string>>& modules);
+		static void populateMembers(unordered_set<string>& members, HierarchicalClusterNode* node);
 
 		double** distValues;
 		map<string, HierarchicalClusterNode*> nodeSet;

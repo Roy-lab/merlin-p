@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cstring>
 #include <math.h>
+#include <algorithm>
 #include "Error.H"
 #include "EvidenceManager.H"
 #include "EvidenceSet.H"
@@ -22,63 +23,10 @@ EvidenceManager::~EvidenceManager()
 	}
 }
 
-Error::ErrorCode
-EvidenceManager::loadEvidenceFromFile(const char* inFName)
+void
+EvidenceManager::setExpressionFile(const char* inFName)
 {
-	ifstream inFile(inFName);
-	char* buffer = NULL;
-	string buffstr;
-	int bufflen = 0;
-
-	// skip the first line (gene headers)
-	if (inFile.good())
-	{
-		getline(inFile, buffstr);
-	}
-
-	while (inFile.good())
-	{
-		getline(inFile, buffstr);
-
-		if (buffstr.length() <= 0)
-		{
-			continue;
-		}
-
-		if (bufflen <= buffstr.length())
-		{
-			if (buffer != NULL)
-			{
-				delete[] buffer;
-			}
-			bufflen = buffstr.length() + 1;
-			buffer = new char[bufflen];
-		}
-		strcpy(buffer, buffstr.c_str());
-
-		vector<double>* evidMap = new vector<double>;
-		char* tok = strtok(buffer, "\t");
-
-		while (tok != NULL)
-		{
-			double varVal = atof(tok);
-			if (isinf(varVal) || isnan(varVal))
-			{
-				cerr << "Please remove NaNs from the expression data or check the data format. Not a valid number: " << tok << endl;
-				exit(-1);
-			}
-
-			evidMap->push_back(varVal);
-			tok = strtok(NULL, "\t");
-		}
-		evidenceSet.push_back(evidMap);
-	}
-
-	inFile.close();
-
-	cout << "Number of samples read: " << evidenceSet.size() << endl;
-
-	return Error::SUCCESS;
+	expressionFile = inFName;
 }
 
 void
@@ -91,8 +39,137 @@ EvidenceManager::setupForFold(int foldIndex, int foldCount)
 		delete testSet;
 	}
 
-	trainingSet = createSet(foldIndex, foldCount, SetType::TrainingSet);
-	testSet = createSet(foldIndex, foldCount, SetType::TestSet);
+	loadData(foldIndex, foldCount);
+
+	centerData(trainData, trainSampleCount);
+	centerData(testData, testSampleCount);
+
+	trainingSet = new EvidenceSet(trainData, trainSampleCount);
+	testSet = new EvidenceSet(testData, testSampleCount);
+}
+
+void
+EvidenceManager::loadData(int foldIndex, int foldCount)
+{
+	// Clear the previously loaded data
+	testData.clear();
+	trainData.clear();
+
+	ifstream inFile(expressionFile);
+	string line;
+
+	// The first line should contain gene headers
+	getline(inFile, line);
+
+	size_t varCount = std::count(line.begin(), line.end(), '\t') + 1;
+
+	// Scan the file once just to count the samples, so that we can prepare properly sized vectors
+	size_t sampleCount = 0;
+	while (getline(inFile, line)) {
+		if (line.empty()) {
+			continue;
+		}
+		sampleCount += 1;
+	}
+
+	cout << "Number of samples read: " << sampleCount << endl;
+
+	// Seek back to the start and skip the header again
+	inFile.clear();
+	inFile.seekg(0);
+	getline(inFile, line);
+
+	// Determine the range of the test set samples
+	int testStart;
+	int testEnd;
+	if (foldCount == 1) {
+		testStart = -1;
+		testEnd = -1;
+	} else {
+		int foldSize = sampleCount / foldCount;
+		testStart = foldIndex * foldSize;
+		if (foldIndex == foldCount - 1) {
+			testEnd = sampleCount;
+		} else {
+			testEnd = (foldIndex + 1) * foldSize;
+		}
+	}
+
+	testSampleCount = testEnd - testStart;
+	trainSampleCount = sampleCount - testSampleCount;
+
+	trainData.resize(varCount * trainSampleCount);
+	testData.resize(varCount * testSampleCount);
+
+	int sampleIndex = 0;
+	int trainSampleIndex = 0;
+	int testSampleIndex = 0;
+
+	while (getline(inFile, line)) {
+		if (line.empty()) {
+			continue;
+		}
+
+		bool isTestIndex = sampleIndex >= testStart && sampleIndex < testEnd;
+
+		int varIndex = 0;
+
+		size_t start = 0;
+		while (start < line.size()) {
+			size_t end = line.find('\t', start);
+			string token = line.substr(start, end - start);
+			double varVal = stod(token);
+
+			if (isinf(varVal) || isnan(varVal)) {
+				cerr << "Please remove NaNs from the expression data or check the data format. Not a valid number: " << token << endl;
+				exit(-1);
+			}
+
+			if (isTestIndex) {
+				testData[varIndex * testSampleCount + testSampleIndex] = varVal;
+			} else {
+				trainData[varIndex * trainSampleCount + trainSampleIndex] = varVal;
+			}
+
+			if (end == string::npos) {
+				break;
+			}
+
+			start = end + 1;
+			varIndex += 1;
+		}
+
+		sampleIndex += 1;
+
+		if (isTestIndex) {
+			testSampleIndex += 1;
+		} else {
+			trainSampleIndex += 1;
+		}
+	}
+
+	inFile.close();
+}
+
+void
+EvidenceManager::centerData(vector<double>& data, size_t sampleCount)
+{
+	if (sampleCount == 0) {
+		return;
+	}
+
+	size_t varCount = data.size() / sampleCount;
+
+	for (size_t i = 0; i < varCount; i++) {
+		double sampleSum = 0;
+		for(int j = 0; j < sampleCount; j++) {
+			sampleSum += data[i * sampleCount + j];
+		}
+		double mean = sampleSum / sampleCount;
+		for (size_t j = 0; j < sampleCount; j++) {
+			data[i * sampleCount + j] -= mean;
+		}
+	}
 }
 
 EvidenceSet*
@@ -103,41 +180,4 @@ EvidenceManager::getEvidenceSet(SetType type)
 	} else {
 		return testSet;
 	}
-}
-
-EvidenceSet*
-EvidenceManager::createSet(int foldIndex, int foldCount, SetType type)
-{
-	bool isTestSet = type == SetType::TestSet;
-
-	int testSetSize = evidenceSet.size() / foldCount;
-
-	int testStartIndex = foldIndex * testSetSize;
-	int testEndIndex = (foldIndex + 1) * testSetSize;
-
-	if (foldIndex == foldCount - 1)
-	{
-		testEndIndex = evidenceSet.size();
-	}
-
-	if (foldCount == 1)
-	{
-		testStartIndex = -1;
-		testEndIndex = -1;
-	}
-
-	vector<int> indices;
-
-	for (int i = 0; i < evidenceSet.size(); i++)
-	{
-		bool isTestIndex = i >= testStartIndex && i < testEndIndex;
-
-		if (isTestIndex == isTestSet)
-		{
-			indices.push_back(i);
-		}
-	}
-
-	EvidenceSet* subset = new EvidenceSet(evidenceSet, indices);
-	return subset;
 }

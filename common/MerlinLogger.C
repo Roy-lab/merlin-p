@@ -36,7 +36,7 @@ int
 MerlinLogger::logValidationError(int foldID, FactorGraph* factorGraph)
 {
     EvidenceSet* testSet = evidenceSource->getEvidenceSet(EvidenceSource::SetType::TestSet);
-    if (testSet->getSize() == 0) {
+    if (testSet->getSampleCount() == 0) {
         return 0;
     }
 
@@ -60,7 +60,7 @@ MerlinLogger::logValidationError(int foldID, FactorGraph* factorGraph)
 
     // Log-likelihood
     vector<double> varPLL(varSet.size(), 0);
-    for (int sampleIndex = 0; sampleIndex < testSet->getSize(); sampleIndex++)
+    for (int sampleIndex = 0; sampleIndex < testSet->getSampleCount(); sampleIndex++)
     {
         for (int varID = 0; varID < varSet.size(); varID++)
         {
@@ -88,12 +88,10 @@ MerlinLogger::logValidationError(int foldID, FactorGraph* factorGraph)
 		Potential* sPot = sFactor->potFunc;
 
 		// Collect true values and predicted values for the held-out cells.
-        for (int sampleIndex = 0; sampleIndex < testSet->getSize(); sampleIndex++)
+        for (int sampleIndex = 0; sampleIndex < testSet->getSampleCount(); sampleIndex++)
         {
-            vector<double>* evidence = testSet->getEvidenceAt(sampleIndex);
-            double predVal = sPot->getExpectation(evidence);
-            predvect.push_back(predVal);
-            truevect.push_back((*evidence)[varID]);
+            predvect.push_back(sPot->getExpectation(testSet, sampleIndex));
+            truevect.push_back(testSet->getEvidenceAt(varID, sampleIndex));
         }
 
         PredictionMetrics met = computePredictionMetrics(truevect, predvect);
