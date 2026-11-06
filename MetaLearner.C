@@ -467,16 +467,17 @@ MetaLearner::start(int currFold)
 		cout << "   Skipped target count: " << skippedVarCount << endl;
 		cout << "   No move found count: " << noMoveCount << endl;
 
-		notConverged = (currGlobalScore - scorePremodule) > convThreshold;
+		double scoreImprovement = currGlobalScore - scorePremodule;
+		notConverged = scoreImprovement > convThreshold;
 
 		if(notConverged) {
-			cout << "   Network not converged; score improvement of " << (currGlobalScore - scorePremodule) << ". Redefining modules." << endl;
+			cout << "   Network not converged; score improvement of " << scoreImprovement << ". Redefining modules." << endl;
 			redefineModules(currFold);
 		}
 
 		scorePremodule = currGlobalScore;
 
-		writeFoldProgress(currFold, iter, notConverged, checkpoint);
+		writeFoldProgress(currFold, iter, currGlobalScore, scoreImprovement, skippedVarCount, notConverged, checkpoint);
 
 		iter++;
 		distanceManager->clearIterationData();
@@ -487,11 +488,12 @@ MetaLearner::start(int currFold)
 }
 
 void
-MetaLearner::writeFoldProgress(int currFold, int iter, bool notConverged, Checkpoint& checkpoint)
+MetaLearner::writeFoldProgress(int currFold, int iter, double currGlobalScore, double scoreImprovement, int skippedVarCount, bool notConverged, Checkpoint& checkpoint)
 {
 	vector<Variable*>& varSet = variableSet->getVariables();
 	logger->logVariableMarkovBlankets(currFold, maxFactorSize, factorGraph);
 	logger->logModules(currFold, moduleManager, factorGraph);
+	logger->logIteration(iter, currGlobalScore, scoreImprovement, skippedVarCount, getNumOutputModules(), notConverged);
 	checkpoint.writeCheckpointMetadata(iter, notConverged);
 	checkpoint.writePLLScore(currPLL, varSet);
 	checkpoint.writeLastUpdate(variableStatus);
@@ -1163,4 +1165,30 @@ MetaLearner::redefineModules(int currFold)
 	}
 	genesWithNoNeighbors.clear();
 	cout << "   Finished redefining modules; " << moduleManager.moduleCount() << " total modules" << endl;
+}
+
+int
+MetaLearner::getNumOutputModules()
+{
+	int numModules = 0;
+
+	for (auto mIter = moduleManager.begin(); mIter != moduleManager.end(); mIter++) {
+
+		bool hasParent = false;
+		const unordered_set<string>& moduleGenes = mIter->second;
+
+		for (const string& geneName : moduleGenes) {
+			int geneID = variableSet->getVarID(geneName);
+			if (geneID != -1 && factorGraph->getFactorAt(geneID)->mergedMB.size() > 0) {
+				hasParent = true;
+				break;
+			}
+		}
+
+		if (hasParent) {
+			numModules++;
+		}
+	}
+
+	return numModules;
 }
