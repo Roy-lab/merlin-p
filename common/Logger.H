@@ -23,6 +23,8 @@ class Logger
 
         virtual void logVariableMarkovBlankets(int foldID, int maxFactorSize, FactorGraph* factorGraph) = 0;
 
+        virtual void logIteration(int iter, double score, double scoreImprovement, int skippedTargets, int outputModuleCount, bool notConverged);
+
     protected:
 
         struct PredictionMetrics {

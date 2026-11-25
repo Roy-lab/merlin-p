@@ -48,7 +48,8 @@ class MetaLearner
 		void setupFoldState(Checkpoint& checkpoint, int& iter, bool& notConverged, double& globalScore);
 		void setupFoldState(double& globalScore);
 		void restoreCheckpointGraph(const vector<pair<string, string>>& checkpointEdges);
-		void writeFoldProgress(int currFold, int iter, bool notConverged, Checkpoint& checkpoint);
+		void writeFoldProgress(int currFold, int iter, double currGlobalScore, double scoreImprovement, int skippedVarCount, bool notConverged, Checkpoint& checkpoint);
+		int getNumOutputModules();
 		void initEdgePriorMeta_All();
 		double getInitPLLScore(int vId);
 		double getPLLScore();

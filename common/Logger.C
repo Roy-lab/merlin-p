@@ -81,3 +81,9 @@ Logger::logModules(int foldID, ModuleManager& moduleManager, FactorGraph *factor
 		}
 	}
 }
+
+void
+Logger::logIteration(int iter, double score, double scoreImprovement, int skippedTargets, int outputModuleCount, bool notConverged)
+{
+    // no-op This virtual function exists to allow subclasses a hook for further logging.
+}
